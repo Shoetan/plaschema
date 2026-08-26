@@ -1,0 +1,6 @@
+dist
+coverage
+src/generated
+.env
+.env.*
+!.env.example

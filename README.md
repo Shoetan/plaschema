@@ -4,23 +4,51 @@ pnpm monorepo containing the frontend and backend applications.
 
 ## Requirements
 
-- Node.js 20.19+ or 22.12+
+- Node.js 20.19+, 22.12+, or 24+
 - pnpm 10
+- Docker (optional, for local Postgres/Redis used by the backend)
 
 ## Getting started
 
 ```bash
 pnpm install
 cp frontend/.env.example frontend/.env
-pnpm dev
+cp backend/.env.example backend/.env
 ```
 
-Root commands target the frontend until a backend stack is selected:
+### Full local stack (recommended)
+
+Starts Postgres + Redis, then runs frontend and backend in watch mode:
 
 ```bash
 pnpm dev
-pnpm build
-pnpm lint
+# alias:
+pnpm dev:all
 ```
 
-See [`docs/feature-folder-structure.md`](docs/feature-folder-structure.md) before adding product features.
+- Frontend: `http://localhost:5173`
+- API: `http://localhost:3000/api`
+- Liveness: `http://localhost:3000/health/live`
+- Readiness: `http://localhost:3000/health/ready`
+- Swagger: `http://localhost:3000/api/docs`
+
+### Individual apps
+
+```bash
+pnpm dev:frontend          # Vite only
+pnpm dev:backend           # Docker infra + Nest watch
+pnpm infra:up              # Postgres + Redis only
+pnpm infra:down            # stop infra
+```
+
+### Common scripts
+
+```bash
+pnpm build
+pnpm lint
+pnpm test:backend
+pnpm typecheck:backend
+```
+
+See [`docs/feature-folder-structure.md`](docs/feature-folder-structure.md) before adding frontend product features.
+See [`backend/README.md`](backend/README.md) for Clean Architecture backend conventions.
