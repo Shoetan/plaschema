@@ -17,6 +17,12 @@
     "lint:backend": "pnpm --filter backend lint",
     "preview": "pnpm --filter frontend preview",
     "test:backend": "pnpm --filter backend test",
-    "typecheck:backend": "pnpm --filter backend typecheck"
+    "typecheck:backend": "pnpm --filter backend typecheck",
+    "prisma:generate": "pnpm --filter backend prisma:generate",
+    "prisma:validate": "pnpm --filter backend prisma:validate",
+    "prisma:migrate:dev": "pnpm --filter backend prisma:migrate:dev",
+    "prisma:migrate:deploy": "pnpm --filter backend prisma:migrate:deploy",
+    "prisma:seed": "pnpm --filter backend prisma:seed",
+    "prisma:studio": "pnpm --filter backend prisma:studio"
   }
 }

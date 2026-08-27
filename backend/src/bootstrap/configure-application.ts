@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppConfigService } from '../platform/config/app-config.service';
 import { AllExceptionsFilter } from '../platform/http/all-exceptions.filter';
+import { ResponseInterceptor } from '../platform/http/response.interceptor';
 import { configureSwagger } from './configure-swagger';
 
 export async function configureApplication(
@@ -33,6 +34,7 @@ export async function configureApplication(
   );
 
   app.useGlobalFilters(new AllExceptionsFilter(config));
+  app.useGlobalInterceptors(new ResponseInterceptor());
   configureSwagger(app);
 }
 

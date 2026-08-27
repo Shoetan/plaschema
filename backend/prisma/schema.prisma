@@ -7,3 +7,191 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum UserRole {
+  admin
+  field_worker
+}
+
+enum UserStatus {
+  active
+  inactive
+}
+
+enum EnrollmentTitle {
+  mr
+  mrs
+  miss
+  ms
+  dr
+  chief
+  rev
+  alhaji
+  hajia
+  other
+}
+
+enum EnrollmentGender {
+  male
+  female
+}
+
+enum MaritalStatus {
+  single
+  married
+  divorced
+  widowed
+  separated
+}
+
+enum BloodGroup {
+  a_pos
+  a_neg
+  b_pos
+  b_neg
+  ab_pos
+  ab_neg
+  o_pos
+  o_neg
+  unknown
+}
+
+enum Genotype {
+  aa
+  as
+  ss
+  ac
+  sc
+  unknown
+}
+
+enum IdDocumentType {
+  nin
+  national_id
+  voters_card
+  drivers_license
+  international_passport
+  other
+}
+
+enum NextOfKinRelationship {
+  spouse
+  parent
+  sibling
+  child
+  relative
+  friend
+  other
+}
+
+model Ward {
+  id        String   @id @db.Uuid
+  name      String   @unique
+  lga       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments      UserWardAssignment[]
+  healthFacilities HealthFacility[]
+  enrollments      Enrollment[]
+}
+
+model User {
+  id           String     @id @db.Uuid
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         UserRole
+  status       UserStatus @default(active)
+  phone        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  assignedWards UserWardAssignment[]
+  enrollments   Enrollment[]         @relation("EnrollmentEnrolledBy")
+}
+
+model UserWardAssignment {
+  userId    String   @db.Uuid
+  wardId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ward Ward @relation(fields: [wardId], references: [id], onDelete: Restrict)
+
+  @@id([userId, wardId])
+  @@index([wardId])
+}
+
+model HealthFacility {
+  id        String   @id @db.Uuid
+  name      String
+  lga       String
+  wardId    String   @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ward        Ward         @relation(fields: [wardId], references: [id], onDelete: Restrict)
+  enrollments Enrollment[]
+
+  @@unique([name, wardId])
+  @@index([wardId])
+  @@index([lga])
+}
+
+model Enrollment {
+  id String @id @db.Uuid
+
+  /// Client-generated idempotency key for offline-first sync retries.
+  idempotencyId String @unique @db.Uuid
+
+  /// When the enrollment was captured on-device (may precede server createdAt).
+  capturedAt DateTime?
+
+  enrolledByUserId String @db.Uuid
+  wardId           String @db.Uuid
+  healthFacilityId String @db.Uuid
+
+  passportObjectKey   String
+  idDocumentObjectKey String
+
+  title      EnrollmentTitle
+  gender     EnrollmentGender
+  firstName  String
+  lastName   String
+  middleName String?
+
+  /// Lowercased collapsed names used for duplicate detection with dateOfBirth.
+  firstNameNormalized String
+  lastNameNormalized  String
+
+  dateOfBirth   DateTime @db.Date
+  phone         String
+  email         String?
+  nin           String?
+  maritalStatus MaritalStatus
+  bloodGroup    BloodGroup?
+  genotype      Genotype?
+  idType        IdDocumentType
+
+  nextOfKinFullName      String
+  emergencyPhone         String
+  nextOfKinRelationship  NextOfKinRelationship?
+
+  stateOfResidence  String @default("Plateau")
+  lgaOfResidence    String
+  residentialAddress String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrolledBy     User           @relation("EnrollmentEnrolledBy", fields: [enrolledByUserId], references: [id], onDelete: Restrict)
+  ward           Ward           @relation(fields: [wardId], references: [id], onDelete: Restrict)
+  healthFacility HealthFacility @relation(fields: [healthFacilityId], references: [id], onDelete: Restrict)
+
+  @@unique([firstNameNormalized, lastNameNormalized, dateOfBirth], map: "enrollment_identity_key")
+  @@index([wardId])
+  @@index([healthFacilityId])
+  @@index([enrolledByUserId])
+  @@index([createdAt])
+}

@@ -19,6 +19,8 @@ describe('Health endpoints (e2e)', () => {
     process.env.LOG_LEVEL ??= 'silent';
     process.env.CORS_ORIGIN ??= 'http://localhost:5173';
     process.env.SWAGGER_ENABLED ??= 'false';
+    process.env.JWT_SECRET ??= 'test-jwt-secret-16chars';
+    process.env.JWT_EXPIRES_IN ??= '8h';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
