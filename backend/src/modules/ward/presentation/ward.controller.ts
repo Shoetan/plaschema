@@ -1,0 +1,181 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Header,
+  Param,
+  Patch,
+  Post,
+  Query,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { Readable } from 'node:stream';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiProduces,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
+import { Roles } from '../../../platform/auth/roles.decorator';
+import { BatchUploadResultDto } from '../../../platform/http/batch-upload.dto';
+import { assertSupportedBatchUpload } from '../../../platform/http/csv';
+import { CursorPaginationMetaDto } from '../../../platform/http/cursor-pagination.dto';
+import { UuidV7Pipe } from '../../../platform/http/uuid-v7.pipe';
+import { BatchCreateWardsUseCase } from '../application/batch-create-wards.use-case';
+import { CreateWardUseCase } from '../application/create-ward.use-case';
+import { DeleteWardUseCase } from '../application/delete-ward.use-case';
+import { GetWardUseCase } from '../application/get-ward.use-case';
+import { ListWardsUseCase } from '../application/list-wards.use-case';
+import { StreamWardsUseCase } from '../application/stream-wards.use-case';
+import { UpdateWardUseCase } from '../application/update-ward.use-case';
+import {
+  CreateWardDto,
+  ListWardsQueryDto,
+  StreamWardsQueryDto,
+  UpdateWardDto,
+  WardResponseDto,
+} from './ward.dto';
+
+@ApiTags('wards')
+@ApiBearerAuth('bearer')
+@Controller('wards')
+export class WardController {
+  constructor(
+    private readonly createWard: CreateWardUseCase,
+    private readonly batchCreateWards: BatchCreateWardsUseCase,
+    private readonly listWards: ListWardsUseCase,
+    private readonly streamWards: StreamWardsUseCase,
+    private readonly getWard: GetWardUseCase,
+    private readonly updateWard: UpdateWardUseCase,
+    private readonly deleteWard: DeleteWardUseCase,
+  ) {}
+
+  @Post()
+  @Roles('admin')
+  @ApiOperation({ summary: 'Create a ward' })
+  @ApiCreatedResponse({ type: WardResponseDto })
+  create(@Body() body: CreateWardDto) {
+    return this.createWard.execute(body);
+  }
+
+  @Post('batch')
+  @Roles('admin')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 2 * 1024 * 1024 },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'CSV or Excel (.xlsx/.xls) with columns: name,lga',
+        },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Batch create wards from CSV or Excel' })
+  @ApiOkResponse({ type: BatchUploadResultDto })
+  batchCreate(@UploadedFile() file?: Express.Multer.File) {
+    const upload = assertSupportedBatchUpload(file);
+    return this.batchCreateWards.execute(upload.buffer, upload.originalname);
+  }
+
+  @Get()
+  @Roles('admin', 'field_worker')
+  @ApiOperation({ summary: 'List wards (cursor pagination)' })
+  @ApiQuery({
+    name: 'cursor',
+    required: false,
+    type: String,
+    description: 'Opaque cursor from meta.nextCursor',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    example: 50,
+    description: 'Page size (1-100)',
+  })
+  @ApiOkResponse({ type: WardResponseDto, isArray: true })
+  async list(@Query() query: ListWardsQueryDto) {
+    const result = await this.listWards.execute(query);
+    return {
+      data: result.items,
+      meta: {
+        nextCursor: result.nextCursor,
+        hasMore: result.hasMore,
+        limit: result.limit,
+      } satisfies CursorPaginationMetaDto,
+    };
+  }
+
+  @Get('stream')
+  @Roles('admin', 'field_worker')
+  @Header('Content-Type', 'application/x-ndjson; charset=utf-8')
+  @Header('Cache-Control', 'no-store')
+  @ApiProduces('application/x-ndjson')
+  @ApiOperation({
+    summary:
+      'Stream all wards as NDJSON for offline/mobile cache sync (one JSON object per line)',
+  })
+  stream(@Query() query: StreamWardsQueryDto): StreamableFile {
+    const batches = this.streamWards.execute(query);
+    const readable = Readable.from(iterateNdjson(batches));
+    return new StreamableFile(readable, {
+      type: 'application/x-ndjson; charset=utf-8',
+      disposition: 'inline',
+    });
+  }
+
+  @Get(':id')
+  @Roles('admin', 'field_worker')
+  @ApiOperation({ summary: 'Get a ward by id' })
+  @ApiOkResponse({ type: WardResponseDto })
+  get(@Param('id', UuidV7Pipe) id: string) {
+    return this.getWard.execute(id);
+  }
+
+  @Patch(':id')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Update a ward' })
+  @ApiOkResponse({ type: WardResponseDto })
+  update(@Param('id', UuidV7Pipe) id: string, @Body() body: UpdateWardDto) {
+    return this.updateWard.execute(id, body);
+  }
+
+  @Delete(':id')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Delete a ward' })
+  @ApiOkResponse({ description: 'Ward deleted' })
+  async remove(@Param('id', UuidV7Pipe) id: string) {
+    await this.deleteWard.execute(id);
+    return { id, deleted: true };
+  }
+}
+
+async function* iterateNdjson(
+  batches: AsyncGenerator<object[], void, unknown>,
+): AsyncGenerator<Buffer, void, unknown> {
+  for await (const batch of batches) {
+    for (const item of batch) {
+      yield Buffer.from(`${JSON.stringify(item)}\n`, 'utf8');
+    }
+  }
+}

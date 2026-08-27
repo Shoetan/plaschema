@@ -41,4 +41,16 @@ export class AppConfigService {
   get swaggerEnabled(): boolean {
     return this.configService.get('SWAGGER_ENABLED', { infer: true });
   }
+
+  get jwtSecret(): string {
+    return this.configService.get('JWT_SECRET', { infer: true });
+  }
+
+  get jwtExpiresIn(): string {
+    return this.configService.get('JWT_EXPIRES_IN', { infer: true });
+  }
+
+  get localUploadDir(): string {
+    return this.configService.get('LOCAL_UPLOAD_DIR', { infer: true });
+  }
 }

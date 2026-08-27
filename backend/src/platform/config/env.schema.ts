@@ -15,6 +15,12 @@ export const envSchema = z.object({
     .union([z.boolean(), z.enum(['true', 'false'])])
     .default(true)
     .transform((value) => value === true || value === 'true'),
+  JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters'),
+  JWT_EXPIRES_IN: z.string().default('8h'),
+  SEED_ADMIN_EMAIL: z.string().email().optional(),
+  SEED_ADMIN_PASSWORD: z.string().min(8).optional(),
+  SEED_ADMIN_NAME: z.string().min(1).optional(),
+  LOCAL_UPLOAD_DIR: z.string().min(1).default('./uploads'),
 });
 
 export type Env = z.infer<typeof envSchema>;

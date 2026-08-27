@@ -16,6 +16,6 @@ export async function startApplication(
       env: config.nodeEnv,
       swaggerEnabled: config.swaggerEnabled,
     },
-    'Plaschema Application started',
+    'CBHI Application started',
   );
 }

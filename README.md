@@ -28,9 +28,12 @@ pnpm dev:all
 
 - Frontend: `http://localhost:5173`
 - API: `http://localhost:3000/api`
+- Login: `POST http://localhost:3000/api/auth/login`
 - Liveness: `http://localhost:3000/health/live`
 - Readiness: `http://localhost:3000/health/ready`
 - Swagger: `http://localhost:3000/api/docs`
+
+Seeded admin (see `backend/.env.example`): `admin@cbhi.local` / `ChangeMe123!`
 
 ### Individual apps
 

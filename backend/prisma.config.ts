@@ -5,9 +5,9 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
+    seed: 'tsx prisma/seed.ts',
   },
   datasource: {
-    // Dummy URL allows `prisma generate` without a live database.
     url:
       process.env.DATABASE_URL ??
       'postgresql://plaschema:plaschema@localhost:5432/plaschema',

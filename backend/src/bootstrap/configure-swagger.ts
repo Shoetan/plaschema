@@ -43,7 +43,7 @@ const SWAGGER_CUSTOM_CSS = `
 
   .swagger-ui .topbar-wrapper::before {
     color: #f8fafc !important;
-    content: "Plaschema API Docs";
+    content: "CBHI API Docs";
     font-size: 18px;
     font-weight: 700;
     letter-spacing: 0;
@@ -281,7 +281,7 @@ export function setupSwaggerDocs(app: INestApplication): void {
     () => createOpenApiDocument(app),
     {
       customCss: SWAGGER_CUSTOM_CSS,
-      customSiteTitle: 'Plaschema API Docs',
+      customSiteTitle: 'CBHI API Docs',
       jsonDocumentUrl: `${SWAGGER_DOCS_PATH}/openapi.json`,
       raw: ['json', 'yaml'],
       swaggerOptions: {
@@ -292,6 +292,8 @@ export function setupSwaggerDocs(app: INestApplication): void {
         persistAuthorization: true,
         tagsSorter: 'alpha',
         tryItOutEnabled: true,
+        // Avoid Swagger UI freezing on large JSON responses.
+        syntaxHighlight: false,
       },
       useGlobalPrefix: false,
       yamlDocumentUrl: `${SWAGGER_DOCS_PATH}/openapi.yaml`,
@@ -305,8 +307,19 @@ export function createOpenApiDocument(app: INestApplication): OpenAPIObject {
 
 function openApiConfig() {
   return new DocumentBuilder()
-    .setTitle('Plaschema Backend API')
-    .setDescription('Plaschema backend API contracts.')
-    .setVersion('0.0.0')
+    .setTitle('CBHI Backend API')
+    .setDescription(
+      'Community-Based Health Insurance (CBHI) backend API contracts.',
+    )
+    .setVersion('0.1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'JWT access token from POST /api/auth/login',
+      },
+      'bearer',
+    )
     .build();
 }
