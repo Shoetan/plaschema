@@ -1,5 +1,6 @@
-import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
+import { ActivityLogModule } from '../activity-log/activity-log.module';
 import { HealthFacilityModule } from '../health-facility/health-facility.module';
 import { IdentityModule } from '../identity/identity.module';
 import { WardModule } from '../ward/ward.module';
@@ -27,6 +28,7 @@ import { EnrollmentController } from './presentation/enrollment.controller';
 
 @Module({
   imports: [
+    ActivityLogModule,
     IdentityModule,
     WardModule,
     HealthFacilityModule,

@@ -4,6 +4,7 @@ import type {
 } from '../../../platform/http/cursor-pagination';
 import type {
   HealthFacility,
+  HealthFacilityDetailAggregates,
   HealthFacilityLevel,
   HealthFacilityListItem,
   HealthFacilityStatus,
@@ -61,4 +62,7 @@ export interface HealthFacilityRepository {
   ): AsyncGenerator<HealthFacility[], void, unknown>;
   update(id: string, input: UpdateHealthFacilityInput): Promise<HealthFacility>;
   delete(id: string): Promise<void>;
+  findDetailAggregates(
+    id: string,
+  ): Promise<HealthFacilityDetailAggregates | null>;
 }

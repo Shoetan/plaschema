@@ -23,12 +23,14 @@ import { Roles } from '../../../platform/auth/roles.decorator';
 import { CursorPaginationMetaDto } from '../../../platform/http/cursor-pagination.dto';
 import { UuidV7Pipe } from '../../../platform/http/uuid-v7.pipe';
 import { CreateUserUseCase } from '../application/create-user.use-case';
+import { GetFieldWorkerDetailUseCase } from '../application/get-field-worker-detail.use-case';
 import { GetUserUseCase } from '../application/get-user.use-case';
 import { ListUsersUseCase } from '../application/list-users.use-case';
 import { ResetPasswordUseCase } from '../application/reset-password.use-case';
 import { UpdateUserUseCase } from '../application/update-user.use-case';
 import {
   CreateUserDto,
+  FieldWorkerDetailResponseDto,
   FieldWorkerListItemDto,
   ListUsersQueryDto,
   ResetPasswordDto,
@@ -46,6 +48,7 @@ export class UsersController {
     private readonly createUser: CreateUserUseCase,
     private readonly listUsers: ListUsersUseCase,
     private readonly getUser: GetUserUseCase,
+    private readonly getFieldWorkerDetail: GetFieldWorkerDetailUseCase,
     private readonly updateUser: UpdateUserUseCase,
     private readonly resetPassword: ResetPasswordUseCase,
   ) {}
@@ -117,6 +120,15 @@ export class UsersController {
         limit: result.limit,
       } satisfies CursorPaginationMetaDto,
     };
+  }
+
+  @Get(':id/detail')
+  @ApiOperation({
+    summary: 'Get field worker detail (admin overview, wards, activity log)',
+  })
+  @ApiOkResponse({ type: FieldWorkerDetailResponseDto })
+  detail(@Param('id', UuidV7Pipe) id: string) {
+    return this.getFieldWorkerDetail.execute(id);
   }
 
   @Get(':id')

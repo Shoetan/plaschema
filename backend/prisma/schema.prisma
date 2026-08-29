@@ -107,6 +107,21 @@ enum HealthFacilityLevel {
   tertiary
 }
 
+enum ActivityCategory {
+  enrollment
+  ward
+  user
+  sync
+}
+
+enum ActivityAction {
+  created
+  updated
+  status_changed
+  printed
+  assigned
+}
+
 model Ward {
   id        String     @id @db.Uuid
   name      String     @unique
@@ -118,6 +133,7 @@ model Ward {
   assignments      UserWardAssignment[]
   healthFacilities HealthFacility[]
   enrollments      Enrollment[]
+  activityLogs     ActivityLog[]
 
   @@index([status])
   @@index([lga])
@@ -138,6 +154,7 @@ model User {
 
   assignedWards UserWardAssignment[]
   enrollments   Enrollment[]         @relation("EnrollmentEnrolledBy")
+  activityLogs  ActivityLog[]        @relation("ActivityLogActor")
 }
 
 model UserWardAssignment {
@@ -242,6 +259,7 @@ model Enrollment {
   enrolledBy     User           @relation("EnrollmentEnrolledBy", fields: [enrolledByUserId], references: [id], onDelete: Restrict)
   ward           Ward           @relation(fields: [wardId], references: [id], onDelete: Restrict)
   healthFacility HealthFacility @relation(fields: [healthFacilityId], references: [id], onDelete: Restrict)
+  activityLogs   ActivityLog[]
 
   @@unique([firstNameNormalized, lastNameNormalized, dateOfBirth], map: "enrollment_identity_key")
   @@index([wardId])
@@ -251,4 +269,24 @@ model Enrollment {
   @@index([status])
   @@index([category])
   @@index([printedAt])
+}
+
+model ActivityLog {
+  id           String           @id @db.Uuid
+  category     ActivityCategory
+  action       ActivityAction
+  summary      String
+  wardId       String           @db.Uuid
+  actorUserId  String?          @db.Uuid
+  enrollmentId String?          @db.Uuid
+  metadata     Json?
+  occurredAt   DateTime         @default(now())
+
+  ward       Ward        @relation(fields: [wardId], references: [id], onDelete: Restrict)
+  actor      User?       @relation("ActivityLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  enrollment Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+
+  @@index([wardId, occurredAt(sort: Desc)])
+  @@index([wardId, category, occurredAt(sort: Desc)])
+  @@index([enrollmentId])
 }

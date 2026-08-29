@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { IdentityModule } from '../modules/identity/identity.module';
+import { ActivityLogModule } from '../modules/activity-log/activity-log.module';
 import { EnrollmentModule } from '../modules/enrollment/enrollment.module';
 import { HealthFacilityModule } from '../modules/health-facility/health-facility.module';
 import { WardModule } from '../modules/ward/ward.module';
@@ -28,6 +29,7 @@ import { StorageModule } from '../platform/storage/storage.module';
     }),
     AuthModule,
     HealthModule,
+    ActivityLogModule,
     IdentityModule,
     WardModule,
     HealthFacilityModule,

@@ -16,6 +16,7 @@ import {
   type IdCardQueueJobView,
   type IdCardQueuePort,
 } from '../application/id-card-queue.port';
+import { RecordActivityUseCase } from '../../activity-log/application/record-activity.use-case';
 import {
   enrollmentFullName,
   type IdCardRenderInput,
@@ -76,6 +77,7 @@ export class IdCardGenerationProcessor
     private readonly enrollments: EnrollmentRepository,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly pdfRenderer: IdCardPdfRenderer,
+    private readonly recordActivity: RecordActivityUseCase,
   ) {
     super();
   }
@@ -130,7 +132,22 @@ export class IdCardGenerationProcessor
       contentType: 'application/pdf',
     });
 
-    await this.enrollments.markPrinted(enrollmentIds, new Date());
+    const printedAt = new Date();
+    await this.enrollments.markPrinted(enrollmentIds, printedAt);
+
+    await Promise.all(
+      rows.map((row) =>
+        this.recordActivity.execute({
+          category: 'enrollment',
+          action: 'printed',
+          summary: `ID card printed for ${enrollmentFullName(row)}`,
+          wardId: row.wardId,
+          actorUserId: job.data.requestedByUserId,
+          enrollmentId: row.id,
+          occurredAt: printedAt,
+        }),
+      ),
+    );
 
     return { objectKey, enrollmentIds };
   }

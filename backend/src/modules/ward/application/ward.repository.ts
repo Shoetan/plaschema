@@ -2,7 +2,7 @@ import type {
   CursorListQuery,
   CursorPage,
 } from '../../../platform/http/cursor-pagination';
-import type { Ward, WardListItem, WardStatus } from '../domain/ward';
+import type { Ward, WardDetailAggregates, WardListItem, WardStatus } from '../domain/ward';
 
 export const WARD_REPOSITORY = Symbol('WARD_REPOSITORY');
 
@@ -43,4 +43,9 @@ export interface WardRepository {
   delete(id: string): Promise<void>;
   countAssignments(wardId: string): Promise<number>;
   countHealthFacilities(wardId: string): Promise<number>;
+  findDetailAggregates(wardId: string): Promise<WardDetailAggregates>;
+  assignFieldWorkers(
+    wardId: string,
+    fieldWorkerIds: string[],
+  ): Promise<{ addedUserIds: string[] }>;
 }

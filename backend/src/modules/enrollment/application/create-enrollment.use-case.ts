@@ -31,6 +31,7 @@ import {
   type EnrollmentRepository,
 } from './enrollment.repository';
 import { fieldWorkerCanAccessWard } from './field-worker-ward-access';
+import { RecordActivityUseCase } from '../../activity-log/application/record-activity.use-case';
 
 export type CreateEnrollmentInput = {
   /** Required offline idempotency key (UUID v7). */
@@ -74,6 +75,7 @@ export class CreateEnrollmentUseCase {
     private readonly facilities: HealthFacilityRepository,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly checkDuplicate: CheckEnrollmentDuplicateUseCase,
+    private readonly recordActivity: RecordActivityUseCase,
   ) {}
 
   async execute(
@@ -229,6 +231,16 @@ export class CreateEnrollmentUseCase {
         ),
         lgaOfResidence: normalizePlaceName(input.lgaOfResidence),
         residentialAddress: collapseAddress(input.residentialAddress),
+      }).then(async (enrollment) => {
+        await this.recordActivity.execute({
+          category: 'enrollment',
+          action: 'created',
+          summary: `${enrollment.firstName} ${enrollment.lastName} enrolled by ${actor.name}`,
+          wardId: enrollment.wardId,
+          actorUserId: actor.id,
+          enrollmentId: enrollment.id,
+        });
+        return enrollment;
       });
     } catch (error) {
       const code =

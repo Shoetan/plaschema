@@ -7,6 +7,9 @@ export type UserWard = {
   lga: string;
 };
 
+/** Re-exported for field worker detail ward rows. */
+export type FieldWorkerDetailWard = UserWard & { state: 'Plateau' };
+
 export type User = {
   id: string;
   name: string;
@@ -35,6 +38,28 @@ export type FieldWorkerListItem = {
   lastEnrollmentAt: Date | null;
   lastSyncedAt: Date | null;
   status: UserStatus;
+};
+
+export type FieldWorkerDetailStats = {
+  totalEnrolled: number;
+  enrollmentsThisMonth: number;
+  lastEnrollmentAt: Date | null;
+  lastSyncedAt: Date | null;
+};
+
+export type FieldWorkerDetailOverview = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  status: UserStatus;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type FieldWorkerDetailAggregates = {
+  stats: FieldWorkerDetailStats;
+  wards: FieldWorkerDetailWard[];
 };
 
 export type UserListItem = PublicUser | FieldWorkerListItem;

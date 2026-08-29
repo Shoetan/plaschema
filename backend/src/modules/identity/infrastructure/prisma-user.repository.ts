@@ -3,11 +3,14 @@ import { buildCursorPage } from '../../../platform/http/cursor-pagination';
 import { toQueryInt } from '../../../platform/http/query-transforms';
 import { PrismaService } from '../../../platform/persistence/prisma.service';
 import type {
+  FieldWorkerDetailAggregates,
   FieldWorkerListItem,
   PublicUser,
   User,
 } from '../domain/user';
 import { toPublicUser } from '../domain/user';
+import { WARD_STATE } from '../../ward/domain/ward';
+import { startOfMonthInLagos } from '../../ward/domain/ward-date';
 import type {
   CreateUserInput,
   ListUsersQuery,
@@ -240,5 +243,67 @@ export class PrismaUserRepository implements UserRepository {
       where: { id: { in: unique } },
     });
     return count === unique.length;
+  }
+
+  async findFieldWorkersByIds(
+    ids: string[],
+  ): Promise<Array<{ id: string; name: string }>> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const rows = await this.prisma.user.findMany({
+      where: { id: { in: ids }, role: 'field_worker' },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+
+    return rows;
+  }
+
+  async findFieldWorkerDetailAggregates(
+    userId: string,
+  ): Promise<FieldWorkerDetailAggregates | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId, role: 'field_worker' },
+      include: this.include,
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    const monthStart = startOfMonthInLagos();
+
+    const [totalEnrolled, enrollmentsThisMonth, lastEnrollment] =
+      await Promise.all([
+        this.prisma.enrollment.count({
+          where: { enrolledByUserId: userId },
+        }),
+        this.prisma.enrollment.count({
+          where: {
+            enrolledByUserId: userId,
+            createdAt: { gte: monthStart },
+          },
+        }),
+        this.prisma.enrollment.findFirst({
+          where: { enrolledByUserId: userId },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        }),
+      ]);
+
+    return {
+      stats: {
+        totalEnrolled,
+        enrollmentsThisMonth,
+        lastEnrollmentAt: lastEnrollment?.createdAt ?? null,
+        lastSyncedAt: user.lastSyncedAt,
+      },
+      wards: user.assignedWards.map((assignment) => ({
+        ...assignment.ward,
+        state: WARD_STATE,
+      })),
+    };
   }
 }

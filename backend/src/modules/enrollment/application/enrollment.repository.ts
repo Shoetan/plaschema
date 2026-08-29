@@ -49,6 +49,7 @@ export type CreateEnrollmentRecordInput = {
 export type ListEnrollmentsQuery = CursorListQuery & {
   wardId?: string;
   wardIds?: string[];
+  healthFacilityId?: string;
   enrolledByUserId?: string;
   search?: string;
   status?: EnrollmentStatus;
@@ -64,6 +65,7 @@ export type ListEnrollmentsQuery = CursorListQuery & {
 export type IdCardEnrollmentData = {
   id: string;
   enrollmentId: string;
+  wardId: string;
   firstName: string;
   lastName: string;
   middleName: string | null;

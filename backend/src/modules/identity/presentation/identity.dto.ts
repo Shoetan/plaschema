@@ -261,6 +261,109 @@ export class UserResponseDto {
   updatedAt!: Date;
 }
 
+export class FieldWorkerDetailOverviewDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty()
+  email!: string;
+
+  @ApiProperty({ nullable: true })
+  phone!: string | null;
+
+  @ApiProperty({ enum: ['active', 'inactive'] })
+  status!: 'active' | 'inactive';
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty()
+  updatedAt!: Date;
+}
+
+export class FieldWorkerDetailStatsDto {
+  @ApiProperty({ example: 156 })
+  totalEnrolled!: number;
+
+  @ApiProperty({ example: 31 })
+  enrollmentsThisMonth!: number;
+
+  @ApiProperty({ nullable: true })
+  lastEnrollmentAt!: Date | null;
+
+  @ApiProperty({ nullable: true })
+  lastSyncedAt!: Date | null;
+}
+
+export class FieldWorkerDetailWardDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty()
+  lga!: string;
+
+  @ApiProperty({ example: 'Plateau' })
+  state!: 'Plateau';
+}
+
+export class FieldWorkerDetailActivityLogActorDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+}
+
+export class FieldWorkerDetailActivityLogEntryDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ enum: ['enrollment', 'ward', 'user', 'sync'] })
+  category!: string;
+
+  @ApiProperty({
+    enum: ['created', 'updated', 'status_changed', 'printed', 'assigned'],
+  })
+  action!: string;
+
+  @ApiProperty()
+  summary!: string;
+
+  @ApiProperty({ nullable: true, type: FieldWorkerDetailActivityLogActorDto })
+  actor!: FieldWorkerDetailActivityLogActorDto | null;
+
+  @ApiProperty({ format: 'uuid', nullable: true })
+  enrollmentId!: string | null;
+
+  @ApiProperty()
+  occurredAt!: Date;
+}
+
+export class FieldWorkerDetailResponseDto {
+  @ApiProperty({ type: FieldWorkerDetailOverviewDto })
+  fieldWorker!: FieldWorkerDetailOverviewDto;
+
+  @ApiProperty({ type: FieldWorkerDetailStatsDto })
+  stats!: FieldWorkerDetailStatsDto;
+
+  @ApiProperty({ type: FieldWorkerDetailWardDto, isArray: true })
+  wards!: FieldWorkerDetailWardDto[];
+
+  @ApiProperty({
+    type: FieldWorkerDetailActivityLogEntryDto,
+    isArray: true,
+    description:
+      'Unified activity feed for Enrollment Activity and Sync Activity tabs',
+  })
+  activityLog!: FieldWorkerDetailActivityLogEntryDto[];
+}
+
 export class LoginResponseDto {
   @ApiProperty()
   accessToken!: string;

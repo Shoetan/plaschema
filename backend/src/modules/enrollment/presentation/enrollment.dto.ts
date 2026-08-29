@@ -238,6 +238,16 @@ export class ListEnrollmentsQueryDto {
   wardId?: string;
 
   @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    description: 'Filter enrollments by health facility',
+  })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsUUID('7')
+  healthFacilityId?: string;
+
+  @ApiPropertyOptional({
     type: Boolean,
     description: 'When true, only enrollments created by the current user',
   })
@@ -245,6 +255,16 @@ export class ListEnrollmentsQueryDto {
   @IsOptional()
   @IsBoolean()
   enrolledByMe?: boolean;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    description: 'Admin only: filter enrollments by field worker user id',
+  })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsUUID('7')
+  enrolledByUserId?: string;
 
   @ApiPropertyOptional({ enum: ENROLLMENT_STATUSES })
   @EmptyStringToUndefined()
