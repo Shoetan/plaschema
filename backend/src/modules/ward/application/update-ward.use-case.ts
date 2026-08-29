@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../platform/http/app-error';
 import { normalizePlaceName } from '../../../shared/text';
+import type { WardStatus } from '../domain/ward';
 import { WARD_REPOSITORY, type WardRepository } from './ward.repository';
 
 @Injectable()
@@ -9,7 +10,10 @@ export class UpdateWardUseCase {
     @Inject(WARD_REPOSITORY) private readonly wards: WardRepository,
   ) {}
 
-  async execute(id: string, input: { name?: string; lga?: string }) {
+  async execute(
+    id: string,
+    input: { name?: string; lga?: string; status?: WardStatus },
+  ) {
     const existing = await this.wards.findById(id);
     if (!existing) {
       throw new AppError('WARD_NOT_FOUND', 'Ward not found', 404);
@@ -31,6 +35,10 @@ export class UpdateWardUseCase {
       }
     }
 
-    return this.wards.update(id, { name, lga });
+    return this.wards.update(id, {
+      name,
+      lga,
+      status: input.status,
+    });
   }
 }

@@ -2,7 +2,12 @@ import type {
   CursorListQuery,
   CursorPage,
 } from '../../../platform/http/cursor-pagination';
-import type { HealthFacility } from '../domain/health-facility';
+import type {
+  HealthFacility,
+  HealthFacilityLevel,
+  HealthFacilityListItem,
+  HealthFacilityStatus,
+} from '../domain/health-facility';
 
 export const HEALTH_FACILITY_REPOSITORY = Symbol('HEALTH_FACILITY_REPOSITORY');
 
@@ -10,21 +15,31 @@ export type CreateHealthFacilityInput = {
   id: string;
   name: string;
   lga: string;
+  type: string;
+  level: HealthFacilityLevel;
+  status: HealthFacilityStatus;
   wardId: string;
 };
 
 export type UpdateHealthFacilityInput = {
   name?: string;
   lga?: string;
+  type?: string;
+  level?: HealthFacilityLevel;
+  status?: HealthFacilityStatus;
   wardId?: string;
 };
 
 export type ListHealthFacilitiesQuery = CursorListQuery & {
   wardId?: string;
   lga?: string;
+  type?: string;
+  status?: HealthFacilityStatus;
+  level?: HealthFacilityLevel;
+  search?: string;
 };
 
-export type PaginatedHealthFacilities = CursorPage<HealthFacility>;
+export type PaginatedHealthFacilities = CursorPage<HealthFacilityListItem>;
 
 export type StreamHealthFacilitiesQuery = {
   batchSize: number;

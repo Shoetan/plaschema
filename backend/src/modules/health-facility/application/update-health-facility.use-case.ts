@@ -5,6 +5,10 @@ import {
   WARD_REPOSITORY,
   type WardRepository,
 } from '../../ward/application/ward.repository';
+import type {
+  HealthFacilityLevel,
+  HealthFacilityStatus,
+} from '../domain/health-facility';
 import {
   HEALTH_FACILITY_REPOSITORY,
   type HealthFacilityRepository,
@@ -20,7 +24,14 @@ export class UpdateHealthFacilityUseCase {
 
   async execute(
     id: string,
-    input: { name?: string; lga?: string; wardId?: string },
+    input: {
+      name?: string;
+      lga?: string;
+      wardId?: string;
+      type?: string;
+      level?: HealthFacilityLevel;
+      status?: HealthFacilityStatus;
+    },
   ) {
     const existing = await this.facilities.findById(id);
     if (!existing) {
@@ -36,13 +47,17 @@ export class UpdateHealthFacilityUseCase {
       input.name !== undefined
         ? normalizePlaceName(input.name)
         : existing.name;
-    const nextLga =
+
+    let nextLga =
       input.lga !== undefined ? normalizePlaceName(input.lga) : undefined;
 
     if (input.wardId) {
       const ward = await this.wards.findById(input.wardId);
       if (!ward) {
         throw new AppError('WARD_NOT_FOUND', 'Ward not found', 404);
+      }
+      if (nextLga === undefined) {
+        nextLga = ward.lga;
       }
     }
 
@@ -64,6 +79,9 @@ export class UpdateHealthFacilityUseCase {
       name: input.name !== undefined ? nextName : undefined,
       lga: nextLga,
       wardId: input.wardId,
+      type: input.type?.trim() || undefined,
+      level: input.level,
+      status: input.status,
     });
   }
 }

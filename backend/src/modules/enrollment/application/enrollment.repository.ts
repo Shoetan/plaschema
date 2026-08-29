@@ -1,11 +1,22 @@
-import type { Enrollment } from '../domain/enrollment';
+import type {
+  CursorListQuery,
+  CursorPage,
+} from '../../../platform/http/cursor-pagination';
+import type {
+  Enrollment,
+  EnrollmentListItem,
+  EnrollmentStatus,
+} from '../domain/enrollment';
 
 export const ENROLLMENT_REPOSITORY = Symbol('ENROLLMENT_REPOSITORY');
 
 export type CreateEnrollmentRecordInput = {
   id: string;
+  enrollmentId: string;
   idempotencyId: string;
   capturedAt: Date | null;
+  status: EnrollmentStatus;
+  category: string;
   enrolledByUserId: string;
   wardId: string;
   healthFacilityId: string;
@@ -34,23 +45,18 @@ export type CreateEnrollmentRecordInput = {
   residentialAddress: string;
 };
 
-export type ListEnrollmentsQuery = {
-  page: number;
-  pageSize: number;
+export type ListEnrollmentsQuery = CursorListQuery & {
   wardId?: string;
   wardIds?: string[];
   enrolledByUserId?: string;
   search?: string;
+  status?: EnrollmentStatus;
 };
 
-export type PaginatedEnrollments = {
-  items: Enrollment[];
-  total: number;
-  page: number;
-  pageSize: number;
-};
+export type PaginatedEnrollments = CursorPage<EnrollmentListItem>;
 
 export interface EnrollmentRepository {
+  allocateEnrollmentId(year: number): Promise<string>;
   create(input: CreateEnrollmentRecordInput): Promise<Enrollment>;
   findById(id: string): Promise<Enrollment | null>;
   findByIdempotencyId(idempotencyId: string): Promise<Enrollment | null>;

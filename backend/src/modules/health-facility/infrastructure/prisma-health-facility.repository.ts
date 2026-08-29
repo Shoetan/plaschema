@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { buildCursorPage } from '../../../platform/http/cursor-pagination';
 import { toQueryInt } from '../../../platform/http/query-transforms';
 import { PrismaService } from '../../../platform/persistence/prisma.service';
-import type { HealthFacility } from '../domain/health-facility';
+import type {
+  HealthFacility,
+  HealthFacilityListItem,
+} from '../domain/health-facility';
 import type {
   CreateHealthFacilityInput,
   HealthFacilityRepository,
@@ -16,6 +18,9 @@ type FacilityRow = {
   id: string;
   name: string;
   lga: string;
+  type: string;
+  level: HealthFacility['level'];
+  status: HealthFacility['status'];
   wardId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -23,7 +28,9 @@ type FacilityRow = {
 };
 
 @Injectable()
-export class PrismaHealthFacilityRepository implements HealthFacilityRepository {
+export class PrismaHealthFacilityRepository
+  implements HealthFacilityRepository
+{
   constructor(private readonly prisma: PrismaService) {}
 
   private include = {
@@ -34,7 +41,10 @@ export class PrismaHealthFacilityRepository implements HealthFacilityRepository 
     return {
       id: row.id,
       name: row.name,
-      lga: row.lga,
+      lga: row.ward.lga,
+      type: row.type,
+      level: row.level,
+      status: row.status,
       wardId: row.wardId,
       ward: row.ward,
       createdAt: row.createdAt,
@@ -87,8 +97,51 @@ export class PrismaHealthFacilityRepository implements HealthFacilityRepository 
     const where = {
       ...(query.cursor ? { id: { gt: query.cursor } } : {}),
       ...(query.wardId ? { wardId: query.wardId } : {}),
+      ...(query.type
+        ? { type: { equals: query.type, mode: 'insensitive' as const } }
+        : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.level ? { level: query.level } : {}),
       ...(query.lga
-        ? { lga: { equals: query.lga, mode: 'insensitive' as const } }
+        ? {
+            ward: {
+              lga: { equals: query.lga, mode: 'insensitive' as const },
+            },
+          }
+        : {}),
+      ...(query.search
+        ? {
+            OR: [
+              {
+                name: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                type: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                ward: {
+                  name: {
+                    contains: query.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              },
+              {
+                ward: {
+                  lga: {
+                    contains: query.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              },
+            ],
+          }
         : {}),
     };
 
@@ -96,13 +149,32 @@ export class PrismaHealthFacilityRepository implements HealthFacilityRepository 
       where,
       take: limit + 1,
       orderBy: { id: 'asc' },
-      include: this.include,
+      include: {
+        ...this.include,
+        _count: { select: { enrollments: true } },
+      },
     });
 
-    return buildCursorPage(
-      rows.map((row) => this.map(row)),
+    const pageRows = rows.length > limit ? rows.slice(0, limit) : rows;
+    const items: HealthFacilityListItem[] = pageRows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      type: row.type,
+      level: row.level,
+      ward: row.ward,
+      beneficiaries: row._count.enrollments,
+      status: row.status,
+    }));
+
+    const hasMore = rows.length > limit;
+    const last = items[items.length - 1];
+
+    return {
+      items,
+      nextCursor: hasMore && last ? last.id : null,
+      hasMore,
       limit,
-    );
+    };
   }
 
   async *stream(

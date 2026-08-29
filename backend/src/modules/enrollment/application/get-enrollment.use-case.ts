@@ -5,6 +5,8 @@ import {
   USER_REPOSITORY,
   type UserRepository,
 } from '../../identity/application/user.repository';
+import { AttachEnrollmentFileUrls } from './attach-enrollment-file-urls';
+import { fieldWorkerCanAccessWard } from './field-worker-ward-access';
 import {
   ENROLLMENT_REPOSITORY,
   type EnrollmentRepository,
@@ -16,6 +18,7 @@ export class GetEnrollmentUseCase {
     @Inject(ENROLLMENT_REPOSITORY)
     private readonly enrollments: EnrollmentRepository,
     @Inject(USER_REPOSITORY) private readonly users: UserRepository,
+    private readonly attachFileUrls: AttachEnrollmentFileUrls,
   ) {}
 
   async execute(actor: AuthenticatedUser, id: string) {
@@ -26,14 +29,16 @@ export class GetEnrollmentUseCase {
 
     if (actor.role === 'field_worker') {
       const user = await this.users.findById(actor.id);
-      const assigned = new Set(
-        (user?.assignedWards ?? []).map((ward) => ward.id),
-      );
-      if (!assigned.has(enrollment.wardId)) {
+      if (
+        !fieldWorkerCanAccessWard(
+          user?.assignedWards ?? [],
+          enrollment.wardId,
+        )
+      ) {
         throw new AppError('ENROLLMENT_NOT_FOUND', 'Enrollment not found', 404);
       }
     }
 
-    return enrollment;
+    return this.attachFileUrls.forOne(enrollment);
   }
 }

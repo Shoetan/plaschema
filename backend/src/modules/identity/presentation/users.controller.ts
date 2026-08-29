@@ -12,11 +12,15 @@ import {
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiExtraModels,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import { Roles } from '../../../platform/auth/roles.decorator';
+import { CursorPaginationMetaDto } from '../../../platform/http/cursor-pagination.dto';
 import { UuidV7Pipe } from '../../../platform/http/uuid-v7.pipe';
 import { CreateUserUseCase } from '../application/create-user.use-case';
 import { GetUserUseCase } from '../application/get-user.use-case';
@@ -25,6 +29,7 @@ import { ResetPasswordUseCase } from '../application/reset-password.use-case';
 import { UpdateUserUseCase } from '../application/update-user.use-case';
 import {
   CreateUserDto,
+  FieldWorkerListItemDto,
   ListUsersQueryDto,
   ResetPasswordDto,
   UpdateUserDto,
@@ -33,6 +38,7 @@ import {
 
 @ApiTags('users')
 @ApiBearerAuth('bearer')
+@ApiExtraModels(UserResponseDto, FieldWorkerListItemDto)
 @Roles('admin')
 @Controller('users')
 export class UsersController {
@@ -52,17 +58,64 @@ export class UsersController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List users' })
-  @ApiOkResponse({ type: UserResponseDto, isArray: true })
+  @ApiOperation({
+    summary:
+      'List users (cursor pagination). With role=field_worker returns field-worker table rows (wards, enrollment stats).',
+  })
+  @ApiQuery({
+    name: 'cursor',
+    required: false,
+    type: String,
+    description: 'Opaque cursor from meta.nextCursor',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    example: 50,
+    description: 'Page size (1-100)',
+  })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    enum: ['admin', 'field_worker'],
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['active', 'inactive'],
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by name, email, or phone',
+  })
+  @ApiOkResponse({
+    description:
+      'UserResponseDto[] by default; FieldWorkerListItemDto[] when role=field_worker',
+    schema: {
+      oneOf: [
+        {
+          type: 'array',
+          items: { $ref: getSchemaPath(UserResponseDto) },
+        },
+        {
+          type: 'array',
+          items: { $ref: getSchemaPath(FieldWorkerListItemDto) },
+        },
+      ],
+    },
+  })
   async list(@Query() query: ListUsersQueryDto) {
     const result = await this.listUsers.execute(query);
     return {
       data: result.items,
       meta: {
-        total: result.total,
-        page: result.page,
-        pageSize: result.pageSize,
-      },
+        nextCursor: result.nextCursor,
+        hasMore: result.hasMore,
+        limit: result.limit,
+      } satisfies CursorPaginationMetaDto,
     };
   }
 

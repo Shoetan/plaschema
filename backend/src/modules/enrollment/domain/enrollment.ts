@@ -49,15 +49,36 @@ export type NextOfKinRelationship =
   | 'friend'
   | 'other';
 
+export type EnrollmentStatus =
+  | 'pending'
+  | 'active'
+  | 'disabled'
+  | 'deceased';
+
 export type EnrollmentRef = {
   id: string;
   name: string;
 };
 
+export type EnrollmentWardRef = {
+  id: string;
+  name: string;
+  lga: string;
+};
+
+export type EnrollmentFacilityRef = {
+  id: string;
+  name: string;
+  ward: EnrollmentWardRef;
+};
+
 export type Enrollment = {
   id: string;
+  enrollmentId: string;
   idempotencyId: string;
   capturedAt: Date | null;
+  status: EnrollmentStatus;
+  category: string;
   enrolledByUserId: string;
   wardId: string;
   healthFacilityId: string;
@@ -82,13 +103,24 @@ export type Enrollment = {
   stateOfResidence: string;
   lgaOfResidence: string;
   residentialAddress: string;
-  ward: EnrollmentRef;
-  healthFacility: EnrollmentRef;
+  /** Denormalized ward of the chosen facility (same as healthFacility.ward). */
+  ward: EnrollmentWardRef;
+  healthFacility: EnrollmentFacilityRef;
   enrolledBy: EnrollmentRef;
   createdAt: Date;
   updatedAt: Date;
   /** True when this response came from an idempotent replay. */
   idempotentReplay?: boolean;
+};
+
+/** Slim row for the beneficiaries table (GET /enrollments list). */
+export type EnrollmentListItem = {
+  id: string;
+  enrollmentId: string;
+  beneficiaryName: string;
+  category: string;
+  status: EnrollmentStatus;
+  healthFacility: EnrollmentFacilityRef;
 };
 
 export const ENROLLMENT_TITLES: EnrollmentTitle[] = [
@@ -145,4 +177,11 @@ export const NEXT_OF_KIN_RELATIONSHIPS: NextOfKinRelationship[] = [
   'relative',
   'friend',
   'other',
+];
+
+export const ENROLLMENT_STATUSES: EnrollmentStatus[] = [
+  'pending',
+  'active',
+  'disabled',
+  'deceased',
 ];

@@ -12,6 +12,10 @@ import {
   type WardRepository,
 } from '../../ward/application/ward.repository';
 import {
+  DEFAULT_HEALTH_FACILITY_LEVEL,
+  DEFAULT_HEALTH_FACILITY_TYPE,
+} from '../domain/health-facility';
+import {
   HEALTH_FACILITY_REPOSITORY,
   type CreateHealthFacilityInput,
   type HealthFacilityRepository,
@@ -32,7 +36,7 @@ export class BatchCreateHealthFacilitiesUseCase {
     filename?: string,
   ): Promise<BatchUploadResult> {
     const rawRows = parseTabularBuffer(fileBuffer, { filename });
-    requireCsvColumns(rawRows, ['name', 'lga', 'ward']);
+    requireCsvColumns(rawRows, ['name', 'ward']);
 
     const errors: BatchUploadResult['errors'] = [];
     const pending = new Map<string, PendingFacility>();
@@ -53,13 +57,12 @@ export class BatchCreateHealthFacilitiesUseCase {
       const rowNumber = index + 2;
       const row = normalizeCsvRow(raw);
       const name = normalizePlaceName(row.name ?? '');
-      const lga = normalizePlaceName(row.lga ?? '');
       const wardName = normalizePlaceName(row.ward ?? '');
 
-      if (!name || !lga || !wardName) {
+      if (!name || !wardName) {
         errors.push({
           row: rowNumber,
-          message: 'name, lga, and ward are required',
+          message: 'name and ward are required',
         });
         return;
       }
@@ -85,7 +88,10 @@ export class BatchCreateHealthFacilitiesUseCase {
       pending.set(key, {
         id: createUuidV7(),
         name,
-        lga,
+        lga: ward.lga,
+        type: DEFAULT_HEALTH_FACILITY_TYPE,
+        level: DEFAULT_HEALTH_FACILITY_LEVEL,
+        status: 'active',
         wardId: ward.id,
         row: rowNumber,
       });
@@ -108,6 +114,9 @@ export class BatchCreateHealthFacilitiesUseCase {
         id: candidate.id,
         name: candidate.name,
         lga: candidate.lga,
+        type: candidate.type,
+        level: candidate.level,
+        status: candidate.status,
         wardId: candidate.wardId,
       });
     }

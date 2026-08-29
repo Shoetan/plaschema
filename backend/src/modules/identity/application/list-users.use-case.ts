@@ -9,10 +9,11 @@ export class ListUsersUseCase {
   ) {}
 
   async execute(query: {
-    page: number;
-    pageSize: number;
+    cursor?: string;
+    limit: number;
     role?: UserRole;
     status?: UserStatus;
+    search?: string;
   }) {
     return this.users.list(query);
   }

@@ -5,6 +5,7 @@ import {
   USER_REPOSITORY,
   type UserRepository,
 } from '../../identity/application/user.repository';
+import { fieldWorkerWardListFilter } from './field-worker-ward-access';
 import {
   ENROLLMENT_REPOSITORY,
   type EnrollmentRepository,
@@ -29,17 +30,10 @@ export class ListEnrollmentsUseCase {
 
     if (actor.role === 'field_worker') {
       const user = await this.users.findById(actor.id);
-      wardIds = (user?.assignedWards ?? []).map((ward) => ward.id);
-      if (wardIds.length === 0) {
-        return {
-          items: [],
-          total: 0,
-          page: query.page,
-          pageSize: query.pageSize,
-        };
-      }
+      const assignedWards = user?.assignedWards ?? [];
+      wardIds = fieldWorkerWardListFilter(assignedWards);
 
-      if (query.wardId && !wardIds.includes(query.wardId)) {
+      if (query.wardId && wardIds && !wardIds.includes(query.wardId)) {
         throw new AppError(
           'FORBIDDEN_WARD',
           'Field workers can only list enrollments in their assigned wards',
@@ -49,12 +43,13 @@ export class ListEnrollmentsUseCase {
     }
 
     return this.enrollments.list({
-      page: query.page,
-      pageSize: query.pageSize,
+      cursor: query.cursor,
+      limit: query.limit,
       wardId: query.wardId,
       wardIds: query.wardId ? undefined : wardIds,
       enrolledByUserId: query.enrolledByMe ? actor.id : undefined,
       search: query.search,
+      status: query.status,
     });
   }
 }

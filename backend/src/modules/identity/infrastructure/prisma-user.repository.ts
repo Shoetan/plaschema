@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { buildCursorPage } from '../../../platform/http/cursor-pagination';
+import { toQueryInt } from '../../../platform/http/query-transforms';
 import { PrismaService } from '../../../platform/persistence/prisma.service';
-import type { PublicUser, User } from '../domain/user';
+import type {
+  FieldWorkerListItem,
+  PublicUser,
+  User,
+} from '../domain/user';
 import { toPublicUser } from '../domain/user';
 import type {
   CreateUserInput,
@@ -18,6 +24,7 @@ type UserWithWards = {
   role: 'admin' | 'field_worker';
   status: 'active' | 'inactive';
   phone: string | null;
+  lastSyncedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   assignedWards: Array<{
@@ -38,6 +45,7 @@ export class PrismaUserRepository implements UserRepository {
       role: user.role,
       status: user.status,
       phone: user.phone,
+      lastSyncedAt: user.lastSyncedAt,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       assignedWards: user.assignedWards.map((assignment) => assignment.ward),
@@ -91,28 +99,105 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   async list(query: ListUsersQuery): Promise<PaginatedUsers> {
+    const limit = toQueryInt(query.limit, 50, { min: 1, max: 100 });
     const where = {
+      ...(query.cursor ? { id: { gt: query.cursor } } : {}),
       ...(query.role ? { role: query.role } : {}),
       ...(query.status ? { status: query.status } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              {
+                name: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                email: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                phone: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+            ],
+          }
+        : {}),
     };
-    const skip = (query.page - 1) * query.pageSize;
 
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.user.findMany({
-        where,
-        skip,
-        take: query.pageSize,
-        orderBy: { createdAt: 'desc' },
-        include: this.include,
-      }),
-      this.prisma.user.count({ where }),
-    ]);
+    const rows = await this.prisma.user.findMany({
+      where,
+      take: limit + 1,
+      orderBy: { id: 'asc' },
+      include: this.include,
+    });
+
+    if (query.role === 'field_worker') {
+      return this.mapFieldWorkerPage(rows, limit);
+    }
+
+    return buildCursorPage(
+      rows.map((row) => toPublicUser(this.map(row))),
+      limit,
+    );
+  }
+
+  private async mapFieldWorkerPage(
+    rows: UserWithWards[],
+    limit: number,
+  ): Promise<PaginatedUsers> {
+    const pageRows = rows.length > limit ? rows.slice(0, limit) : rows;
+    const userIds = pageRows.map((row) => row.id);
+
+    const enrollmentStats =
+      userIds.length === 0
+        ? []
+        : await this.prisma.enrollment.groupBy({
+            by: ['enrolledByUserId'],
+            where: { enrolledByUserId: { in: userIds } },
+            _count: { _all: true },
+            _max: { createdAt: true },
+          });
+
+    const statsByUser = new Map(
+      enrollmentStats.map((stat) => [
+        stat.enrolledByUserId,
+        {
+          beneficiariesEnrolled: stat._count._all,
+          lastEnrollmentAt: stat._max.createdAt,
+        },
+      ]),
+    );
+
+    const items: FieldWorkerListItem[] = pageRows.map((row) => {
+      const mapped = this.map(row);
+      const stats = statsByUser.get(row.id);
+      return {
+        id: mapped.id,
+        name: mapped.name,
+        phone: mapped.phone,
+        email: mapped.email,
+        wards: mapped.assignedWards,
+        beneficiariesEnrolled: stats?.beneficiariesEnrolled ?? 0,
+        lastEnrollmentAt: stats?.lastEnrollmentAt ?? null,
+        lastSyncedAt: mapped.lastSyncedAt,
+        status: mapped.status,
+      };
+    });
+
+    const hasMore = rows.length > limit;
+    const last = items[items.length - 1];
 
     return {
-      items: rows.map((row) => toPublicUser(this.map(row))),
-      total,
-      page: query.page,
-      pageSize: query.pageSize,
+      items,
+      nextCursor: hasMore && last ? last.id : null,
+      hasMore,
+      limit,
     };
   }
 
@@ -137,6 +222,7 @@ export class PrismaUserRepository implements UserRepository {
           phone: input.phone,
           status: input.status,
           passwordHash: input.passwordHash,
+          lastSyncedAt: input.lastSyncedAt,
         },
         include: this.include,
       });

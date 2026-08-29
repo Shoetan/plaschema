@@ -24,6 +24,13 @@ describe('Auth and users (e2e)', () => {
     process.env.SWAGGER_ENABLED ??= 'false';
     process.env.JWT_SECRET ??= 'test-jwt-secret-16chars';
     process.env.JWT_EXPIRES_IN ??= '8h';
+    process.env.OBJECT_STORAGE_PROVIDER ??= 'railway';
+    process.env.OBJECT_STORAGE_BUCKET_NAME ??= 'test-bucket';
+    process.env.OBJECT_STORAGE_ENDPOINT ??= 'https://t3.storageapi.dev';
+    process.env.OBJECT_STORAGE_ACCESS_KEY_ID ??= 'test-access-key';
+    process.env.OBJECT_STORAGE_SECRET_ACCESS_KEY ??= 'test-secret-key';
+    process.env.OBJECT_STORAGE_REGION ??= 'auto';
+    process.env.OBJECT_STORAGE_PRESIGN_TTL_SECONDS ??= '1800';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],

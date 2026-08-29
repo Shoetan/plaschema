@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   ArrayUnique,
   IsArray,
@@ -15,6 +15,10 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import {
+  EmptyStringToUndefined,
+  toQueryInt,
+} from '../../../platform/http/query-transforms';
 
 export class ResetPasswordDto {
   @ApiProperty({ example: 'NewPassword123!' })
@@ -71,7 +75,8 @@ export class CreateUserDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Ward IDs assigned to a field worker',
+    description:
+      'Ward IDs assigned to a field worker. Empty/omitted means access to all wards.',
   })
   @IsOptional()
   @IsArray()
@@ -113,7 +118,12 @@ export class UpdateUserDto {
   @MaxLength(128)
   password?: string;
 
-  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description:
+      'Ward IDs assigned to a field worker. Empty array means access to all wards.',
+  })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
@@ -122,30 +132,51 @@ export class UpdateUserDto {
 }
 
 export class ListUsersQueryDto {
-  @ApiPropertyOptional({ example: 1, default: 1 })
+  @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    description: 'Cursor from the previous page nextCursor',
+  })
+  @EmptyStringToUndefined()
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page = 1;
+  @IsUUID('7')
+  cursor?: string;
 
-  @ApiPropertyOptional({ example: 20, default: 20 })
-  @IsOptional()
-  @Type(() => Number)
+  @ApiPropertyOptional({
+    type: Number,
+    example: 50,
+    default: 50,
+    minimum: 1,
+    maximum: 100,
+  })
+  @Transform(({ value }) => toQueryInt(value, 50, { min: 1, max: 100 }))
   @IsInt()
   @Min(1)
   @Max(100)
-  pageSize = 20;
+  limit: number = 50;
 
   @ApiPropertyOptional({ enum: ['admin', 'field_worker'] })
+  @EmptyStringToUndefined()
   @IsOptional()
   @IsEnum(['admin', 'field_worker'])
   role?: 'admin' | 'field_worker';
 
   @ApiPropertyOptional({ enum: ['active', 'inactive'] })
+  @EmptyStringToUndefined()
   @IsOptional()
   @IsEnum(['active', 'inactive'])
   status?: 'active' | 'inactive';
+
+  @ApiPropertyOptional({
+    type: String,
+    example: 'Amina',
+    description: 'Search by name, email, or phone',
+  })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  search?: string;
 }
 
 export class UserWardResponseDto {
@@ -157,6 +188,45 @@ export class UserWardResponseDto {
 
   @ApiProperty()
   lga!: string;
+}
+
+export class FieldWorkerListItemDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Amina Yusuf' })
+  name!: string;
+
+  @ApiPropertyOptional({ example: '+2348034567890', nullable: true })
+  phone!: string | null;
+
+  @ApiProperty({ example: 'amina.yusuf@plaschema.ng' })
+  email!: string;
+
+  @ApiProperty({
+    type: [UserWardResponseDto],
+    description:
+      'Assigned wards (replaces community). Empty array means access to all wards.',
+  })
+  wards!: UserWardResponseDto[];
+
+  @ApiProperty({ example: 156 })
+  beneficiariesEnrolled!: number;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'ISO datetime of the worker’s most recent enrollment',
+  })
+  lastEnrollmentAt!: Date | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'ISO datetime of the last reported device/app sync',
+  })
+  lastSyncedAt!: Date | null;
+
+  @ApiProperty({ enum: ['active', 'inactive'] })
+  status!: 'active' | 'inactive';
 }
 
 export class UserResponseDto {
@@ -177,6 +247,9 @@ export class UserResponseDto {
 
   @ApiPropertyOptional({ nullable: true })
   phone!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  lastSyncedAt!: Date | null;
 
   @ApiProperty({ type: [UserWardResponseDto] })
   assignedWards!: UserWardResponseDto[];

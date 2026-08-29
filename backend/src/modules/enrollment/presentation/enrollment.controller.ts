@@ -5,7 +5,6 @@ import {
   Param,
   Post,
   Query,
-  StreamableFile,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -27,16 +26,20 @@ import {
 } from '../../../platform/auth/current-user.decorator';
 import { Roles } from '../../../platform/auth/roles.decorator';
 import { AppError } from '../../../platform/http/app-error';
+import { CursorPaginationMetaDto } from '../../../platform/http/cursor-pagination.dto';
 import { UuidV7Pipe } from '../../../platform/http/uuid-v7.pipe';
 import { CreateEnrollmentUseCase } from '../application/create-enrollment.use-case';
-import { GetEnrollmentFileUseCase } from '../application/get-enrollment-file.use-case';
+import { DevUploadEnrollmentFileUseCase } from '../application/dev-upload-enrollment-file.use-case';
 import { GetEnrollmentUseCase } from '../application/get-enrollment.use-case';
 import { ListEnrollmentsUseCase } from '../application/list-enrollments.use-case';
-import { UploadEnrollmentFileUseCase } from '../application/upload-enrollment-file.use-case';
+import { PresignEnrollmentUploadUseCase } from '../application/presign-enrollment-upload.use-case';
 import {
   CreateEnrollmentDto,
+  EnrollmentDevUploadResponseDto,
+  EnrollmentListItemDto,
+  EnrollmentPresignUploadRequestDto,
+  EnrollmentPresignUploadResponseDto,
   EnrollmentResponseDto,
-  EnrollmentUploadResponseDto,
   ListEnrollmentsQueryDto,
 } from './enrollment.dto';
 
@@ -46,13 +49,28 @@ import {
 export class EnrollmentController {
   constructor(
     private readonly createEnrollment: CreateEnrollmentUseCase,
-    private readonly uploadEnrollmentFile: UploadEnrollmentFileUseCase,
+    private readonly presignEnrollmentUpload: PresignEnrollmentUploadUseCase,
+    private readonly devUploadEnrollmentFile: DevUploadEnrollmentFileUseCase,
     private readonly listEnrollments: ListEnrollmentsUseCase,
     private readonly getEnrollment: GetEnrollmentUseCase,
-    private readonly getEnrollmentFile: GetEnrollmentFileUseCase,
   ) {}
 
-  @Post('files')
+  @Post('files/presign-upload')
+  @Roles('admin', 'field_worker')
+  @ApiOperation({
+    summary:
+      'Get a Railway presigned PUT URL to upload a passport or ID document',
+  })
+  @ApiOkResponse({ type: EnrollmentPresignUploadResponseDto })
+  presignUpload(@Body() body: EnrollmentPresignUploadRequestDto) {
+    return this.presignEnrollmentUpload.execute({
+      purpose: body.purpose,
+      originalFilename: body.filename,
+      contentType: body.contentType,
+    });
+  }
+
+  @Post('files/dev-upload')
   @Roles('admin', 'field_worker')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -80,10 +98,10 @@ export class EnrollmentController {
   })
   @ApiOperation({
     summary:
-      'Upload enrollment passport or ID document (local storage stub; later presigned URLs)',
+      '[DEV/TEST ONLY] Upload file via backend (presign + PUT to Railway). Disabled in production.',
   })
-  @ApiOkResponse({ type: EnrollmentUploadResponseDto })
-  uploadFile(
+  @ApiOkResponse({ type: EnrollmentDevUploadResponseDto })
+  async devUpload(
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body('purpose') purpose: 'passport' | 'id_document',
   ) {
@@ -98,33 +116,11 @@ export class EnrollmentController {
       );
     }
 
-    return this.uploadEnrollmentFile.execute({
+    return this.devUploadEnrollmentFile.execute({
       purpose,
       originalFilename: file.originalname,
       contentType: file.mimetype,
       buffer: file.buffer,
-    });
-  }
-
-  @Get('files')
-  @Roles('admin', 'field_worker')
-  @ApiOperation({
-    summary: 'Download a previously uploaded enrollment file (local stub)',
-  })
-  @ApiQuery({
-    name: 'objectKey',
-    required: true,
-    description: 'Object key returned by the upload endpoint',
-  })
-  async downloadFile(@Query('objectKey') objectKey?: string) {
-    if (!objectKey?.trim()) {
-      throw new AppError('VALIDATION_ERROR', 'objectKey is required', 400);
-    }
-
-    const file = await this.getEnrollmentFile.execute(objectKey);
-    return new StreamableFile(file.buffer, {
-      type: file.contentType,
-      disposition: `inline; filename="${file.objectKey.split('/').pop()}"`,
     });
   }
 
@@ -155,8 +151,29 @@ export class EnrollmentController {
 
   @Get()
   @Roles('admin', 'field_worker')
-  @ApiOperation({ summary: 'List enrollments' })
-  @ApiOkResponse({ type: EnrollmentResponseDto, isArray: true })
+  @ApiOperation({ summary: 'List enrollments (cursor pagination)' })
+  @ApiQuery({
+    name: 'cursor',
+    required: false,
+    type: String,
+    description: 'Opaque cursor from meta.nextCursor',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    example: 50,
+    description: 'Page size (1-100)',
+  })
+  @ApiQuery({ name: 'wardId', required: false, type: String })
+  @ApiQuery({ name: 'enrolledByMe', required: false, type: Boolean })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['pending', 'active', 'disabled', 'deceased'],
+  })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiOkResponse({ type: EnrollmentListItemDto, isArray: true })
   async list(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListEnrollmentsQueryDto,
@@ -165,10 +182,10 @@ export class EnrollmentController {
     return {
       data: result.items,
       meta: {
-        page: result.page,
-        pageSize: result.pageSize,
-        total: result.total,
-      },
+        nextCursor: result.nextCursor,
+        hasMore: result.hasMore,
+        limit: result.limit,
+      } satisfies CursorPaginationMetaDto,
     };
   }
 

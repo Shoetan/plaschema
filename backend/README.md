@@ -65,22 +65,25 @@ Clean Architecture only (no DDD / bounded contexts). Feature modules:
 
 - `POST /api/auth/login`
 - `POST /api/users/:id/reset-password` (admin only; no email)
+- `GET /api/users` — cursor list; with `role=field_worker` returns wards + enrollment stats (`beneficiariesEnrolled`, `lastEnrollmentAt`, `lastSyncedAt`)
 - `POST /api/wards/batch` — CSV or Excel (.xlsx/.xls); columns: `name,lga`
-- `GET /api/wards` — cursor pagination (`cursor`, `limit`)
+- `GET /api/wards` — cursor list for wards table (`name`, `state`, `lga`, `fieldWorkers`, `beneficiaries`, `newEnrollments`, `status`)
 - `GET /api/wards/stream` — NDJSON stream for offline/mobile cache sync (`updatedSince` optional)
 - `POST /api/health-facilities/batch` — CSV or Excel (.xlsx/.xls); columns: `name,lga,ward`
-- `GET /api/health-facilities` — cursor pagination (`cursor`, `limit`)
+- `GET /api/health-facilities` — cursor list (`name`, `type`, `level`, joined `ward`/`lga`, `beneficiaries`, `status`)
 - `GET /api/health-facilities/stream` — NDJSON stream for offline/mobile cache sync
-- `POST /api/enrollments/files` — upload passport or ID document (local storage stub)
+- `POST /api/enrollments/files/presign-upload` — Railway presigned PUT URL for passport/ID upload
+- `POST /api/enrollments/files/dev-upload` — **dev/test only**: multipart upload that presigns + PUTs to Railway (returns `objectKey`)
 - `POST /api/enrollments` — create enrollment (idempotent via `idempotencyId`; duplicate = first+last+DOB)
-- `GET /api/enrollments` / `GET /api/enrollments/:id`
+- `GET /api/enrollments` — cursor list for beneficiaries table (`enrollmentId`, name, category, lga, facility, ward, status)
+- `GET /api/enrollments/:id` — full enrollment detail with presigned `passportUrl` + `idDocumentUrl`
 
-Roles: `admin` | `field_worker`. Field workers may only enroll in assigned wards.
+Roles: `admin` | `field_worker`. Field workers with assigned wards are scoped to those wards; with no assignments they can enroll and view enrollments in all wards.
 
 ### Offline-first enrollment sync
 
 1. On device, generate a UUID v7 `idempotencyId` and capture `capturedAt` when the form is filled offline.
-2. When online, upload passport + ID files, then `POST /api/enrollments` with the object keys (server generates enrollment `id`).
+2. When online, request presigned upload URLs, PUT passport + ID files to Railway, then `POST /api/enrollments` with the object keys (server generates enrollment `id`).
 3. Retrying with the same `idempotencyId` returns the original enrollment (`idempotentReplay: true`).
 4. A different request with the same first name + last name + `dateOfBirth` (`YYYY-MM-DD`) is rejected as `DUPLICATE_ENROLLMENT`.
 

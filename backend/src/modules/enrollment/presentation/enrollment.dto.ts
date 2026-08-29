@@ -1,10 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
   IsEmail,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -17,8 +18,14 @@ import {
   MinLength,
 } from 'class-validator';
 import {
+  EmptyStringToUndefined,
+  toQueryBool,
+  toQueryInt,
+} from '../../../platform/http/query-transforms';
+import {
   BLOOD_GROUPS,
   ENROLLMENT_GENDERS,
+  ENROLLMENT_STATUSES,
   ENROLLMENT_TITLES,
   GENOTYPES,
   ID_DOCUMENT_TYPES,
@@ -26,6 +33,7 @@ import {
   NEXT_OF_KIN_RELATIONSHIPS,
   type BloodGroup,
   type EnrollmentGender,
+  type EnrollmentStatus,
   type EnrollmentTitle,
   type Genotype,
   type IdDocumentType,
@@ -53,14 +61,27 @@ export class CreateEnrollmentDto {
   capturedAt?: string;
 
   @ApiProperty({
-    description: 'Object key returned by POST /enrollments/files (passport)',
+    example: 'IDPs',
+    description:
+      'Beneficiary category shown in admin tables (e.g. IDPs, Elderly 65+, Indigents / Very Poor / Others)',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(2)
+  @MaxLength(120)
+  category!: string;
+
+  @ApiProperty({
+    description:
+      'Object key returned by POST /enrollments/files/presign-upload (passport)',
   })
   @IsString()
   @IsNotEmpty()
   passportObjectKey!: string;
 
   @ApiProperty({
-    description: 'Object key returned by POST /enrollments/files (id_document)',
+    description:
+      'Object key returned by POST /enrollments/files/presign-upload (id_document)',
   })
   @IsString()
   @IsNotEmpty()
@@ -182,56 +203,117 @@ export class CreateEnrollmentDto {
 }
 
 export class ListEnrollmentsQueryDto {
-  @ApiPropertyOptional({ example: 1, default: 1 })
+  @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    description: 'Cursor from the previous page nextCursor',
+  })
+  @EmptyStringToUndefined()
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page = 1;
+  @IsUUID('7')
+  cursor?: string;
 
-  @ApiPropertyOptional({ example: 20, default: 20 })
-  @IsOptional()
-  @Type(() => Number)
+  @ApiPropertyOptional({
+    type: Number,
+    example: 50,
+    default: 50,
+    minimum: 1,
+    maximum: 100,
+  })
+  @Transform(({ value }) => toQueryInt(value, 50, { min: 1, max: 100 }))
   @IsInt()
   @Min(1)
   @Max(100)
-  pageSize = 20;
+  limit: number = 50;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ type: String, format: 'uuid' })
+  @EmptyStringToUndefined()
   @IsOptional()
   @IsUUID('7')
   wardId?: string;
 
   @ApiPropertyOptional({
+    type: Boolean,
     description: 'When true, only enrollments created by the current user',
   })
+  @Transform(({ value }) => toQueryBool(value))
   @IsOptional()
-  @Type(() => Boolean)
   @IsBoolean()
   enrolledByMe?: boolean;
 
-  @ApiPropertyOptional({ example: 'Ada' })
+  @ApiPropertyOptional({ enum: ENROLLMENT_STATUSES })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsEnum(ENROLLMENT_STATUSES)
+  status?: EnrollmentStatus;
+
+  @ApiPropertyOptional({ type: String, example: 'Ada' })
+  @EmptyStringToUndefined()
   @IsOptional()
   @IsString()
   @MaxLength(80)
   search?: string;
 }
 
-export class EnrollmentUploadResponseDto {
+export class EnrollmentPresignUploadRequestDto {
+  @ApiProperty({ enum: ['passport', 'id_document'] })
+  @IsIn(['passport', 'id_document'])
+  purpose!: 'passport' | 'id_document';
+
+  @ApiProperty({
+    example: 'image/jpeg',
+    description: 'MIME type of the file that will be uploaded via PUT',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  contentType!: string;
+
+  @ApiProperty({
+    example: 'passport.jpg',
+    description: 'Original filename (used only to derive extension)',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  filename!: string;
+}
+
+export class EnrollmentPresignUploadResponseDto {
   @ApiProperty()
   objectKey!: string;
 
   @ApiProperty()
   contentType!: string;
 
+  @ApiProperty({ enum: ['passport', 'id_document'] })
+  purpose!: 'passport' | 'id_document';
+
+  @ApiProperty({
+    description:
+      'Presigned Railway PUT URL. Send the file bytes with the same Content-Type.',
+  })
+  uploadUrl!: string;
+
+  @ApiProperty({ example: 1800 })
+  expiresInSeconds!: number;
+
+  @ApiProperty({ enum: ['PUT'] })
+  method!: 'PUT';
+}
+
+export class EnrollmentDevUploadResponseDto {
   @ApiProperty()
-  size!: number;
+  objectKey!: string;
+
+  @ApiProperty()
+  contentType!: string;
 
   @ApiProperty({ enum: ['passport', 'id_document'] })
   purpose!: 'passport' | 'id_document';
 
   @ApiProperty()
-  url!: string;
+  size!: number;
 }
 
 export class EnrollmentRefDto {
@@ -242,15 +324,66 @@ export class EnrollmentRefDto {
   name!: string;
 }
 
+export class EnrollmentWardRefDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty({ example: 'Jos South' })
+  lga!: string;
+}
+
+export class EnrollmentFacilityRefDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Vom Christian Hospital' })
+  name!: string;
+
+  @ApiProperty({ type: EnrollmentWardRefDto })
+  ward!: EnrollmentWardRefDto;
+}
+
+export class EnrollmentListItemDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'PL/CBHI/2026/001' })
+  enrollmentId!: string;
+
+  @ApiProperty({ example: 'Musa Ibrahim' })
+  beneficiaryName!: string;
+
+  @ApiProperty({ example: 'IDPs' })
+  category!: string;
+
+  @ApiProperty({ enum: ENROLLMENT_STATUSES, example: 'pending' })
+  status!: EnrollmentStatus;
+
+  @ApiProperty({ type: EnrollmentFacilityRefDto })
+  healthFacility!: EnrollmentFacilityRefDto;
+}
+
 export class EnrollmentResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
+
+  @ApiProperty({ example: 'PL/CBHI/2026/001' })
+  enrollmentId!: string;
 
   @ApiProperty({ format: 'uuid' })
   idempotencyId!: string;
 
   @ApiPropertyOptional()
   capturedAt!: Date | null;
+
+  @ApiProperty({ enum: ENROLLMENT_STATUSES, example: 'pending' })
+  status!: EnrollmentStatus;
+
+  @ApiProperty({ example: 'IDPs' })
+  category!: string;
 
   @ApiProperty({ format: 'uuid' })
   enrolledByUserId!: string;
@@ -266,6 +399,23 @@ export class EnrollmentResponseDto {
 
   @ApiProperty()
   idDocumentObjectKey!: string;
+
+  @ApiProperty({
+    description: 'Presigned Railway GET URL for the passport image (30m TTL)',
+  })
+  passportUrl!: string;
+
+  @ApiProperty({
+    description:
+      'Presigned Railway GET URL for the ID document image (30m TTL)',
+  })
+  idDocumentUrl!: string;
+
+  @ApiProperty({
+    example: 1800,
+    description: 'TTL in seconds for passportUrl and idDocumentUrl',
+  })
+  fileUrlExpiresInSeconds!: number;
 
   @ApiProperty({ enum: ENROLLMENT_TITLES })
   title!: EnrollmentTitle;
@@ -318,17 +468,19 @@ export class EnrollmentResponseDto {
   @ApiProperty()
   stateOfResidence!: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Beneficiary residence LGA (address section), not facility LGA',
+  })
   lgaOfResidence!: string;
 
   @ApiProperty()
   residentialAddress!: string;
 
-  @ApiProperty({ type: EnrollmentRefDto })
-  ward!: EnrollmentRefDto;
+  @ApiProperty({ type: EnrollmentWardRefDto })
+  ward!: EnrollmentWardRefDto;
 
-  @ApiProperty({ type: EnrollmentRefDto })
-  healthFacility!: EnrollmentRefDto;
+  @ApiProperty({ type: EnrollmentFacilityRefDto })
+  healthFacility!: EnrollmentFacilityRefDto;
 
   @ApiProperty({ type: EnrollmentRefDto })
   enrolledBy!: EnrollmentRefDto;

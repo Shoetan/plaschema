@@ -16,7 +16,7 @@ const ALLOWED_MIME_TYPES = new Set([
 ]);
 
 @Injectable()
-export class UploadEnrollmentFileUseCase {
+export class PresignEnrollmentUploadUseCase {
   constructor(
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
   ) {}
@@ -25,7 +25,6 @@ export class UploadEnrollmentFileUseCase {
     purpose: EnrollmentUploadPurpose;
     originalFilename: string;
     contentType: string;
-    buffer: Buffer;
   }) {
     if (!ALLOWED_MIME_TYPES.has(input.contentType)) {
       throw new AppError(
@@ -35,37 +34,24 @@ export class UploadEnrollmentFileUseCase {
       );
     }
 
-    if (!input.buffer?.length) {
-      throw new AppError('VALIDATION_ERROR', 'Uploaded file is empty', 400);
-    }
-
-    if (input.buffer.length > 5 * 1024 * 1024) {
-      throw new AppError(
-        'VALIDATION_ERROR',
-        'Uploaded file must be 5MB or smaller',
-        400,
-      );
-    }
-
     const prefix =
       input.purpose === 'passport'
         ? 'enrollments/passports'
         : 'enrollments/id-documents';
 
-    const stored = await this.storage.put({
+    const result = await this.storage.createUploadUrl({
       prefix,
       originalFilename: input.originalFilename || `${createUuidV7()}.bin`,
-      buffer: input.buffer,
       contentType: input.contentType,
     });
 
     return {
-      objectKey: stored.objectKey,
-      contentType: stored.contentType,
-      size: stored.size,
+      objectKey: result.objectKey,
+      contentType: result.contentType,
       purpose: input.purpose,
-      // Temporary local stub URL shape; later replaced by presigned URLs.
-      url: `/api/enrollments/files?objectKey=${encodeURIComponent(stored.objectKey)}`,
+      uploadUrl: result.uploadUrl,
+      expiresInSeconds: result.expiresInSeconds,
+      method: 'PUT' as const,
     };
   }
 }

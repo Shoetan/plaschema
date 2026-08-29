@@ -50,7 +50,39 @@ export class AppConfigService {
     return this.configService.get('JWT_EXPIRES_IN', { infer: true });
   }
 
-  get localUploadDir(): string {
-    return this.configService.get('LOCAL_UPLOAD_DIR', { infer: true });
+  get objectStorageProvider(): Env['OBJECT_STORAGE_PROVIDER'] {
+    return this.configService.get('OBJECT_STORAGE_PROVIDER', { infer: true });
+  }
+
+  get objectStorageBucketName(): string {
+    return this.configService.get('OBJECT_STORAGE_BUCKET_NAME', {
+      infer: true,
+    });
+  }
+
+  get objectStorageEndpoint(): string {
+    return this.configService.get('OBJECT_STORAGE_ENDPOINT', { infer: true });
+  }
+
+  get objectStorageAccessKeyId(): string {
+    return this.configService.get('OBJECT_STORAGE_ACCESS_KEY_ID', {
+      infer: true,
+    });
+  }
+
+  get objectStorageSecretAccessKey(): string {
+    return this.configService.get('OBJECT_STORAGE_SECRET_ACCESS_KEY', {
+      infer: true,
+    });
+  }
+
+  get objectStorageRegion(): string {
+    return this.configService.get('OBJECT_STORAGE_REGION', { infer: true });
+  }
+
+  get objectStoragePresignTtlSeconds(): number {
+    return this.configService.get('OBJECT_STORAGE_PRESIGN_TTL_SECONDS', {
+      infer: true,
+    });
   }
 }

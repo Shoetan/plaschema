@@ -9,6 +9,7 @@ describe('identity domain user', () => {
     role: 'field_worker',
     status: 'active',
     phone: '+2348012345678',
+    lastSyncedAt: null,
     assignedWards: [],
     createdAt: new Date(),
     updatedAt: new Date(),

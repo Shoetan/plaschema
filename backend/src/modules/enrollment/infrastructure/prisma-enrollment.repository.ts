@@ -1,6 +1,15 @@
 import { Injectable } from '@nestjs/common';
+import { buildCursorPage } from '../../../platform/http/cursor-pagination';
+import { toQueryInt } from '../../../platform/http/query-transforms';
 import { PrismaService } from '../../../platform/persistence/prisma.service';
-import type { Enrollment } from '../domain/enrollment';
+import type {
+  Enrollment,
+  EnrollmentListItem,
+} from '../domain/enrollment';
+import {
+  enrollmentBeneficiaryName,
+  formatEnrollmentId,
+} from '../domain/enrollment-id';
 import { formatIsoDateOnly } from '../domain/enrollment-identity';
 import type {
   CreateEnrollmentRecordInput,
@@ -11,8 +20,11 @@ import type {
 
 type EnrollmentRow = {
   id: string;
+  enrollmentId: string;
   idempotencyId: string;
   capturedAt: Date | null;
+  status: Enrollment['status'];
+  category: string;
   enrolledByUserId: string;
   wardId: string;
   healthFacilityId: string;
@@ -39,8 +51,12 @@ type EnrollmentRow = {
   residentialAddress: string;
   createdAt: Date;
   updatedAt: Date;
-  ward: { id: string; name: string };
-  healthFacility: { id: string; name: string };
+  ward: { id: string; name: string; lga: string };
+  healthFacility: {
+    id: string;
+    name: string;
+    ward: { id: string; name: string; lga: string };
+  };
   enrolledBy: { id: string; name: string };
 };
 
@@ -49,16 +65,25 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   private include = {
-    ward: { select: { id: true, name: true } },
-    healthFacility: { select: { id: true, name: true } },
+    ward: { select: { id: true, name: true, lga: true } },
+    healthFacility: {
+      select: {
+        id: true,
+        name: true,
+        ward: { select: { id: true, name: true, lga: true } },
+      },
+    },
     enrolledBy: { select: { id: true, name: true } },
   } as const;
 
   private map(row: EnrollmentRow): Enrollment {
     return {
       id: row.id,
+      enrollmentId: row.enrollmentId,
       idempotencyId: row.idempotencyId,
       capturedAt: row.capturedAt,
+      status: row.status,
+      category: row.category,
       enrolledByUserId: row.enrolledByUserId,
       wardId: row.wardId,
       healthFacilityId: row.healthFacilityId,
@@ -89,6 +114,26 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
+  }
+
+  private mapListItem(row: EnrollmentRow): EnrollmentListItem {
+    return {
+      id: row.id,
+      enrollmentId: row.enrollmentId,
+      beneficiaryName: enrollmentBeneficiaryName(row),
+      category: row.category,
+      status: row.status,
+      healthFacility: row.healthFacility,
+    };
+  }
+
+  async allocateEnrollmentId(year: number): Promise<string> {
+    const counter = await this.prisma.enrollmentYearCounter.upsert({
+      where: { year },
+      create: { year, lastValue: 1 },
+      update: { lastValue: { increment: 1 } },
+    });
+    return formatEnrollmentId(year, counter.lastValue);
   }
 
   async create(input: CreateEnrollmentRecordInput): Promise<Enrollment> {
@@ -136,15 +181,24 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
   }
 
   async list(query: ListEnrollmentsQuery): Promise<PaginatedEnrollments> {
+    const limit = toQueryInt(query.limit, 50, { min: 1, max: 100 });
     const where = {
+      ...(query.cursor ? { id: { gt: query.cursor } } : {}),
       ...(query.wardId ? { wardId: query.wardId } : {}),
       ...(query.wardIds ? { wardId: { in: query.wardIds } } : {}),
       ...(query.enrolledByUserId
         ? { enrolledByUserId: query.enrolledByUserId }
         : {}),
+      ...(query.status ? { status: query.status } : {}),
       ...(query.search
         ? {
             OR: [
+              {
+                enrollmentId: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
               {
                 firstName: {
                   contains: query.search,
@@ -169,28 +223,27 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
                   mode: 'insensitive' as const,
                 },
               },
+              {
+                category: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
             ],
           }
         : {}),
     };
 
-    const skip = (query.page - 1) * query.pageSize;
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.enrollment.findMany({
-        where,
-        skip,
-        take: query.pageSize,
-        orderBy: { createdAt: 'desc' },
-        include: this.include,
-      }),
-      this.prisma.enrollment.count({ where }),
-    ]);
+    const rows = await this.prisma.enrollment.findMany({
+      where,
+      take: limit + 1,
+      orderBy: { id: 'asc' },
+      include: this.include,
+    });
 
-    return {
-      items: rows.map((row) => this.map(row)),
-      total,
-      page: query.page,
-      pageSize: query.pageSize,
-    };
+    return buildCursorPage(
+      rows.map((row) => this.mapListItem(row)),
+      limit,
+    );
   }
 }

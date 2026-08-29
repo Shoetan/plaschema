@@ -1,23 +1,27 @@
 export const OBJECT_STORAGE = Symbol('OBJECT_STORAGE');
 
-export type StoredObject = {
-  objectKey: string;
-  contentType: string;
-  size: number;
-};
-
-export type PutObjectInput = {
+export type PresignUploadInput = {
   /** Logical folder prefix, e.g. enrollments/passports */
   prefix: string;
   originalFilename: string;
-  buffer: Buffer;
   contentType: string;
 };
 
+export type PresignUploadResult = {
+  objectKey: string;
+  uploadUrl: string;
+  contentType: string;
+  expiresInSeconds: number;
+};
+
+export type PresignReadResult = {
+  objectKey: string;
+  readUrl: string;
+  expiresInSeconds: number;
+};
+
 export interface ObjectStorage {
-  put(input: PutObjectInput): Promise<StoredObject>;
+  createUploadUrl(input: PresignUploadInput): Promise<PresignUploadResult>;
+  createReadUrl(objectKey: string): Promise<PresignReadResult>;
   exists(objectKey: string): Promise<boolean>;
-  get(
-    objectKey: string,
-  ): Promise<{ buffer: Buffer; contentType: string; size: number } | null>;
 }

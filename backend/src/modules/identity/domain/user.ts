@@ -15,12 +15,29 @@ export type User = {
   role: UserRole;
   status: UserStatus;
   phone: string | null;
+  lastSyncedAt: Date | null;
   assignedWards: UserWard[];
   createdAt: Date;
   updatedAt: Date;
 };
 
 export type PublicUser = Omit<User, 'passwordHash'>;
+
+/** Slim row for the Field Workers admin table (GET /users?role=field_worker). */
+export type FieldWorkerListItem = {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string;
+  /** Assigned wards (replaces legacy "community" column). Empty = all wards. */
+  wards: UserWard[];
+  beneficiariesEnrolled: number;
+  lastEnrollmentAt: Date | null;
+  lastSyncedAt: Date | null;
+  status: UserStatus;
+};
+
+export type UserListItem = PublicUser | FieldWorkerListItem;
 
 export function toPublicUser(user: User): PublicUser {
   const { passwordHash: _passwordHash, ...publicUser } = user;
