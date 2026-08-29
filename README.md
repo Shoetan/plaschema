@@ -36,7 +36,7 @@ pnpm dev:all
 Seeded admin (see `backend/.env.example`): `admin@cbhi.local` / `ChangeMe123!`
 
 ### Individual apps
-
+x
 ```bash
 pnpm dev:frontend          # Vite only
 pnpm dev:backend           # Docker infra + Nest watch

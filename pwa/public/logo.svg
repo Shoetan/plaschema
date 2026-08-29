@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="PLASCHEMA">
+  <rect width="192" height="192" rx="44" fill="#9fe870"/>
+  <path d="M96 35c-30 0-54 24-54 54 0 40 54 69 54 69s54-29 54-69c0-30-24-54-54-54Z" fill="#163300"/>
+  <path d="M84 61h24v17h17v24h-17v17H84v-17H67V78h17V61Z" fill="#fff"/>
+</svg>
