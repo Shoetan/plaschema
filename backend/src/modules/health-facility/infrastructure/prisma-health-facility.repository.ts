@@ -3,8 +3,10 @@ import { toQueryInt } from '../../../platform/http/query-transforms';
 import { PrismaService } from '../../../platform/persistence/prisma.service';
 import type {
   HealthFacility,
+  HealthFacilityDetailAggregates,
   HealthFacilityListItem,
 } from '../domain/health-facility';
+import { startOfMonthInLagos } from '../../ward/domain/ward-date';
 import type {
   CreateHealthFacilityInput,
   HealthFacilityRepository,
@@ -223,5 +225,45 @@ export class PrismaHealthFacilityRepository
 
   async delete(id: string): Promise<void> {
     await this.prisma.healthFacility.delete({ where: { id } });
+  }
+
+  async findDetailAggregates(
+    id: string,
+  ): Promise<HealthFacilityDetailAggregates | null> {
+    const facility = await this.prisma.healthFacility.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!facility) {
+      return null;
+    }
+
+    const monthStart = startOfMonthInLagos();
+
+    const [totalBeneficiaries, enrollmentsThisMonth, latestEnrollment] =
+      await Promise.all([
+        this.prisma.enrollment.count({ where: { healthFacilityId: id } }),
+        this.prisma.enrollment.count({
+          where: {
+            healthFacilityId: id,
+            createdAt: { gte: monthStart },
+          },
+        }),
+        this.prisma.enrollment.findFirst({
+          where: { healthFacilityId: id },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        }),
+      ]);
+
+    return {
+      stats: {
+        totalBeneficiaries,
+        enrollmentsThisMonth,
+        currentCapitation: null,
+        lastActivityAt: latestEnrollment?.createdAt ?? null,
+      },
+    };
   }
 }

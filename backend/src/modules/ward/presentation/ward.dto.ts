@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsArray,
   IsDateString,
   IsEnum,
   IsInt,
@@ -172,4 +173,150 @@ export class WardResponseDto {
 
   @ApiProperty()
   updatedAt!: Date;
+}
+
+export class WardDetailStatsDto {
+  @ApiProperty({ example: 412 })
+  totalBeneficiaries!: number;
+
+  @ApiProperty({ example: 3 })
+  activeFieldWorkers!: number;
+
+  @ApiProperty({ example: 48 })
+  enrollmentsThisMonth!: number;
+
+  @ApiProperty({ nullable: true })
+  lastActivityAt!: Date | null;
+}
+
+export class WardEnrollmentTrendPointDto {
+  @ApiProperty({ example: '2026-08' })
+  month!: string;
+
+  @ApiProperty({ example: 'Aug' })
+  label!: string;
+
+  @ApiProperty({ example: 48 })
+  count!: number;
+}
+
+export class WardDetailFieldWorkerDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty({ nullable: true })
+  phone!: string | null;
+
+  @ApiProperty({ example: 120 })
+  enrolled!: number;
+
+  @ApiProperty({ nullable: true })
+  lastEnrollmentAt!: Date | null;
+
+  @ApiProperty({ nullable: true })
+  lastSyncedAt!: Date | null;
+
+  @ApiProperty({ enum: ['active', 'inactive'] })
+  status!: 'active' | 'inactive';
+}
+
+export class WardDetailHealthFacilityDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty()
+  type!: string;
+
+  @ApiProperty({ enum: ['primary', 'secondary', 'tertiary'] })
+  level!: 'primary' | 'secondary' | 'tertiary';
+
+  @ApiProperty()
+  ward!: { id: string; name: string };
+
+  @ApiProperty({ example: 98 })
+  beneficiaries!: number;
+
+  @ApiProperty({ enum: ['active', 'inactive'] })
+  status!: 'active' | 'inactive';
+}
+
+export class ActivityLogActorDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+}
+
+export class ActivityLogEntryDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ enum: ['enrollment', 'ward', 'user', 'sync'] })
+  category!: string;
+
+  @ApiProperty({
+    enum: ['created', 'updated', 'status_changed', 'printed', 'assigned'],
+  })
+  action!: string;
+
+  @ApiProperty()
+  summary!: string;
+
+  @ApiProperty({ nullable: true, type: ActivityLogActorDto })
+  actor!: ActivityLogActorDto | null;
+
+  @ApiProperty({ format: 'uuid', nullable: true })
+  enrollmentId!: string | null;
+
+  @ApiProperty()
+  occurredAt!: Date;
+}
+
+export class WardDetailResponseDto {
+  @ApiProperty({ type: WardResponseDto })
+  ward!: WardResponseDto;
+
+  @ApiProperty({ type: WardDetailStatsDto })
+  stats!: WardDetailStatsDto;
+
+  @ApiProperty({ type: WardEnrollmentTrendPointDto, isArray: true })
+  enrollmentTrend!: WardEnrollmentTrendPointDto[];
+
+  @ApiProperty({ type: WardDetailFieldWorkerDto, isArray: true })
+  fieldWorkers!: WardDetailFieldWorkerDto[];
+
+  @ApiProperty({ type: WardDetailHealthFacilityDto, isArray: true })
+  healthFacilities!: WardDetailHealthFacilityDto[];
+
+  @ApiProperty({
+    type: ActivityLogEntryDto,
+    isArray: true,
+    description:
+      'Unified activity feed for Enrollment Activity and Activity Log tabs',
+  })
+  activityLog!: ActivityLogEntryDto[];
+}
+
+export class AssignWardFieldWorkersDto {
+  @ApiProperty({
+    type: [String],
+    format: 'uuid',
+    description:
+      'Field worker user IDs to assign to this ward (replaces existing ward assignments)',
+  })
+  @IsArray()
+  @IsUUID('7', { each: true })
+  fieldWorkerIds!: string[];
+}
+
+export class AssignWardFieldWorkersResponseDto {
+  @ApiProperty({ example: '3 field workers assigned to Vom Central' })
+  message!: string;
 }

@@ -278,3 +278,91 @@ export class HealthFacilityResponseDto {
   @ApiProperty()
   updatedAt!: Date;
 }
+
+export class HealthFacilityDetailFacilityDto extends HealthFacilityResponseDto {
+  @ApiProperty({ example: 'Plateau' })
+  state!: 'Plateau';
+}
+
+export class HealthFacilityDetailStatsDto {
+  @ApiProperty({ example: 156 })
+  totalBeneficiaries!: number;
+
+  @ApiProperty({ example: 31 })
+  enrollmentsThisMonth!: number;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    example: null,
+    description: 'Stub until capitation billing is implemented',
+  })
+  currentCapitation!: number | null;
+
+  @ApiProperty({ type: Date, nullable: true })
+  lastActivityAt!: Date | null;
+}
+
+export class HealthFacilityCapitationStubDto {
+  @ApiProperty({ example: false })
+  implemented!: false;
+
+  @ApiProperty({ type: Number, nullable: true, example: null })
+  currentAmount!: number | null;
+
+  @ApiProperty({ example: 'NGN' })
+  currency!: 'NGN';
+
+  @ApiProperty({ type: 'array', example: [] })
+  records!: unknown[];
+}
+
+export class HealthFacilityDetailActivityLogActorDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+}
+
+export class HealthFacilityDetailActivityLogEntryDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ enum: ['enrollment', 'ward', 'user', 'sync'] })
+  category!: string;
+
+  @ApiProperty({
+    enum: ['created', 'updated', 'status_changed', 'printed', 'assigned'],
+  })
+  action!: string;
+
+  @ApiProperty()
+  summary!: string;
+
+  @ApiProperty({ nullable: true, type: HealthFacilityDetailActivityLogActorDto })
+  actor!: HealthFacilityDetailActivityLogActorDto | null;
+
+  @ApiProperty({ format: 'uuid', nullable: true })
+  enrollmentId!: string | null;
+
+  @ApiProperty()
+  occurredAt!: Date;
+}
+
+export class HealthFacilityDetailResponseDto {
+  @ApiProperty({ type: HealthFacilityDetailFacilityDto })
+  facility!: HealthFacilityDetailFacilityDto;
+
+  @ApiProperty({ type: HealthFacilityDetailStatsDto })
+  stats!: HealthFacilityDetailStatsDto;
+
+  @ApiProperty({ type: HealthFacilityCapitationStubDto })
+  capitation!: HealthFacilityCapitationStubDto;
+
+  @ApiProperty({
+    type: HealthFacilityDetailActivityLogEntryDto,
+    isArray: true,
+  })
+  activityLog!: HealthFacilityDetailActivityLogEntryDto[];
+}

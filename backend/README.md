@@ -60,22 +60,27 @@ Clean Architecture only (no DDD / bounded contexts). Feature modules:
 - `src/modules/ward` — wards
 - `src/modules/health-facility` — health facilities
 - `src/modules/enrollment` — beneficiary enrollment
+- `src/modules/activity-log` — ward-scoped activity/audit log for enrollment events
 
 ## Key endpoints
 
 - `POST /api/auth/login`
 - `POST /api/users/:id/reset-password` (admin only; no email)
 - `GET /api/users` — cursor list; with `role=field_worker` returns wards + enrollment stats (`beneficiariesEnrolled`, `lastEnrollmentAt`, `lastSyncedAt`)
+- `GET /api/users/:id/detail` — field worker detail for admin (`fieldWorker` overview without assigned wards, `stats`, `wards` tab data, unified `activityLog`). Beneficiaries tab uses `GET /api/enrollments?enrolledByUserId=`
 - `POST /api/wards/batch` — CSV or Excel (.xlsx/.xls); columns: `name,lga`
 - `GET /api/wards` — cursor list for wards table (`name`, `state`, `lga`, `fieldWorkers`, `beneficiaries`, `newEnrollments`, `status`)
+- `GET /api/wards/:id/detail` — admin ward detail page payload (`ward`, `stats`, `enrollmentTrend`, `fieldWorkers`, `healthFacilities`, unified `activityLog`). Beneficiaries tab uses `GET /api/enrollments?wardId=`
+- `PUT /api/wards/:id/field-workers` — assign multiple field workers to a ward (`fieldWorkerIds[]`; replaces existing assignments for that ward; returns `{ message }`)
 - `GET /api/wards/stream` — NDJSON stream for offline/mobile cache sync (`updatedSince` optional)
 - `POST /api/health-facilities/batch` — CSV or Excel (.xlsx/.xls); columns: `name,lga,ward`
 - `GET /api/health-facilities` — cursor list (`name`, `type`, `level`, joined `ward`/`lga`, `beneficiaries`, `status`)
+- `GET /api/health-facilities/:id/detail` — admin facility detail (`facility` with full schema fields + `state`, `stats`, capitation stub, `activityLog`). Beneficiaries tab uses `GET /api/enrollments?healthFacilityId=`
 - `GET /api/health-facilities/stream` — NDJSON stream for offline/mobile cache sync
 - `POST /api/enrollments/files/presign-upload` — Railway presigned PUT URL for passport/ID upload
 - `POST /api/enrollments/files/dev-upload` — **dev/test only**: multipart upload that presigns + PUTs to Railway (returns `objectKey`)
 - `POST /api/enrollments` — create enrollment (idempotent via `idempotencyId`; duplicate = first+last+DOB)
-- `GET /api/enrollments` — cursor list for beneficiaries / ID-card page (`enrollmentId`, name, category, lga, facility, ward, status, `hasPrinted`, `printCount`, `printedAt`). Filters: `category`, `printedStatus` (`all`|`printed`|`not_printed`), `lga`, `wardId`, `beneficiaryName`, `enrollmentId`, `createdFrom`/`createdTo`, `status`, `search`, `enrolledByMe`
+- `GET /api/enrollments` — cursor list for beneficiaries / ID-card page (`enrollmentId`, name, category, lga, facility, ward, status, `hasPrinted`, `printCount`, `printedAt`). Filters: `category`, `printedStatus` (`all`|`printed`|`not_printed`), `lga`, `wardId`, `healthFacilityId`, `enrolledByUserId` (admin), `beneficiaryName`, `enrollmentId`, `createdFrom`/`createdTo`, `status`, `search`, `enrolledByMe`
 - `GET /api/enrollments/:id` — full enrollment detail with presigned `passportUrl` + `idDocumentUrl` (+ print fields)
 - `POST /api/enrollments/id-cards/generate` — admin; enqueue async PDF job for 1–9 enrollments (9-up A4 front+back via HTML/CSS + reused headless Chromium); returns `202 { jobId }` (BullMQ on Redis, concurrency 1 — does not block enrollment flow)
 - `GET /api/enrollments/id-cards/jobs/:jobId` — poll job; when `completed`, returns presigned `downloadUrl`

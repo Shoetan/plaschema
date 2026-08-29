@@ -34,6 +34,7 @@ import { UuidV7Pipe } from '../../../platform/http/uuid-v7.pipe';
 import { BatchCreateHealthFacilitiesUseCase } from '../application/batch-create-health-facilities.use-case';
 import { CreateHealthFacilityUseCase } from '../application/create-health-facility.use-case';
 import { DeleteHealthFacilityUseCase } from '../application/delete-health-facility.use-case';
+import { GetHealthFacilityDetailUseCase } from '../application/get-health-facility-detail.use-case';
 import { GetHealthFacilityUseCase } from '../application/get-health-facility.use-case';
 import { ListHealthFacilitiesUseCase } from '../application/list-health-facilities.use-case';
 import { StreamHealthFacilitiesUseCase } from '../application/stream-health-facilities.use-case';
@@ -41,6 +42,7 @@ import { UpdateHealthFacilityUseCase } from '../application/update-health-facili
 import {
   CreateHealthFacilityDto,
   HealthFacilityListItemDto,
+  HealthFacilityDetailResponseDto,
   HealthFacilityResponseDto,
   ListHealthFacilitiesQueryDto,
   StreamHealthFacilitiesQueryDto,
@@ -57,6 +59,7 @@ export class HealthFacilityController {
     private readonly listFacilities: ListHealthFacilitiesUseCase,
     private readonly streamFacilities: StreamHealthFacilitiesUseCase,
     private readonly getFacility: GetHealthFacilityUseCase,
+    private readonly getFacilityDetail: GetHealthFacilityDetailUseCase,
     private readonly updateFacility: UpdateHealthFacilityUseCase,
     private readonly deleteFacility: DeleteHealthFacilityUseCase,
   ) {}
@@ -168,6 +171,17 @@ export class HealthFacilityController {
       type: 'application/x-ndjson; charset=utf-8',
       disposition: 'inline',
     });
+  }
+
+  @Get(':id/detail')
+  @Roles('admin')
+  @ApiOperation({
+    summary:
+      'Get health facility detail (admin overview, capitation stub, activity log)',
+  })
+  @ApiOkResponse({ type: HealthFacilityDetailResponseDto })
+  detail(@Param('id', UuidV7Pipe) id: string) {
+    return this.getFacilityDetail.execute(id);
   }
 
   @Get(':id')

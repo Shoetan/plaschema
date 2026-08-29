@@ -5,7 +5,11 @@ import {
   USER_REPOSITORY,
   type UserRepository,
 } from '../../identity/application/user.repository';
-import { fieldWorkerWardListFilter } from './field-worker-ward-access';
+import {
+  HEALTH_FACILITY_REPOSITORY,
+  type HealthFacilityRepository,
+} from '../../health-facility/application/health-facility.repository';
+import { fieldWorkerCanAccessWard, fieldWorkerWardListFilter } from './field-worker-ward-access';
 import {
   ENROLLMENT_REPOSITORY,
   type EnrollmentRepository,
@@ -26,17 +30,47 @@ export class ListEnrollmentsUseCase {
     @Inject(ENROLLMENT_REPOSITORY)
     private readonly enrollments: EnrollmentRepository,
     @Inject(USER_REPOSITORY) private readonly users: UserRepository,
+    @Inject(HEALTH_FACILITY_REPOSITORY)
+    private readonly facilities: HealthFacilityRepository,
   ) {}
 
   async execute(
     actor: AuthenticatedUser,
     query: Omit<ListEnrollmentsQuery, 'wardIds' | 'enrolledByUserId' | 'createdFrom' | 'createdTo'> & {
       enrolledByMe?: boolean;
+      enrolledByUserId?: string;
+      healthFacilityId?: string;
       createdFrom?: string;
       createdTo?: string;
     },
   ) {
     let wardIds: string[] | undefined;
+    let enrolledByUserId: string | undefined;
+    const healthFacilityId = query.healthFacilityId;
+
+    if (healthFacilityId) {
+      const facility = await this.facilities.findById(healthFacilityId);
+      if (!facility) {
+        throw new AppError(
+          'HEALTH_FACILITY_NOT_FOUND',
+          'Health facility not found',
+          404,
+        );
+      }
+
+      if (actor.role === 'field_worker') {
+        const user = await this.users.findById(actor.id);
+        if (
+          !fieldWorkerCanAccessWard(user?.assignedWards ?? [], facility.wardId)
+        ) {
+          throw new AppError(
+            'FORBIDDEN_WARD',
+            'Field workers can only list enrollments in their assigned wards',
+            403,
+          );
+        }
+      }
+    }
 
     if (actor.role === 'field_worker') {
       const user = await this.users.findById(actor.id);
@@ -50,6 +84,16 @@ export class ListEnrollmentsUseCase {
           403,
         );
       }
+
+      if (query.enrolledByUserId) {
+        throw new AppError('FORBIDDEN', 'Not allowed to filter by field worker', 403);
+      }
+
+      enrolledByUserId = query.enrolledByMe ? actor.id : undefined;
+    } else if (query.enrolledByMe) {
+      enrolledByUserId = actor.id;
+    } else if (query.enrolledByUserId) {
+      enrolledByUserId = query.enrolledByUserId;
     }
 
     return this.enrollments.list({
@@ -57,7 +101,8 @@ export class ListEnrollmentsUseCase {
       limit: query.limit,
       wardId: query.wardId,
       wardIds: query.wardId ? undefined : wardIds,
-      enrolledByUserId: query.enrolledByMe ? actor.id : undefined,
+      healthFacilityId,
+      enrolledByUserId,
       search: query.search,
       status: query.status,
       category: query.category,

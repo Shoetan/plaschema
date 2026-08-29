@@ -26,3 +26,43 @@ export type WardListItem = {
   newEnrollments: number;
   status: WardStatus;
 };
+
+export type WardDetailStats = {
+  totalBeneficiaries: number;
+  activeFieldWorkers: number;
+  enrollmentsThisMonth: number;
+  lastActivityAt: Date | null;
+};
+
+export type WardEnrollmentTrendPoint = {
+  month: string;
+  label: string;
+  count: number;
+};
+
+export type WardDetailFieldWorker = {
+  id: string;
+  name: string;
+  phone: string | null;
+  enrolled: number;
+  lastEnrollmentAt: Date | null;
+  lastSyncedAt: Date | null;
+  status: 'active' | 'inactive';
+};
+
+export type WardDetailHealthFacility = {
+  id: string;
+  name: string;
+  type: string;
+  level: 'primary' | 'secondary' | 'tertiary';
+  ward: { id: string; name: string };
+  beneficiaries: number;
+  status: 'active' | 'inactive';
+};
+
+export type WardDetailAggregates = {
+  stats: WardDetailStats;
+  enrollmentTrend: WardEnrollmentTrendPoint[];
+  fieldWorkers: WardDetailFieldWorker[];
+  healthFacilities: WardDetailHealthFacility[];
+};

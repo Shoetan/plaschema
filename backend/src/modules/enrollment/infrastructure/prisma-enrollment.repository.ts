@@ -199,6 +199,7 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
       select: {
         id: true,
         enrollmentId: true,
+        wardId: true,
         firstName: true,
         lastName: true,
         middleName: true,
@@ -219,6 +220,7 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
         {
           id: row.id,
           enrollmentId: row.enrollmentId,
+          wardId: row.wardId,
           firstName: row.firstName,
           lastName: row.lastName,
           middleName: row.middleName,
@@ -268,6 +270,9 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
       ...(query.cursor ? { id: { gt: query.cursor } } : {}),
       ...(query.wardId ? { wardId: query.wardId } : {}),
       ...(query.wardIds ? { wardId: { in: query.wardIds } } : {}),
+      ...(query.healthFacilityId
+        ? { healthFacilityId: query.healthFacilityId }
+        : {}),
       ...(query.enrolledByUserId
         ? { enrolledByUserId: query.enrolledByUserId }
         : {}),

@@ -3,6 +3,7 @@ import type {
   CursorPage,
 } from '../../../platform/http/cursor-pagination';
 import type {
+  FieldWorkerDetailAggregates,
   FieldWorkerListItem,
   PublicUser,
   User,
@@ -47,4 +48,10 @@ export interface UserRepository {
   list(query: ListUsersQuery): Promise<PaginatedUsers>;
   update(id: string, input: UpdateUserInput): Promise<PublicUser>;
   wardIdsExist(wardIds: string[]): Promise<boolean>;
+  findFieldWorkersByIds(
+    ids: string[],
+  ): Promise<Array<{ id: string; name: string }>>;
+  findFieldWorkerDetailAggregates(
+    userId: string,
+  ): Promise<FieldWorkerDetailAggregates | null>;
 }

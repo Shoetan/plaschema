@@ -204,7 +204,14 @@ export class EnrollmentController {
     description: 'Page size (1-100)',
   })
   @ApiQuery({ name: 'wardId', required: false, type: String })
+  @ApiQuery({ name: 'healthFacilityId', required: false, type: String })
   @ApiQuery({ name: 'enrolledByMe', required: false, type: Boolean })
+  @ApiQuery({
+    name: 'enrolledByUserId',
+    required: false,
+    type: String,
+    description: 'Admin only: filter by field worker user id',
+  })
   @ApiQuery({
     name: 'status',
     required: false,
