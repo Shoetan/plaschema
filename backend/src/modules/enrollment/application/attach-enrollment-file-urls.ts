@@ -9,6 +9,7 @@ export type EnrollmentWithFileUrls = Enrollment & {
   passportUrl: string;
   idDocumentUrl: string;
   fileUrlExpiresInSeconds: number;
+  hasPrinted: boolean;
 };
 
 @Injectable()
@@ -28,6 +29,7 @@ export class AttachEnrollmentFileUrls {
       passportUrl: passport.readUrl,
       idDocumentUrl: idDocument.readUrl,
       fileUrlExpiresInSeconds: passport.expiresInSeconds,
+      hasPrinted: enrollment.printedAt != null || enrollment.printCount > 0,
     };
   }
 

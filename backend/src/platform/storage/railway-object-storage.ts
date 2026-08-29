@@ -105,6 +105,50 @@ export class RailwayObjectStorage implements ObjectStorage {
     }
   }
 
+  async putObject(input: {
+    objectKey: string;
+    body: Buffer;
+    contentType: string;
+  }): Promise<void> {
+    const key = this.assertSafeObjectKey(input.objectKey);
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.config.objectStorageBucketName,
+        Key: key,
+        Body: input.body,
+        ContentType: input.contentType,
+      }),
+    );
+  }
+
+  async getObject(objectKey: string): Promise<{
+    body: Buffer;
+    contentType?: string;
+  }> {
+    const key = this.assertSafeObjectKey(objectKey);
+    try {
+      const result = await this.client.send(
+        new GetObjectCommand({
+          Bucket: this.config.objectStorageBucketName,
+          Key: key,
+        }),
+      );
+      const bytes = await result.Body?.transformToByteArray();
+      if (!bytes) {
+        throw new AppError('OBJECT_NOT_FOUND', 'Object has no body', 404);
+      }
+      return {
+        body: Buffer.from(bytes),
+        contentType: result.ContentType,
+      };
+    } catch (error: unknown) {
+      if (this.isNotFound(error)) {
+        throw new AppError('OBJECT_NOT_FOUND', 'Object not found', 404);
+      }
+      throw error;
+    }
+  }
+
   private normalizePrefix(prefix: string): string {
     return prefix.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
   }

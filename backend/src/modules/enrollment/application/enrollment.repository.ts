@@ -6,6 +6,7 @@ import type {
   Enrollment,
   EnrollmentListItem,
   EnrollmentStatus,
+  PrintedStatusFilter,
 } from '../domain/enrollment';
 
 export const ENROLLMENT_REPOSITORY = Symbol('ENROLLMENT_REPOSITORY');
@@ -51,6 +52,25 @@ export type ListEnrollmentsQuery = CursorListQuery & {
   enrolledByUserId?: string;
   search?: string;
   status?: EnrollmentStatus;
+  category?: string;
+  printedStatus?: PrintedStatusFilter;
+  lga?: string;
+  beneficiaryName?: string;
+  enrollmentId?: string;
+  createdFrom?: Date;
+  createdTo?: Date;
+};
+
+export type IdCardEnrollmentData = {
+  id: string;
+  enrollmentId: string;
+  firstName: string;
+  lastName: string;
+  middleName: string | null;
+  emergencyPhone: string;
+  bloodGroup: Enrollment['bloodGroup'];
+  passportObjectKey: string;
+  facilityName: string;
 };
 
 export type PaginatedEnrollments = CursorPage<EnrollmentListItem>;
@@ -65,5 +85,7 @@ export interface EnrollmentRepository {
     lastNameNormalized: string;
     dateOfBirth: Date;
   }): Promise<Enrollment | null>;
+  findManyByIds(ids: string[]): Promise<IdCardEnrollmentData[]>;
+  markPrinted(ids: string[], printedAt: Date): Promise<void>;
   list(query: ListEnrollmentsQuery): Promise<PaginatedEnrollments>;
 }

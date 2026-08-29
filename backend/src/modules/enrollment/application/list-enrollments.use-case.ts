@@ -12,6 +12,14 @@ import {
   type ListEnrollmentsQuery,
 } from './enrollment.repository';
 
+function startOfUtcDay(isoDate: string): Date {
+  return new Date(`${isoDate}T00:00:00.000Z`);
+}
+
+function endOfUtcDay(isoDate: string): Date {
+  return new Date(`${isoDate}T23:59:59.999Z`);
+}
+
 @Injectable()
 export class ListEnrollmentsUseCase {
   constructor(
@@ -22,8 +30,10 @@ export class ListEnrollmentsUseCase {
 
   async execute(
     actor: AuthenticatedUser,
-    query: Omit<ListEnrollmentsQuery, 'wardIds' | 'enrolledByUserId'> & {
+    query: Omit<ListEnrollmentsQuery, 'wardIds' | 'enrolledByUserId' | 'createdFrom' | 'createdTo'> & {
       enrolledByMe?: boolean;
+      createdFrom?: string;
+      createdTo?: string;
     },
   ) {
     let wardIds: string[] | undefined;
@@ -50,6 +60,15 @@ export class ListEnrollmentsUseCase {
       enrolledByUserId: query.enrolledByMe ? actor.id : undefined,
       search: query.search,
       status: query.status,
+      category: query.category,
+      printedStatus: query.printedStatus,
+      lga: query.lga,
+      beneficiaryName: query.beneficiaryName,
+      enrollmentId: query.enrollmentId,
+      createdFrom: query.createdFrom
+        ? startOfUtcDay(query.createdFrom)
+        : undefined,
+      createdTo: query.createdTo ? endOfUtcDay(query.createdTo) : undefined,
     });
   }
 }

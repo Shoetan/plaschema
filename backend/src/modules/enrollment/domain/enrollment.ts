@@ -107,11 +107,21 @@ export type Enrollment = {
   ward: EnrollmentWardRef;
   healthFacility: EnrollmentFacilityRef;
   enrolledBy: EnrollmentRef;
+  printedAt: Date | null;
+  printCount: number;
   createdAt: Date;
   updatedAt: Date;
   /** True when this response came from an idempotent replay. */
   idempotentReplay?: boolean;
 };
+
+export type PrintedStatusFilter = 'all' | 'printed' | 'not_printed';
+
+export const PRINTED_STATUS_FILTERS: PrintedStatusFilter[] = [
+  'all',
+  'printed',
+  'not_printed',
+];
 
 /** Slim row for the beneficiaries table (GET /enrollments list). */
 export type EnrollmentListItem = {
@@ -121,6 +131,10 @@ export type EnrollmentListItem = {
   category: string;
   status: EnrollmentStatus;
   healthFacility: EnrollmentFacilityRef;
+  createdAt: Date;
+  hasPrinted: boolean;
+  printCount: number;
+  printedAt: Date | null;
 };
 
 export const ENROLLMENT_TITLES: EnrollmentTitle[] = [
