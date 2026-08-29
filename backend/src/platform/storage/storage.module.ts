@@ -1,16 +1,16 @@
 import { Global, Module } from '@nestjs/common';
-import { LocalObjectStorage } from './local-object-storage';
 import { OBJECT_STORAGE } from './object-storage';
+import { RailwayObjectStorage } from './railway-object-storage';
 
 @Global()
 @Module({
   providers: [
-    LocalObjectStorage,
+    RailwayObjectStorage,
     {
       provide: OBJECT_STORAGE,
-      useExisting: LocalObjectStorage,
+      useExisting: RailwayObjectStorage,
     },
   ],
-  exports: [OBJECT_STORAGE, LocalObjectStorage],
+  exports: [OBJECT_STORAGE, RailwayObjectStorage],
 })
 export class StorageModule {}

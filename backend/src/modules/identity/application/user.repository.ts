@@ -1,4 +1,14 @@
-import type { PublicUser, User, UserRole, UserStatus } from '../domain/user';
+import type {
+  CursorListQuery,
+  CursorPage,
+} from '../../../platform/http/cursor-pagination';
+import type {
+  FieldWorkerListItem,
+  PublicUser,
+  User,
+  UserRole,
+  UserStatus,
+} from '../domain/user';
 
 export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
 
@@ -19,21 +29,16 @@ export type UpdateUserInput = {
   status?: UserStatus;
   passwordHash?: string;
   assignedWardIds?: string[];
+  lastSyncedAt?: Date | null;
 };
 
-export type ListUsersQuery = {
-  page: number;
-  pageSize: number;
+export type ListUsersQuery = CursorListQuery & {
   role?: UserRole;
   status?: UserStatus;
+  search?: string;
 };
 
-export type PaginatedUsers = {
-  items: PublicUser[];
-  total: number;
-  page: number;
-  pageSize: number;
-};
+export type PaginatedUsers = CursorPage<PublicUser | FieldWorkerListItem>;
 
 export interface UserRepository {
   create(input: CreateUserInput): Promise<PublicUser>;

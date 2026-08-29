@@ -20,7 +20,26 @@ export const envSchema = z.object({
   SEED_ADMIN_EMAIL: z.string().email().optional(),
   SEED_ADMIN_PASSWORD: z.string().min(8).optional(),
   SEED_ADMIN_NAME: z.string().min(1).optional(),
-  LOCAL_UPLOAD_DIR: z.string().min(1).default('./uploads'),
+  OBJECT_STORAGE_PROVIDER: z.enum(['railway']).default('railway'),
+  OBJECT_STORAGE_BUCKET_NAME: z
+    .string()
+    .min(1, 'OBJECT_STORAGE_BUCKET_NAME is required'),
+  OBJECT_STORAGE_ENDPOINT: z
+    .string()
+    .url('OBJECT_STORAGE_ENDPOINT must be a valid URL'),
+  OBJECT_STORAGE_ACCESS_KEY_ID: z
+    .string()
+    .min(1, 'OBJECT_STORAGE_ACCESS_KEY_ID is required'),
+  OBJECT_STORAGE_SECRET_ACCESS_KEY: z
+    .string()
+    .min(1, 'OBJECT_STORAGE_SECRET_ACCESS_KEY is required'),
+  OBJECT_STORAGE_REGION: z.string().min(1).default('auto'),
+  /** Presigned URL TTL in seconds (default 30 minutes). */
+  OBJECT_STORAGE_PRESIGN_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(1800),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -63,6 +63,7 @@ export class BatchCreateWardsUseCase {
         id: createUuidV7(),
         name,
         lga,
+        status: 'active',
         row: rowNumber,
       });
     });
@@ -88,6 +89,7 @@ export class BatchCreateWardsUseCase {
         id: candidate.id,
         name: candidate.name,
         lga: candidate.lga,
+        status: candidate.status,
       });
     }
 

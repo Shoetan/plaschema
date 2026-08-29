@@ -84,16 +84,43 @@ enum NextOfKinRelationship {
   other
 }
 
+enum EnrollmentStatus {
+  pending
+  active
+  disabled
+  deceased
+}
+
+enum WardStatus {
+  active
+  inactive
+}
+
+enum HealthFacilityStatus {
+  active
+  inactive
+}
+
+enum HealthFacilityLevel {
+  primary
+  secondary
+  tertiary
+}
+
 model Ward {
-  id        String   @id @db.Uuid
-  name      String   @unique
+  id        String     @id @db.Uuid
+  name      String     @unique
   lga       String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status    WardStatus @default(active)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   assignments      UserWardAssignment[]
   healthFacilities HealthFacility[]
   enrollments      Enrollment[]
+
+  @@index([status])
+  @@index([lga])
 }
 
 model User {
@@ -104,6 +131,8 @@ model User {
   role         UserRole
   status       UserStatus @default(active)
   phone        String?
+  /// Last successful offline/mobile sync reported by the client app.
+  lastSyncedAt DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -124,12 +153,16 @@ model UserWardAssignment {
 }
 
 model HealthFacility {
-  id        String   @id @db.Uuid
+  id        String               @id @db.Uuid
   name      String
+  /// Denormalized from ward.lga for filtering/legacy batch upload compatibility.
   lga       String
-  wardId    String   @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  type      String               @default("Primary Health Care")
+  level     HealthFacilityLevel  @default(primary)
+  status    HealthFacilityStatus @default(active)
+  wardId    String               @db.Uuid
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
 
   ward        Ward         @relation(fields: [wardId], references: [id], onDelete: Restrict)
   enrollments Enrollment[]
@@ -137,16 +170,32 @@ model HealthFacility {
   @@unique([name, wardId])
   @@index([wardId])
   @@index([lga])
+  @@index([status])
+  @@index([type])
+  @@index([level])
+}
+
+model EnrollmentYearCounter {
+  year      Int @id
+  lastValue Int
 }
 
 model Enrollment {
   id String @id @db.Uuid
+
+  /// Human-readable enrollment ID, e.g. PL/CBHI/2026/001
+  enrollmentId String @unique
 
   /// Client-generated idempotency key for offline-first sync retries.
   idempotencyId String @unique @db.Uuid
 
   /// When the enrollment was captured on-device (may precede server createdAt).
   capturedAt DateTime?
+
+  status EnrollmentStatus @default(pending)
+
+  /// Beneficiary category as shown in admin tables (e.g. IDPs, Elderly 65+).
+  category String
 
   enrolledByUserId String @db.Uuid
   wardId           String @db.Uuid
@@ -194,4 +243,5 @@ model Enrollment {
   @@index([healthFacilityId])
   @@index([enrolledByUserId])
   @@index([createdAt])
+  @@index([status])
 }

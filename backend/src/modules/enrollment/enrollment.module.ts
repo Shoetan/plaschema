@@ -5,10 +5,11 @@ import { WardModule } from '../ward/ward.module';
 import { CheckEnrollmentDuplicateUseCase } from './application/check-enrollment-duplicate.use-case';
 import { CreateEnrollmentUseCase } from './application/create-enrollment.use-case';
 import { ENROLLMENT_REPOSITORY } from './application/enrollment.repository';
-import { GetEnrollmentFileUseCase } from './application/get-enrollment-file.use-case';
+import { AttachEnrollmentFileUrls } from './application/attach-enrollment-file-urls';
+import { DevUploadEnrollmentFileUseCase } from './application/dev-upload-enrollment-file.use-case';
 import { GetEnrollmentUseCase } from './application/get-enrollment.use-case';
 import { ListEnrollmentsUseCase } from './application/list-enrollments.use-case';
-import { UploadEnrollmentFileUseCase } from './application/upload-enrollment-file.use-case';
+import { PresignEnrollmentUploadUseCase } from './application/presign-enrollment-upload.use-case';
 import { PrismaEnrollmentRepository } from './infrastructure/prisma-enrollment.repository';
 import { EnrollmentController } from './presentation/enrollment.controller';
 
@@ -21,11 +22,12 @@ import { EnrollmentController } from './presentation/enrollment.controller';
       useClass: PrismaEnrollmentRepository,
     },
     CreateEnrollmentUseCase,
-    UploadEnrollmentFileUseCase,
+    PresignEnrollmentUploadUseCase,
+    DevUploadEnrollmentFileUseCase,
+    AttachEnrollmentFileUrls,
     ListEnrollmentsUseCase,
     GetEnrollmentUseCase,
     CheckEnrollmentDuplicateUseCase,
-    GetEnrollmentFileUseCase,
   ],
   exports: [ENROLLMENT_REPOSITORY],
 })

@@ -30,11 +30,14 @@ import {
   ENROLLMENT_REPOSITORY,
   type EnrollmentRepository,
 } from './enrollment.repository';
+import { fieldWorkerCanAccessWard } from './field-worker-ward-access';
 
 export type CreateEnrollmentInput = {
   /** Required offline idempotency key (UUID v7). */
   idempotencyId: string;
   capturedAt?: string | null;
+  /** Beneficiary category label shown in admin tables. */
+  category: string;
   passportObjectKey: string;
   idDocumentObjectKey: string;
   title: Enrollment['title'];
@@ -122,7 +125,10 @@ export class CreateEnrollmentUseCase {
         'DUPLICATE_ENROLLMENT',
         'An enrollment already exists for this first name, last name, and date of birth',
         409,
-        { enrollmentId: duplicateCheck.enrollmentId },
+        {
+          id: duplicateCheck.id,
+          enrollmentId: duplicateCheck.enrollmentId,
+        },
       );
     }
 
@@ -133,10 +139,9 @@ export class CreateEnrollmentUseCase {
 
     if (actor.role === 'field_worker') {
       const user = await this.users.findById(actor.id);
-      const assigned = new Set(
-        (user?.assignedWards ?? []).map((item) => item.id),
-      );
-      if (!assigned.has(input.wardId)) {
+      if (
+        !fieldWorkerCanAccessWard(user?.assignedWards ?? [], input.wardId)
+      ) {
         throw new AppError(
           'FORBIDDEN_WARD',
           'Field workers can only enroll beneficiaries in their assigned wards',
@@ -185,10 +190,17 @@ export class CreateEnrollmentUseCase {
     }
 
     try {
+      const enrollmentId = await this.enrollments.allocateEnrollmentId(
+        new Date().getFullYear(),
+      );
+
       return await this.enrollments.create({
         id: createUuidV7(),
+        enrollmentId,
         idempotencyId: input.idempotencyId,
         capturedAt,
+        status: 'pending',
+        category: collapseAddress(input.category),
         enrolledByUserId: actor.id,
         wardId: input.wardId,
         healthFacilityId: input.healthFacilityId,
@@ -242,7 +254,10 @@ export class CreateEnrollmentUseCase {
             'DUPLICATE_ENROLLMENT',
             'An enrollment already exists for this first name, last name, and date of birth',
             409,
-            { enrollmentId: identityReplay.id },
+            {
+              id: identityReplay.id,
+              enrollmentId: identityReplay.enrollmentId,
+            },
           );
         }
       }

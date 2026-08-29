@@ -40,6 +40,7 @@ import { StreamHealthFacilitiesUseCase } from '../application/stream-health-faci
 import { UpdateHealthFacilityUseCase } from '../application/update-health-facility.use-case';
 import {
   CreateHealthFacilityDto,
+  HealthFacilityListItemDto,
   HealthFacilityResponseDto,
   ListHealthFacilitiesQueryDto,
   StreamHealthFacilitiesQueryDto,
@@ -86,7 +87,7 @@ export class HealthFacilityController {
           type: 'string',
           format: 'binary',
           description:
-            'CSV or Excel (.xlsx/.xls) with columns: name,lga,ward',
+            'CSV or Excel (.xlsx/.xls) with columns: name,ward (lga optional/ignored; taken from ward)',
         },
       },
     },
@@ -121,7 +122,24 @@ export class HealthFacilityController {
   })
   @ApiQuery({ name: 'wardId', required: false, type: String })
   @ApiQuery({ name: 'lga', required: false, type: String })
-  @ApiOkResponse({ type: HealthFacilityResponseDto, isArray: true })
+  @ApiQuery({ name: 'type', required: false, type: String })
+  @ApiQuery({
+    name: 'level',
+    required: false,
+    enum: ['primary', 'secondary', 'tertiary'],
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['active', 'inactive'],
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by facility name, type, ward name, or LGA',
+  })
+  @ApiOkResponse({ type: HealthFacilityListItemDto, isArray: true })
   async list(@Query() query: ListHealthFacilitiesQueryDto) {
     const result = await this.listFacilities.execute(query);
     return {

@@ -317,9 +317,11 @@ function openApiConfig() {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        description: 'JWT access token from POST /api/auth/login',
+        description:
+          'Paste the JWT access token only (from POST /api/auth/login). Do not include the word "Bearer".',
       },
       'bearer',
     )
+    .addSecurityRequirements('bearer')
     .build();
 }

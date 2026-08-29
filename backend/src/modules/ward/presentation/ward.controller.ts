@@ -43,8 +43,14 @@ import {
   ListWardsQueryDto,
   StreamWardsQueryDto,
   UpdateWardDto,
+  WardListItemDto,
   WardResponseDto,
 } from './ward.dto';
+import { WARD_STATE, type Ward } from '../domain/ward';
+
+function withWardState(ward: Ward) {
+  return { ...ward, state: WARD_STATE };
+}
 
 @ApiTags('wards')
 @ApiBearerAuth('bearer')
@@ -64,8 +70,8 @@ export class WardController {
   @Roles('admin')
   @ApiOperation({ summary: 'Create a ward' })
   @ApiCreatedResponse({ type: WardResponseDto })
-  create(@Body() body: CreateWardDto) {
-    return this.createWard.execute(body);
+  async create(@Body() body: CreateWardDto) {
+    return withWardState(await this.createWard.execute(body));
   }
 
   @Post('batch')
@@ -113,7 +119,18 @@ export class WardController {
     example: 50,
     description: 'Page size (1-100)',
   })
-  @ApiOkResponse({ type: WardResponseDto, isArray: true })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by ward name or LGA',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['active', 'inactive'],
+  })
+  @ApiOkResponse({ type: WardListItemDto, isArray: true })
   async list(@Query() query: ListWardsQueryDto) {
     const result = await this.listWards.execute(query);
     return {
@@ -148,16 +165,16 @@ export class WardController {
   @Roles('admin', 'field_worker')
   @ApiOperation({ summary: 'Get a ward by id' })
   @ApiOkResponse({ type: WardResponseDto })
-  get(@Param('id', UuidV7Pipe) id: string) {
-    return this.getWard.execute(id);
+  async get(@Param('id', UuidV7Pipe) id: string) {
+    return withWardState(await this.getWard.execute(id));
   }
 
   @Patch(':id')
   @Roles('admin')
   @ApiOperation({ summary: 'Update a ward' })
   @ApiOkResponse({ type: WardResponseDto })
-  update(@Param('id', UuidV7Pipe) id: string, @Body() body: UpdateWardDto) {
-    return this.updateWard.execute(id, body);
+  async update(@Param('id', UuidV7Pipe) id: string, @Body() body: UpdateWardDto) {
+    return withWardState(await this.updateWard.execute(id, body));
   }
 
   @Delete(':id')

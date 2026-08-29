@@ -42,7 +42,8 @@ export class CheckEnrollmentDuplicateUseCase {
 
     return {
       isDuplicate: Boolean(existing),
-      enrollmentId: existing?.id ?? null,
+      id: existing?.id ?? null,
+      enrollmentId: existing?.enrollmentId ?? null,
     };
   }
 }
