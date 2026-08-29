@@ -20,8 +20,21 @@ export type PresignReadResult = {
   expiresInSeconds: number;
 };
 
+export type PutObjectInput = {
+  objectKey: string;
+  body: Buffer;
+  contentType: string;
+};
+
+export type GetObjectResult = {
+  body: Buffer;
+  contentType?: string;
+};
+
 export interface ObjectStorage {
   createUploadUrl(input: PresignUploadInput): Promise<PresignUploadResult>;
   createReadUrl(objectKey: string): Promise<PresignReadResult>;
   exists(objectKey: string): Promise<boolean>;
+  putObject(input: PutObjectInput): Promise<void>;
+  getObject(objectKey: string): Promise<GetObjectResult>;
 }

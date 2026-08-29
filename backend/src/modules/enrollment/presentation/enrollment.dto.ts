@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEmail,
@@ -11,6 +12,8 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  ArrayMaxSize,
+  ArrayMinSize,
   Matches,
   Max,
   MaxLength,
@@ -31,6 +34,7 @@ import {
   ID_DOCUMENT_TYPES,
   MARITAL_STATUSES,
   NEXT_OF_KIN_RELATIONSHIPS,
+  PRINTED_STATUS_FILTERS,
   type BloodGroup,
   type EnrollmentGender,
   type EnrollmentStatus,
@@ -39,6 +43,7 @@ import {
   type IdDocumentType,
   type MaritalStatus,
   type NextOfKinRelationship,
+  type PrintedStatusFilter,
 } from '../domain/enrollment';
 
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -247,7 +252,84 @@ export class ListEnrollmentsQueryDto {
   @IsEnum(ENROLLMENT_STATUSES)
   status?: EnrollmentStatus;
 
-  @ApiPropertyOptional({ type: String, example: 'Ada' })
+  @ApiPropertyOptional({
+    type: String,
+    example: 'IDPs',
+    description: 'Exact beneficiary category',
+  })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  category?: string;
+
+  @ApiPropertyOptional({
+    enum: PRINTED_STATUS_FILTERS,
+    description: 'Filter by whether an ID card has been printed',
+  })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsEnum(PRINTED_STATUS_FILTERS)
+  printedStatus?: PrintedStatusFilter;
+
+  @ApiPropertyOptional({
+    type: String,
+    example: 'Jos South',
+    description: 'Filter by ward LGA (case-insensitive exact)',
+  })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  lga?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    example: 'Musa',
+    description: 'Search beneficiary first/middle/last name',
+  })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  beneficiaryName?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    example: 'PL/CBHI/2026',
+    description: 'Partial match on human-readable enrollment ID',
+  })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  enrollmentId?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    example: '2024-01-01',
+    description: 'Inclusive createdAt lower bound (YYYY-MM-DD)',
+  })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @Matches(ISO_DATE_ONLY)
+  createdFrom?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    example: '2024-12-31',
+    description: 'Inclusive createdAt upper bound (YYYY-MM-DD)',
+  })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @Matches(ISO_DATE_ONLY)
+  createdTo?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    example: 'Ada',
+    description: 'Broad search across enrollmentId, name, phone, nin, category',
+  })
   @EmptyStringToUndefined()
   @IsOptional()
   @IsString()
@@ -364,6 +446,26 @@ export class EnrollmentListItemDto {
 
   @ApiProperty({ type: EnrollmentFacilityRefDto })
   healthFacility!: EnrollmentFacilityRefDto;
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty({
+    description: 'True when this enrollment has had an ID card printed at least once',
+  })
+  hasPrinted!: boolean;
+
+  @ApiProperty({
+    example: 0,
+    description: 'How many times an ID card has been generated for this enrollment',
+  })
+  printCount!: number;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Timestamp of the most recent ID card print',
+  })
+  printedAt!: Date | null;
 }
 
 export class EnrollmentResponseDto {
@@ -485,6 +587,23 @@ export class EnrollmentResponseDto {
   @ApiProperty({ type: EnrollmentRefDto })
   enrolledBy!: EnrollmentRefDto;
 
+  @ApiProperty({
+    description: 'True when this enrollment has had an ID card printed at least once',
+  })
+  hasPrinted!: boolean;
+
+  @ApiProperty({
+    example: 0,
+    description: 'How many times an ID card has been generated for this enrollment',
+  })
+  printCount!: number;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Timestamp of the most recent ID card print',
+  })
+  printedAt!: Date | null;
+
   @ApiProperty()
   createdAt!: Date;
 
@@ -495,4 +614,50 @@ export class EnrollmentResponseDto {
     description: 'Present when the create call was an idempotent replay',
   })
   idempotentReplay?: boolean;
+}
+
+export class GenerateIdCardsRequestDto {
+  @ApiProperty({
+    type: [String],
+    format: 'uuid',
+    description: 'Enrollment UUIDs to print (1–9 for one A4 sheet)',
+    minItems: 1,
+    maxItems: 9,
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(9)
+  @IsUUID('7', { each: true })
+  enrollmentIds!: string[];
+}
+
+export class GenerateIdCardsResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  jobId!: string;
+
+  @ApiProperty({ enum: ['queued'] })
+  status!: 'queued';
+}
+
+export class IdCardJobStatusResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  jobId!: string;
+
+  @ApiProperty({
+    enum: ['queued', 'processing', 'completed', 'failed'],
+  })
+  status!: 'queued' | 'processing' | 'completed' | 'failed';
+
+  @ApiPropertyOptional({
+    description: 'Presigned download URL when status is completed',
+  })
+  downloadUrl?: string;
+
+  @ApiPropertyOptional({
+    description: 'TTL in seconds for downloadUrl',
+  })
+  expiresInSeconds?: number;
+
+  @ApiPropertyOptional()
+  error?: string;
 }

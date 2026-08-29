@@ -231,6 +231,11 @@ model Enrollment {
   lgaOfResidence    String
   residentialAddress String
 
+  /// When the beneficiary ID card was last printed (null = never printed).
+  printedAt  DateTime?
+  /// How many times an ID card has been generated/printed for this enrollment.
+  printCount Int      @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -244,4 +249,6 @@ model Enrollment {
   @@index([enrolledByUserId])
   @@index([createdAt])
   @@index([status])
+  @@index([category])
+  @@index([printedAt])
 }

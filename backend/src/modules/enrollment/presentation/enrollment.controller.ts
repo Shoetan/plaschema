@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   Post,
   Query,
@@ -11,6 +12,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import {
+  ApiAcceptedResponse,
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
@@ -30,7 +32,9 @@ import { CursorPaginationMetaDto } from '../../../platform/http/cursor-paginatio
 import { UuidV7Pipe } from '../../../platform/http/uuid-v7.pipe';
 import { CreateEnrollmentUseCase } from '../application/create-enrollment.use-case';
 import { DevUploadEnrollmentFileUseCase } from '../application/dev-upload-enrollment-file.use-case';
+import { GenerateIdCardsUseCase } from '../application/generate-id-cards.use-case';
 import { GetEnrollmentUseCase } from '../application/get-enrollment.use-case';
+import { GetIdCardJobStatusUseCase } from '../application/get-id-card-job-status.use-case';
 import { ListEnrollmentsUseCase } from '../application/list-enrollments.use-case';
 import { PresignEnrollmentUploadUseCase } from '../application/presign-enrollment-upload.use-case';
 import {
@@ -40,6 +44,9 @@ import {
   EnrollmentPresignUploadRequestDto,
   EnrollmentPresignUploadResponseDto,
   EnrollmentResponseDto,
+  GenerateIdCardsRequestDto,
+  GenerateIdCardsResponseDto,
+  IdCardJobStatusResponseDto,
   ListEnrollmentsQueryDto,
 } from './enrollment.dto';
 
@@ -53,6 +60,8 @@ export class EnrollmentController {
     private readonly devUploadEnrollmentFile: DevUploadEnrollmentFileUseCase,
     private readonly listEnrollments: ListEnrollmentsUseCase,
     private readonly getEnrollment: GetEnrollmentUseCase,
+    private readonly generateIdCards: GenerateIdCardsUseCase,
+    private readonly getIdCardJobStatus: GetIdCardJobStatusUseCase,
   ) {}
 
   @Post('files/presign-upload')
@@ -124,6 +133,32 @@ export class EnrollmentController {
     });
   }
 
+  @Post('id-cards/generate')
+  @Roles('admin')
+  @HttpCode(202)
+  @ApiOperation({
+    summary:
+      'Enqueue async ID card PDF generation (1–9 enrollments, 9-up A4 front+back). Non-blocking.',
+  })
+  @ApiAcceptedResponse({ type: GenerateIdCardsResponseDto })
+  generateCards(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: GenerateIdCardsRequestDto,
+  ) {
+    return this.generateIdCards.execute({
+      enrollmentIds: body.enrollmentIds,
+      requestedByUserId: user.id,
+    });
+  }
+
+  @Get('id-cards/jobs/:jobId')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Poll ID card generation job status / download URL' })
+  @ApiOkResponse({ type: IdCardJobStatusResponseDto })
+  getCardJob(@Param('jobId') jobId: string) {
+    return this.getIdCardJobStatus.execute(jobId);
+  }
+
   @Post()
   @Roles('admin', 'field_worker')
   @ApiOperation({
@@ -151,7 +186,10 @@ export class EnrollmentController {
 
   @Get()
   @Roles('admin', 'field_worker')
-  @ApiOperation({ summary: 'List enrollments (cursor pagination)' })
+  @ApiOperation({
+    summary:
+      'List enrollments (cursor pagination). Supports ID-card page filters in one endpoint.',
+  })
   @ApiQuery({
     name: 'cursor',
     required: false,
@@ -172,6 +210,17 @@ export class EnrollmentController {
     required: false,
     enum: ['pending', 'active', 'disabled', 'deceased'],
   })
+  @ApiQuery({ name: 'category', required: false, type: String })
+  @ApiQuery({
+    name: 'printedStatus',
+    required: false,
+    enum: ['all', 'printed', 'not_printed'],
+  })
+  @ApiQuery({ name: 'lga', required: false, type: String })
+  @ApiQuery({ name: 'beneficiaryName', required: false, type: String })
+  @ApiQuery({ name: 'enrollmentId', required: false, type: String })
+  @ApiQuery({ name: 'createdFrom', required: false, type: String })
+  @ApiQuery({ name: 'createdTo', required: false, type: String })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiOkResponse({ type: EnrollmentListItemDto, isArray: true })
   async list(

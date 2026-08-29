@@ -14,6 +14,7 @@ import { formatIsoDateOnly } from '../domain/enrollment-identity';
 import type {
   CreateEnrollmentRecordInput,
   EnrollmentRepository,
+  IdCardEnrollmentData,
   ListEnrollmentsQuery,
   PaginatedEnrollments,
 } from '../application/enrollment.repository';
@@ -49,6 +50,8 @@ type EnrollmentRow = {
   stateOfResidence: string;
   lgaOfResidence: string;
   residentialAddress: string;
+  printedAt: Date | null;
+  printCount: number;
   createdAt: Date;
   updatedAt: Date;
   ward: { id: string; name: string; lga: string };
@@ -111,6 +114,8 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
       ward: row.ward,
       healthFacility: row.healthFacility,
       enrolledBy: row.enrolledBy,
+      printedAt: row.printedAt,
+      printCount: row.printCount,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
@@ -124,6 +129,10 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
       category: row.category,
       status: row.status,
       healthFacility: row.healthFacility,
+      createdAt: row.createdAt,
+      hasPrinted: row.printedAt != null || row.printCount > 0,
+      printCount: row.printCount,
+      printedAt: row.printedAt,
     };
   }
 
@@ -180,8 +189,81 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
     return row ? this.map(row) : null;
   }
 
+  async findManyByIds(ids: string[]): Promise<IdCardEnrollmentData[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const rows = await this.prisma.enrollment.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        enrollmentId: true,
+        firstName: true,
+        lastName: true,
+        middleName: true,
+        emergencyPhone: true,
+        bloodGroup: true,
+        passportObjectKey: true,
+        healthFacility: { select: { name: true } },
+      },
+    });
+
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return ids.flatMap((id) => {
+      const row = byId.get(id);
+      if (!row) {
+        return [];
+      }
+      return [
+        {
+          id: row.id,
+          enrollmentId: row.enrollmentId,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          middleName: row.middleName,
+          emergencyPhone: row.emergencyPhone,
+          bloodGroup: row.bloodGroup,
+          passportObjectKey: row.passportObjectKey,
+          facilityName: row.healthFacility.name,
+        },
+      ];
+    });
+  }
+
+  async markPrinted(ids: string[], printedAt: Date): Promise<void> {
+    if (ids.length === 0) {
+      return;
+    }
+    await this.prisma.enrollment.updateMany({
+      where: { id: { in: ids } },
+      data: {
+        printedAt,
+        printCount: { increment: 1 },
+      },
+    });
+  }
+
   async list(query: ListEnrollmentsQuery): Promise<PaginatedEnrollments> {
     const limit = toQueryInt(query.limit, 50, { min: 1, max: 100 });
+
+    const createdAtFilter =
+      query.createdFrom || query.createdTo
+        ? {
+            createdAt: {
+              ...(query.createdFrom ? { gte: query.createdFrom } : {}),
+              ...(query.createdTo ? { lte: query.createdTo } : {}),
+            },
+          }
+        : {};
+
+    const printedFilter =
+      query.printedStatus === 'printed'
+        ? { OR: [{ printedAt: { not: null } }, { printCount: { gt: 0 } }] }
+        : query.printedStatus === 'not_printed'
+          ? { printedAt: null, printCount: 0 }
+          : {};
+
     const where = {
       ...(query.cursor ? { id: { gt: query.cursor } } : {}),
       ...(query.wardId ? { wardId: query.wardId } : {}),
@@ -190,44 +272,86 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
         ? { enrolledByUserId: query.enrolledByUserId }
         : {}),
       ...(query.status ? { status: query.status } : {}),
-      ...(query.search
+      ...(query.category ? { category: query.category } : {}),
+      ...(query.lga
+        ? { ward: { lga: { equals: query.lga, mode: 'insensitive' as const } } }
+        : {}),
+      ...(query.enrollmentId
+        ? {
+            enrollmentId: {
+              contains: query.enrollmentId,
+              mode: 'insensitive' as const,
+            },
+          }
+        : {}),
+      ...(query.beneficiaryName
         ? {
             OR: [
               {
-                enrollmentId: {
-                  contains: query.search,
-                  mode: 'insensitive' as const,
-                },
-              },
-              {
                 firstName: {
-                  contains: query.search,
+                  contains: query.beneficiaryName,
                   mode: 'insensitive' as const,
                 },
               },
               {
                 lastName: {
-                  contains: query.search,
+                  contains: query.beneficiaryName,
                   mode: 'insensitive' as const,
                 },
               },
               {
-                phone: {
-                  contains: query.search,
+                middleName: {
+                  contains: query.beneficiaryName,
                   mode: 'insensitive' as const,
                 },
               },
+            ],
+          }
+        : {}),
+      ...createdAtFilter,
+      ...printedFilter,
+      ...(query.search
+        ? {
+            AND: [
               {
-                nin: {
-                  contains: query.search,
-                  mode: 'insensitive' as const,
-                },
-              },
-              {
-                category: {
-                  contains: query.search,
-                  mode: 'insensitive' as const,
-                },
+                OR: [
+                  {
+                    enrollmentId: {
+                      contains: query.search,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                  {
+                    firstName: {
+                      contains: query.search,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                  {
+                    lastName: {
+                      contains: query.search,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                  {
+                    phone: {
+                      contains: query.search,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                  {
+                    nin: {
+                      contains: query.search,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                  {
+                    category: {
+                      contains: query.search,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                ],
               },
             ],
           }
