@@ -121,4 +121,18 @@ export class PrismaActivityLogRepository implements ActivityLogRepository {
 
     return row ? this.map(row) : null;
   }
+
+  async findRecentByEnrollment(
+    enrollmentId: string,
+    limit: number,
+  ): Promise<ActivityLogEntry[]> {
+    const rows = await this.prisma.activityLog.findMany({
+      where: { enrollmentId },
+      orderBy: { occurredAt: 'desc' },
+      take: limit,
+      include: this.include,
+    });
+
+    return rows.map((row) => this.map(row));
+  }
 }

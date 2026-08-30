@@ -9,6 +9,7 @@ import {
   type IdCardJobPayload,
   type IdCardQueuePort,
 } from './id-card-queue.port';
+import { CreateFileJobUseCase } from '../../file-job/application/create-file-job.use-case';
 
 const MAX_CARDS_PER_SHEET = 9;
 
@@ -18,6 +19,7 @@ export class GenerateIdCardsUseCase {
     @Inject(ENROLLMENT_REPOSITORY)
     private readonly enrollments: EnrollmentRepository,
     @Inject(ID_CARD_QUEUE_PORT) private readonly queue: IdCardQueuePort,
+    private readonly createFileJob: CreateFileJobUseCase,
   ) {}
 
   async execute(input: {
@@ -51,12 +53,20 @@ export class GenerateIdCardsUseCase {
       );
     }
 
+    const fileJob = await this.createFileJob.execute({
+      requestedByUserId: input.requestedByUserId,
+      kind: 'id_card',
+      format: 'pdf',
+      enrollmentCount: uniqueIds.length,
+      metadata: { enrollmentCount: uniqueIds.length, enrollmentIds: uniqueIds },
+    });
+
     const payload: IdCardJobPayload = {
       enrollmentIds: uniqueIds,
       requestedByUserId: input.requestedByUserId,
     };
 
-    const jobId = await this.queue.enqueue(payload);
-    return { jobId, status: 'queued' };
+    await this.queue.enqueue(payload, fileJob.id);
+    return { jobId: fileJob.id, status: 'queued' };
   }
 }

@@ -122,6 +122,23 @@ enum ActivityAction {
   assigned
 }
 
+enum FileJobKind {
+  id_card
+  enrollment_report
+}
+
+enum FileJobFormat {
+  pdf
+  xlsx
+}
+
+enum FileJobStatus {
+  queued
+  processing
+  failed
+  completed
+}
+
 model Ward {
   id        String     @id @db.Uuid
   name      String     @unique
@@ -156,6 +173,7 @@ model User {
   enrollments    Enrollment[]         @relation("EnrollmentEnrolledBy")
   activityLogs   ActivityLog[]        @relation("ActivityLogActor")
   capitationRuns CapitationRun[]
+  fileJobs       FileJob[]
 }
 
 model UserWardAssignment {
@@ -322,4 +340,26 @@ model ActivityLog {
   @@index([wardId, occurredAt(sort: Desc)])
   @@index([wardId, category, occurredAt(sort: Desc)])
   @@index([enrollmentId])
+}
+
+model FileJob {
+  id                String         @id @db.Uuid
+  requestedByUserId String         @db.Uuid
+  kind              FileJobKind
+  format            FileJobFormat
+  status            FileJobStatus  @default(queued)
+  /// Sort helper: queued=0, processing=1, failed=2, completed=3
+  statusRank        Int            @default(0)
+  title             String
+  objectKey         String?
+  error             String?
+  metadata          Json?
+  createdAt         DateTime       @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+
+  requestedBy User @relation(fields: [requestedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([requestedByUserId, statusRank, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status])
 }

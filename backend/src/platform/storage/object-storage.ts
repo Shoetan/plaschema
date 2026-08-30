@@ -14,10 +14,16 @@ export type PresignUploadResult = {
   expiresInSeconds: number;
 };
 
+export type PresignReadOptions = {
+  /** Suggested filename for browser downloads (sets Content-Disposition on the presigned GET). */
+  downloadFilename?: string;
+};
+
 export type PresignReadResult = {
   objectKey: string;
   readUrl: string;
   expiresInSeconds: number;
+  downloadFilename?: string;
 };
 
 export type PutObjectInput = {
@@ -33,7 +39,10 @@ export type GetObjectResult = {
 
 export interface ObjectStorage {
   createUploadUrl(input: PresignUploadInput): Promise<PresignUploadResult>;
-  createReadUrl(objectKey: string): Promise<PresignReadResult>;
+  createReadUrl(
+    objectKey: string,
+    options?: PresignReadOptions,
+  ): Promise<PresignReadResult>;
   exists(objectKey: string): Promise<boolean>;
   putObject(input: PutObjectInput): Promise<void>;
   getObject(objectKey: string): Promise<GetObjectResult>;

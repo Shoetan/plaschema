@@ -26,4 +26,8 @@ export interface ActivityLogRepository {
   findLatestByHealthFacility(
     healthFacilityId: string,
   ): Promise<ActivityLogEntry | null>;
+  findRecentByEnrollment(
+    enrollmentId: string,
+    limit: number,
+  ): Promise<ActivityLogEntry[]>;
 }

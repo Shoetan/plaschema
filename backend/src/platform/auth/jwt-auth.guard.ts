@@ -2,6 +2,7 @@ import { ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { AppError } from '../http/app-error';
+import { hasBearerToken, resolveJwtAuthError } from './jwt-auth-errors';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
 @Injectable()
@@ -23,20 +24,34 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
-  handleRequest<TUser>(err: Error | null, user: TUser): TUser {
+  handleRequest<TUser>(
+    err: Error | null,
+    user: TUser,
+    info: unknown,
+    context: ExecutionContext,
+  ): TUser {
+    if (user) {
+      return user;
+    }
+
+    const request = context.switchToHttp().getRequest<{
+      headers?: { authorization?: string };
+    }>();
+
+    const resolved = resolveJwtAuthError({
+      err,
+      info,
+      hasBearerToken: hasBearerToken(request.headers?.authorization),
+    });
+
+    if (resolved) {
+      throw resolved;
+    }
+
     if (err) {
-      // Preserve intentional auth failures; do not mask infrastructure errors
-      // (e.g. Prisma schema drift) as "Authentication required".
-      if (err instanceof AppError) {
-        throw err;
-      }
       throw err;
     }
 
-    if (!user) {
-      throw new AppError('UNAUTHORIZED', 'Authentication required', 401);
-    }
-
-    return user;
+    throw new AppError('UNAUTHORIZED', 'Authentication required', 401);
   }
 }

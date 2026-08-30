@@ -10,24 +10,8 @@ export type IdCardJobResult = {
   enrollmentIds: string[];
 };
 
-export type IdCardQueueJobState =
-  | 'waiting'
-  | 'active'
-  | 'completed'
-  | 'failed'
-  | 'delayed'
-  | 'unknown';
-
-export type IdCardQueueJobView = {
-  id: string;
-  state: IdCardQueueJobState;
-  failedReason?: string;
-  returnvalue?: IdCardJobResult | null;
-};
-
 export interface IdCardQueuePort {
-  enqueue(payload: IdCardJobPayload): Promise<string>;
-  getJob(jobId: string): Promise<IdCardQueueJobView | null>;
+  enqueue(payload: IdCardJobPayload, jobId: string): Promise<string>;
 }
 
 export const ID_CARD_QUEUE_NAME = 'id-card-generation';

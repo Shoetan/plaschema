@@ -123,6 +123,26 @@ export const PRINTED_STATUS_FILTERS: PrintedStatusFilter[] = [
   'not_printed',
 ];
 
+export type EnrollmentSyncStatus = 'synced';
+
+/** Overview tab payload for GET /enrollments/:id/detail. */
+export type EnrollmentDetailOverview = {
+  id: string;
+  beneficiaryName: string;
+  enrollmentId: string;
+  status: EnrollmentStatus;
+  syncStatus: EnrollmentSyncStatus;
+  personalDetails: {
+    fullName: string;
+    enrollmentId: string;
+    dateOfBirth: string;
+    gender: EnrollmentGender;
+    nin: string | null;
+    phone: string;
+    address: string;
+  };
+};
+
 /** Slim row for the beneficiaries table (GET /enrollments list). */
 export type EnrollmentListItem = {
   id: string;
