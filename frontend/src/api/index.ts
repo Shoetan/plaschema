@@ -1,6 +1,7 @@
 export type {
   ApiErrorBody,
   ApiResponse,
+  CursorPaginationMeta,
   PaginationMeta,
   QueryParams,
   RequestConfig,

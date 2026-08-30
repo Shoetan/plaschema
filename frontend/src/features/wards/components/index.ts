@@ -1,2 +1,7 @@
+export { BatchUploadWardsDialog } from './batch-upload-wards-dialog'
+export { AssignFieldWorkersDialog } from './assign-field-workers-dialog'
+export { CreateWardDialog } from './create-ward-dialog'
+export { DeleteWardDialog } from './delete-ward-dialog'
+export { EditWardDialog } from './edit-ward-dialog'
 export { WardDetailView } from './ward-detail-view'
 export { WardsView } from './wards-view'
