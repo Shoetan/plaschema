@@ -40,6 +40,8 @@ export const envSchema = z.object({
     .int()
     .positive()
     .default(1800),
+  /** Default capitation rate per active beneficiary (NGN). */
+  CAPITATION_RATE: z.coerce.number().int().positive().default(700),
 });
 
 export type Env = z.infer<typeof envSchema>;

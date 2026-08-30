@@ -85,4 +85,8 @@ export class AppConfigService {
       infer: true,
     });
   }
+
+  get capitationRate(): number {
+    return this.configService.get('CAPITATION_RATE', { infer: true });
+  }
 }

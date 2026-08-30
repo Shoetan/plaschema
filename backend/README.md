@@ -75,8 +75,11 @@ Clean Architecture only (no DDD / bounded contexts). Feature modules:
 - `GET /api/wards/stream` — NDJSON stream for offline/mobile cache sync (`updatedSince` optional)
 - `POST /api/health-facilities/batch` — CSV or Excel (.xlsx/.xls); columns: `name,lga,ward`
 - `GET /api/health-facilities` — cursor list (`name`, `type`, `level`, joined `ward`/`lga`, `beneficiaries`, `status`)
-- `GET /api/health-facilities/:id/detail` — admin facility detail (`facility` with full schema fields + `state`, `stats`, capitation stub, `activityLog`). Beneficiaries tab uses `GET /api/enrollments?healthFacilityId=`
+- `GET /api/health-facilities/:id/detail` — admin facility detail (`facility` with full schema fields + `state`, `stats`, capitation history, `activityLog`). Beneficiaries tab uses `GET /api/enrollments?healthFacilityId=`
 - `GET /api/health-facilities/stream` — NDJSON stream for offline/mobile cache sync
+- `GET /api/capitations/preview` — preview capitation for all active facilities (`month`, `year`, optional `rate`; defaults to `CAPITATION_RATE`)
+- `POST /api/capitations/generate` — generate capitation for all active facilities and active enrollments; append-only (latest run per month/year wins)
+- `GET /api/capitations` — list latest-run records for a month/year (defaults to current Lagos period). Filters: `lga`, `healthFacilityId`, `search`. Returns `{ data, meta, summary }`
 - `POST /api/enrollments/files/presign-upload` — Railway presigned PUT URL for passport/ID upload
 - `POST /api/enrollments/files/dev-upload` — **dev/test only**: multipart upload that presigns + PUTs to Railway (returns `objectKey`)
 - `POST /api/enrollments` — create enrollment (idempotent via `idempotencyId`; duplicate = first+last+DOB)

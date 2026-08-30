@@ -49,17 +49,11 @@ export type HealthFacilityListItem = {
 export type HealthFacilityDetailStats = {
   totalBeneficiaries: number;
   enrollmentsThisMonth: number;
-  /** Stub until capitation billing is implemented. */
-  currentCapitation: null;
+  currentCapitation: number | null;
   lastActivityAt: Date | null;
 };
 
-export type HealthFacilityCapitationStub = {
-  implemented: false;
-  currentAmount: null;
-  currency: 'NGN';
-  records: [];
-};
+export type { HealthFacilityCapitationDetail as HealthFacilityCapitation } from '../../capitation/domain/capitation';
 
 export type HealthFacilityDetailAggregates = {
   stats: HealthFacilityDetailStats;
