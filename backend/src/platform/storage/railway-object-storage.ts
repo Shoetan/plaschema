@@ -12,10 +12,12 @@ import { AppError } from '../http/app-error';
 import { createUuidV7 } from '../ids/uuid-v7';
 import type {
   ObjectStorage,
+  PresignReadOptions,
   PresignReadResult,
   PresignUploadInput,
   PresignUploadResult,
 } from './object-storage';
+import { buildContentDispositionAttachment } from './content-disposition';
 
 /**
  * Railway Buckets (S3-compatible / Tigris) with presigned upload + read URLs.
@@ -67,15 +69,25 @@ export class RailwayObjectStorage implements ObjectStorage {
     };
   }
 
-  async createReadUrl(objectKey: string): Promise<PresignReadResult> {
+  async createReadUrl(
+    objectKey: string,
+    options?: PresignReadOptions,
+  ): Promise<PresignReadResult> {
     const key = this.assertSafeObjectKey(objectKey);
     const expiresInSeconds = this.config.objectStoragePresignTtlSeconds;
+    const downloadFilename = options?.downloadFilename?.trim();
 
     const readUrl = await getSignedUrl(
       this.client,
       new GetObjectCommand({
         Bucket: this.config.objectStorageBucketName,
         Key: key,
+        ...(downloadFilename
+          ? {
+              ResponseContentDisposition:
+                buildContentDispositionAttachment(downloadFilename),
+            }
+          : {}),
       }),
       { expiresIn: expiresInSeconds },
     );
@@ -84,6 +96,7 @@ export class RailwayObjectStorage implements ObjectStorage {
       objectKey: key,
       readUrl,
       expiresInSeconds,
+      ...(downloadFilename ? { downloadFilename } : {}),
     };
   }
 

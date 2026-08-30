@@ -355,6 +355,44 @@ export class ListEnrollmentsQueryDto {
   @IsString()
   @MaxLength(80)
   search?: string;
+
+  @ApiPropertyOptional({
+    type: Number,
+    example: 18,
+    description: 'Minimum age (inclusive), computed from dateOfBirth',
+    minimum: 0,
+    maximum: 120,
+  })
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) {
+      return undefined;
+    }
+    return toQueryInt(value, 0, { min: 0, max: 120 });
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(120)
+  ageMin?: number;
+
+  @ApiPropertyOptional({
+    type: Number,
+    example: 65,
+    description: 'Maximum age (inclusive), computed from dateOfBirth',
+    minimum: 0,
+    maximum: 120,
+  })
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) {
+      return undefined;
+    }
+    return toQueryInt(value, 0, { min: 0, max: 120 });
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(120)
+  ageMax?: number;
 }
 
 export class EnrollmentPresignUploadRequestDto {
@@ -659,25 +697,176 @@ export class GenerateIdCardsResponseDto {
   status!: 'queued';
 }
 
-export class IdCardJobStatusResponseDto {
+export class ExportEnrollmentReportRequestDto {
+  @ApiProperty({
+    enum: ['xlsx', 'pdf'],
+    example: 'xlsx',
+    description: 'Export format. Only xlsx is supported currently.',
+  })
+  @IsIn(['xlsx', 'pdf'])
+  format!: 'xlsx' | 'pdf';
+
+  @ApiPropertyOptional({ type: String, format: 'uuid' })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsUUID('7')
+  wardId?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid' })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsUUID('7')
+  healthFacilityId?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid' })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsUUID('7')
+  enrolledByUserId?: string;
+
+  @ApiPropertyOptional({ enum: ENROLLMENT_STATUSES })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsEnum(ENROLLMENT_STATUSES)
+  status?: EnrollmentStatus;
+
+  @ApiPropertyOptional({ type: String, example: 'IDPs' })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  category?: string;
+
+  @ApiPropertyOptional({ type: String, example: 'Jos South' })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  lga?: string;
+
+  @ApiPropertyOptional({ type: String, example: '2024-01-01' })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @Matches(ISO_DATE_ONLY)
+  createdFrom?: string;
+
+  @ApiPropertyOptional({ type: String, example: '2024-12-31' })
+  @EmptyStringToUndefined()
+  @IsOptional()
+  @Matches(ISO_DATE_ONLY)
+  createdTo?: string;
+
+  @ApiPropertyOptional({ type: Number, example: 18, minimum: 0, maximum: 120 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(120)
+  ageMin?: number;
+
+  @ApiPropertyOptional({ type: Number, example: 65, minimum: 0, maximum: 120 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(120)
+  ageMax?: number;
+}
+
+export class ExportEnrollmentReportResponseDto {
   @ApiProperty({ format: 'uuid' })
   jobId!: string;
 
+  @ApiProperty({ enum: ['queued'] })
+  status!: 'queued';
+}
+
+export class EnrollmentDetailPersonalDetailsDto {
+  @ApiProperty({ example: 'Musa Ibrahim' })
+  fullName!: string;
+
+  @ApiProperty({ example: 'PL/CBHI/2026/001' })
+  enrollmentId!: string;
+
+  @ApiProperty({ example: '1985-03-15' })
+  dateOfBirth!: string;
+
+  @ApiProperty({ enum: ENROLLMENT_GENDERS })
+  gender!: EnrollmentGender;
+
+  @ApiPropertyOptional({ nullable: true, example: '12345678901' })
+  nin!: string | null;
+
+  @ApiProperty({ example: '+2348030000001' })
+  phone!: string;
+
+  @ApiProperty({ example: '15 Gwagwalada Road, FCT' })
+  address!: string;
+}
+
+export class EnrollmentDetailOverviewDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Musa Ibrahim' })
+  beneficiaryName!: string;
+
+  @ApiProperty({ example: 'PL/CBHI/2026/001' })
+  enrollmentId!: string;
+
+  @ApiProperty({ enum: ENROLLMENT_STATUSES })
+  status!: EnrollmentStatus;
+
   @ApiProperty({
-    enum: ['queued', 'processing', 'completed', 'failed'],
+    enum: ['synced'],
+    description: 'Server-side enrollments are always synced',
   })
-  status!: 'queued' | 'processing' | 'completed' | 'failed';
+  syncStatus!: 'synced';
 
-  @ApiPropertyOptional({
-    description: 'Presigned download URL when status is completed',
+  @ApiProperty({ type: EnrollmentDetailPersonalDetailsDto })
+  personalDetails!: EnrollmentDetailPersonalDetailsDto;
+}
+
+export class EnrollmentDetailActivityLogActorDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+}
+
+export class EnrollmentDetailActivityLogEntryDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ enum: ['enrollment', 'ward', 'user', 'sync'] })
+  category!: string;
+
+  @ApiProperty({
+    enum: ['created', 'updated', 'status_changed', 'printed', 'assigned'],
   })
-  downloadUrl?: string;
+  action!: string;
 
-  @ApiPropertyOptional({
-    description: 'TTL in seconds for downloadUrl',
+  @ApiProperty()
+  summary!: string;
+
+  @ApiProperty({ nullable: true, type: EnrollmentDetailActivityLogActorDto })
+  actor!: EnrollmentDetailActivityLogActorDto | null;
+
+  @ApiProperty({ format: 'uuid', nullable: true })
+  enrollmentId!: string | null;
+
+  @ApiProperty()
+  occurredAt!: Date;
+}
+
+export class EnrollmentDetailResponseDto {
+  @ApiProperty({ type: EnrollmentDetailOverviewDto })
+  overview!: EnrollmentDetailOverviewDto;
+
+  @ApiProperty({
+    type: EnrollmentDetailActivityLogEntryDto,
+    isArray: true,
+    description:
+      'Unified activity feed for Synchronization and Activity History tabs',
   })
-  expiresInSeconds?: number;
-
-  @ApiPropertyOptional()
-  error?: string;
+  activityLog!: EnrollmentDetailActivityLogEntryDto[];
 }

@@ -83,10 +83,14 @@ Clean Architecture only (no DDD / bounded contexts). Feature modules:
 - `POST /api/enrollments/files/presign-upload` — Railway presigned PUT URL for passport/ID upload
 - `POST /api/enrollments/files/dev-upload` — **dev/test only**: multipart upload that presigns + PUTs to Railway (returns `objectKey`)
 - `POST /api/enrollments` — create enrollment (idempotent via `idempotencyId`; duplicate = first+last+DOB)
-- `GET /api/enrollments` — cursor list for beneficiaries / ID-card page (`enrollmentId`, name, category, lga, facility, ward, status, `hasPrinted`, `printCount`, `printedAt`). Filters: `category`, `printedStatus` (`all`|`printed`|`not_printed`), `lga`, `wardId`, `healthFacilityId`, `enrolledByUserId` (admin), `beneficiaryName`, `enrollmentId`, `createdFrom`/`createdTo`, `status`, `search`, `enrolledByMe`
+- `GET /api/enrollments` — cursor list for beneficiaries / ID-card page (`enrollmentId`, name, category, lga, facility, ward, status, `hasPrinted`, `printCount`, `printedAt`). Filters: `category`, `printedStatus` (`all`|`printed`|`not_printed`), `lga`, `wardId`, `healthFacilityId`, `enrolledByUserId` (admin), `beneficiaryName`, `enrollmentId`, `createdFrom`/`createdTo`, `status`, `search`, `enrolledByMe`, `ageMin`/`ageMax`
+- `GET /api/enrollments/:id/detail` — beneficiary detail page payload (`overview` personal details + unified `activityLog` for sync/activity tabs)
 - `GET /api/enrollments/:id` — full enrollment detail with presigned `passportUrl` + `idDocumentUrl` (+ print fields)
-- `POST /api/enrollments/id-cards/generate` — admin; enqueue async PDF job for 1–9 enrollments (9-up A4 front+back via HTML/CSS + reused headless Chromium); returns `202 { jobId }` (BullMQ on Redis, concurrency 1 — does not block enrollment flow)
-- `GET /api/enrollments/id-cards/jobs/:jobId` — poll job; when `completed`, returns presigned `downloadUrl`
+- `POST /api/enrollments/id-cards/generate` — admin; enqueue async PDF job for 1–9 enrollments (9-up A4 front+back via HTML/CSS + reused headless Chromium); returns `202 { jobId }`. Poll status and download via `/api/file-jobs`
+- `POST /api/enrollments/reports/export` — admin; enqueue async enrollment report export (`format: xlsx`; filters: `lga`, `wardId`, `healthFacilityId`, `enrolledByUserId`, `createdFrom`/`createdTo`, `category`, `status`, `ageMin`/`ageMax`). Returns `202 { jobId }`. Poll status and download via `/api/file-jobs`
+- `GET /api/file-jobs` — list file generation jobs for the current user (ID cards + enrollment reports). Active jobs (`queued`/`processing`) first, then newest. Optional `status` filter; cursor pagination
+- `GET /api/file-jobs/:id` — file job detail (current user only)
+- `GET /api/file-jobs/:id/download` — fresh presigned download URL for a completed job (current user only)
 
 Roles: `admin` | `field_worker`. Field workers with assigned wards are scoped to those wards; with no assignments they can enroll and view enrollments in all wards.
 

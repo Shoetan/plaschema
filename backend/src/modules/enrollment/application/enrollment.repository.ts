@@ -58,6 +58,8 @@ export type ListEnrollmentsQuery = CursorListQuery & {
   lga?: string;
   beneficiaryName?: string;
   enrollmentId?: string;
+  ageMin?: number;
+  ageMax?: number;
   createdFrom?: Date;
   createdTo?: Date;
 };
@@ -90,4 +92,8 @@ export interface EnrollmentRepository {
   findManyByIds(ids: string[]): Promise<IdCardEnrollmentData[]>;
   markPrinted(ids: string[], printedAt: Date): Promise<void>;
   list(query: ListEnrollmentsQuery): Promise<PaginatedEnrollments>;
+  iterateForExport(
+    query: Omit<ListEnrollmentsQuery, 'cursor' | 'limit'>,
+    batchSize?: number,
+  ): AsyncIterable<Enrollment[]>;
 }

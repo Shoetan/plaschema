@@ -18,6 +18,7 @@ import type {
   ListEnrollmentsQuery,
   PaginatedEnrollments,
 } from '../application/enrollment.repository';
+import { buildEnrollmentListWhere } from './prisma-enrollment-list-filters';
 
 type EnrollmentRow = {
   id: string;
@@ -249,118 +250,9 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
   async list(query: ListEnrollmentsQuery): Promise<PaginatedEnrollments> {
     const limit = toQueryInt(query.limit, 50, { min: 1, max: 100 });
 
-    const createdAtFilter =
-      query.createdFrom || query.createdTo
-        ? {
-            createdAt: {
-              ...(query.createdFrom ? { gte: query.createdFrom } : {}),
-              ...(query.createdTo ? { lte: query.createdTo } : {}),
-            },
-          }
-        : {};
-
-    const printedFilter =
-      query.printedStatus === 'printed'
-        ? { OR: [{ printedAt: { not: null } }, { printCount: { gt: 0 } }] }
-        : query.printedStatus === 'not_printed'
-          ? { printedAt: null, printCount: 0 }
-          : {};
-
     const where = {
       ...(query.cursor ? { id: { gt: query.cursor } } : {}),
-      ...(query.wardId ? { wardId: query.wardId } : {}),
-      ...(query.wardIds ? { wardId: { in: query.wardIds } } : {}),
-      ...(query.healthFacilityId
-        ? { healthFacilityId: query.healthFacilityId }
-        : {}),
-      ...(query.enrolledByUserId
-        ? { enrolledByUserId: query.enrolledByUserId }
-        : {}),
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.category ? { category: query.category } : {}),
-      ...(query.lga
-        ? { ward: { lga: { equals: query.lga, mode: 'insensitive' as const } } }
-        : {}),
-      ...(query.enrollmentId
-        ? {
-            enrollmentId: {
-              contains: query.enrollmentId,
-              mode: 'insensitive' as const,
-            },
-          }
-        : {}),
-      ...(query.beneficiaryName
-        ? {
-            OR: [
-              {
-                firstName: {
-                  contains: query.beneficiaryName,
-                  mode: 'insensitive' as const,
-                },
-              },
-              {
-                lastName: {
-                  contains: query.beneficiaryName,
-                  mode: 'insensitive' as const,
-                },
-              },
-              {
-                middleName: {
-                  contains: query.beneficiaryName,
-                  mode: 'insensitive' as const,
-                },
-              },
-            ],
-          }
-        : {}),
-      ...createdAtFilter,
-      ...printedFilter,
-      ...(query.search
-        ? {
-            AND: [
-              {
-                OR: [
-                  {
-                    enrollmentId: {
-                      contains: query.search,
-                      mode: 'insensitive' as const,
-                    },
-                  },
-                  {
-                    firstName: {
-                      contains: query.search,
-                      mode: 'insensitive' as const,
-                    },
-                  },
-                  {
-                    lastName: {
-                      contains: query.search,
-                      mode: 'insensitive' as const,
-                    },
-                  },
-                  {
-                    phone: {
-                      contains: query.search,
-                      mode: 'insensitive' as const,
-                    },
-                  },
-                  {
-                    nin: {
-                      contains: query.search,
-                      mode: 'insensitive' as const,
-                    },
-                  },
-                  {
-                    category: {
-                      contains: query.search,
-                      mode: 'insensitive' as const,
-                    },
-                  },
-                ],
-              },
-            ],
-          }
-        : {}),
+      ...buildEnrollmentListWhere(query),
     };
 
     const rows = await this.prisma.enrollment.findMany({
@@ -374,5 +266,35 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
       rows.map((row) => this.mapListItem(row)),
       limit,
     );
+  }
+
+  async *iterateForExport(
+    query: Omit<ListEnrollmentsQuery, 'cursor' | 'limit'>,
+    batchSize = 500,
+  ): AsyncIterable<Enrollment[]> {
+    let cursor: string | undefined;
+
+    while (true) {
+      const rows = await this.prisma.enrollment.findMany({
+        where: {
+          ...buildEnrollmentListWhere(query),
+          ...(cursor ? { id: { gt: cursor } } : {}),
+        },
+        take: batchSize,
+        orderBy: { id: 'asc' },
+        include: this.include,
+      });
+
+      if (rows.length === 0) {
+        return;
+      }
+
+      yield rows.map((row) => this.map(row));
+      cursor = rows[rows.length - 1].id;
+
+      if (rows.length < batchSize) {
+        return;
+      }
+    }
   }
 }

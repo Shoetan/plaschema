@@ -32,21 +32,24 @@ import { CursorPaginationMetaDto } from '../../../platform/http/cursor-paginatio
 import { UuidV7Pipe } from '../../../platform/http/uuid-v7.pipe';
 import { CreateEnrollmentUseCase } from '../application/create-enrollment.use-case';
 import { DevUploadEnrollmentFileUseCase } from '../application/dev-upload-enrollment-file.use-case';
+import { ExportEnrollmentReportUseCase } from '../application/export-enrollment-report.use-case';
 import { GenerateIdCardsUseCase } from '../application/generate-id-cards.use-case';
+import { GetEnrollmentDetailUseCase } from '../application/get-enrollment-detail.use-case';
 import { GetEnrollmentUseCase } from '../application/get-enrollment.use-case';
-import { GetIdCardJobStatusUseCase } from '../application/get-id-card-job-status.use-case';
 import { ListEnrollmentsUseCase } from '../application/list-enrollments.use-case';
 import { PresignEnrollmentUploadUseCase } from '../application/presign-enrollment-upload.use-case';
 import {
   CreateEnrollmentDto,
+  EnrollmentDetailResponseDto,
   EnrollmentDevUploadResponseDto,
   EnrollmentListItemDto,
   EnrollmentPresignUploadRequestDto,
   EnrollmentPresignUploadResponseDto,
   EnrollmentResponseDto,
+  ExportEnrollmentReportRequestDto,
+  ExportEnrollmentReportResponseDto,
   GenerateIdCardsRequestDto,
   GenerateIdCardsResponseDto,
-  IdCardJobStatusResponseDto,
   ListEnrollmentsQueryDto,
 } from './enrollment.dto';
 
@@ -60,8 +63,9 @@ export class EnrollmentController {
     private readonly devUploadEnrollmentFile: DevUploadEnrollmentFileUseCase,
     private readonly listEnrollments: ListEnrollmentsUseCase,
     private readonly getEnrollment: GetEnrollmentUseCase,
+    private readonly getEnrollmentDetail: GetEnrollmentDetailUseCase,
     private readonly generateIdCards: GenerateIdCardsUseCase,
-    private readonly getIdCardJobStatus: GetIdCardJobStatusUseCase,
+    private readonly exportEnrollmentReport: ExportEnrollmentReportUseCase,
   ) {}
 
   @Post('files/presign-upload')
@@ -138,7 +142,7 @@ export class EnrollmentController {
   @HttpCode(202)
   @ApiOperation({
     summary:
-      'Enqueue async ID card PDF generation (1–9 enrollments, 9-up A4 front+back). Non-blocking.',
+      'Enqueue async ID card PDF generation (1–9 enrollments, 9-up A4 front+back). Poll status via GET /api/file-jobs.',
   })
   @ApiAcceptedResponse({ type: GenerateIdCardsResponseDto })
   generateCards(
@@ -151,12 +155,19 @@ export class EnrollmentController {
     });
   }
 
-  @Get('id-cards/jobs/:jobId')
+  @Post('reports/export')
   @Roles('admin')
-  @ApiOperation({ summary: 'Poll ID card generation job status / download URL' })
-  @ApiOkResponse({ type: IdCardJobStatusResponseDto })
-  getCardJob(@Param('jobId') jobId: string) {
-    return this.getIdCardJobStatus.execute(jobId);
+  @HttpCode(202)
+  @ApiOperation({
+    summary:
+      'Enqueue async enrollment report export (xlsx). Poll status via GET /api/file-jobs.',
+  })
+  @ApiAcceptedResponse({ type: ExportEnrollmentReportResponseDto })
+  exportReport(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: ExportEnrollmentReportRequestDto,
+  ) {
+    return this.exportEnrollmentReport.execute(user, body);
   }
 
   @Post()
@@ -229,6 +240,8 @@ export class EnrollmentController {
   @ApiQuery({ name: 'createdFrom', required: false, type: String })
   @ApiQuery({ name: 'createdTo', required: false, type: String })
   @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'ageMin', required: false, type: Number })
+  @ApiQuery({ name: 'ageMax', required: false, type: Number })
   @ApiOkResponse({ type: EnrollmentListItemDto, isArray: true })
   async list(
     @CurrentUser() user: AuthenticatedUser,
@@ -243,6 +256,20 @@ export class EnrollmentController {
         limit: result.limit,
       } satisfies CursorPaginationMetaDto,
     };
+  }
+
+  @Get(':id/detail')
+  @Roles('admin', 'field_worker')
+  @ApiOperation({
+    summary:
+      'Get enrollment detail (overview tab + unified sync/activity log)',
+  })
+  @ApiOkResponse({ type: EnrollmentDetailResponseDto })
+  detail(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', UuidV7Pipe) id: string,
+  ) {
+    return this.getEnrollmentDetail.execute(user, id);
   }
 
   @Get(':id')

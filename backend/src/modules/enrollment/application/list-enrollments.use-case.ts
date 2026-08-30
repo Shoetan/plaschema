@@ -1,119 +1,31 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../../platform/auth/current-user.decorator';
-import { AppError } from '../../../platform/http/app-error';
-import {
-  USER_REPOSITORY,
-  type UserRepository,
-} from '../../identity/application/user.repository';
-import {
-  HEALTH_FACILITY_REPOSITORY,
-  type HealthFacilityRepository,
-} from '../../health-facility/application/health-facility.repository';
-import { fieldWorkerCanAccessWard, fieldWorkerWardListFilter } from './field-worker-ward-access';
 import {
   ENROLLMENT_REPOSITORY,
   type EnrollmentRepository,
   type ListEnrollmentsQuery,
 } from './enrollment.repository';
-
-function startOfUtcDay(isoDate: string): Date {
-  return new Date(`${isoDate}T00:00:00.000Z`);
-}
-
-function endOfUtcDay(isoDate: string): Date {
-  return new Date(`${isoDate}T23:59:59.999Z`);
-}
+import { ResolveEnrollmentListFiltersUseCase } from './resolve-enrollment-list-filters';
 
 @Injectable()
 export class ListEnrollmentsUseCase {
   constructor(
     @Inject(ENROLLMENT_REPOSITORY)
     private readonly enrollments: EnrollmentRepository,
-    @Inject(USER_REPOSITORY) private readonly users: UserRepository,
-    @Inject(HEALTH_FACILITY_REPOSITORY)
-    private readonly facilities: HealthFacilityRepository,
+    private readonly resolveFilters: ResolveEnrollmentListFiltersUseCase,
   ) {}
 
   async execute(
     actor: AuthenticatedUser,
-    query: Omit<ListEnrollmentsQuery, 'wardIds' | 'enrolledByUserId' | 'createdFrom' | 'createdTo'> & {
-      enrolledByMe?: boolean;
-      enrolledByUserId?: string;
-      healthFacilityId?: string;
-      createdFrom?: string;
-      createdTo?: string;
-    },
+    query: Parameters<ResolveEnrollmentListFiltersUseCase['execute']>[1] &
+      Pick<ListEnrollmentsQuery, 'cursor' | 'limit'>,
   ) {
-    let wardIds: string[] | undefined;
-    let enrolledByUserId: string | undefined;
-    const healthFacilityId = query.healthFacilityId;
-
-    if (healthFacilityId) {
-      const facility = await this.facilities.findById(healthFacilityId);
-      if (!facility) {
-        throw new AppError(
-          'HEALTH_FACILITY_NOT_FOUND',
-          'Health facility not found',
-          404,
-        );
-      }
-
-      if (actor.role === 'field_worker') {
-        const user = await this.users.findById(actor.id);
-        if (
-          !fieldWorkerCanAccessWard(user?.assignedWards ?? [], facility.wardId)
-        ) {
-          throw new AppError(
-            'FORBIDDEN_WARD',
-            'Field workers can only list enrollments in their assigned wards',
-            403,
-          );
-        }
-      }
-    }
-
-    if (actor.role === 'field_worker') {
-      const user = await this.users.findById(actor.id);
-      const assignedWards = user?.assignedWards ?? [];
-      wardIds = fieldWorkerWardListFilter(assignedWards);
-
-      if (query.wardId && wardIds && !wardIds.includes(query.wardId)) {
-        throw new AppError(
-          'FORBIDDEN_WARD',
-          'Field workers can only list enrollments in their assigned wards',
-          403,
-        );
-      }
-
-      if (query.enrolledByUserId) {
-        throw new AppError('FORBIDDEN', 'Not allowed to filter by field worker', 403);
-      }
-
-      enrolledByUserId = query.enrolledByMe ? actor.id : undefined;
-    } else if (query.enrolledByMe) {
-      enrolledByUserId = actor.id;
-    } else if (query.enrolledByUserId) {
-      enrolledByUserId = query.enrolledByUserId;
-    }
+    const filters = await this.resolveFilters.execute(actor, query);
 
     return this.enrollments.list({
       cursor: query.cursor,
       limit: query.limit,
-      wardId: query.wardId,
-      wardIds: query.wardId ? undefined : wardIds,
-      healthFacilityId,
-      enrolledByUserId,
-      search: query.search,
-      status: query.status,
-      category: query.category,
-      printedStatus: query.printedStatus,
-      lga: query.lga,
-      beneficiaryName: query.beneficiaryName,
-      enrollmentId: query.enrollmentId,
-      createdFrom: query.createdFrom
-        ? startOfUtcDay(query.createdFrom)
-        : undefined,
-      createdTo: query.createdTo ? endOfUtcDay(query.createdTo) : undefined,
+      ...filters,
     });
   }
 }
