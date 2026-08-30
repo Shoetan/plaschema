@@ -1,2 +1,6 @@
+export { BatchUploadFacilitiesDialog } from './batch-upload-facilities-dialog'
+export { CreateFacilityDialog } from './create-facility-dialog'
+export { DeleteFacilityDialog } from './delete-facility-dialog'
+export { EditFacilityDialog } from './edit-facility-dialog'
 export { FacilitiesView } from './facilities-view'
 export { FacilityDetailView } from './facility-detail-view'

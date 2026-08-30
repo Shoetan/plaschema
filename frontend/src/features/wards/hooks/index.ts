@@ -6,4 +6,4 @@ export {
   useUpdateWard,
   useUploadWardsBatch,
 } from './useWardMutations'
-export { useWardDetail, useWards } from './useWards'
+export { useWardDetail, useWardOptions, useWards } from './useWards'
