@@ -28,14 +28,14 @@ export function ProtectedLayout() {
   if (status === 'restoring' || !user) return null
 
   return (
-    <div className="flex h-full overflow-hidden bg-background">
+    <div className="flex h-dvh min-h-0 overflow-hidden bg-background">
       <AdminSidebar
         mobileOpen={menuOpen}
         onMobileClose={() => setMenuOpen(false)}
       />
-      <div className="flex min-w-0 flex-1 flex-col bg-muted/40">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-muted/40">
         <AdminTopBar onMenuOpen={() => setMenuOpen(true)} />
-        <main className="flex min-h-0 flex-1 overflow-hidden">
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
           <Outlet />
         </main>
       </div>

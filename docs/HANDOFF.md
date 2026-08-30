@@ -26,7 +26,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Feature folders live under `frontend/src/features/`.
 - Thin route files live under `frontend/src/routes/`.
 - Admin designs and navigation are implemented.
-- Dashboard and most feature data remain mock-only; ward list and detail data are API-backed.
+- Dashboard and most feature data remain mock-only; ward and health-facility admin screens are API-backed.
 - Admin login uses `POST /auth/login`; saved sessions are validated with `GET /auth/me`.
 - The typed API layer is split into client, request, error and contract modules and is consumed through feature services and React Query hooks.
 - Authentication is admin-only. Zustand owns the access token, authenticated user and session status.
@@ -41,6 +41,13 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - The assignment picker reads real candidates from `GET /users?role=field_worker` with cursor pagination. Assignment replaces the ward's complete field-worker selection.
 - The ward Beneficiaries tab is visible but disabled because the detail response does not contain beneficiary rows.
 - Ward API server state is owned by React Query and is not mirrored into Zustand.
+- Health-facility list data uses `GET /health-facilities` with debounced search, LGA/type/level/status filters and cursor navigation.
+- Health-facility creation uses `POST /health-facilities`; the frontend sends only `name`, the selected ward's `wardId`, and that ward's `lga` to match the live API contract.
+- Health-facility batch upload uses `POST /health-facilities/batch` with CSV/XLSX/XLS files up to 2 MB and displays server row errors.
+- Health-facility detail uses `GET /health-facilities/:id/detail` for overview statistics, capitation history and activity.
+- Facility editing/status changes use `PATCH /health-facilities/:id`, and deletion uses `DELETE /health-facilities/:id` with confirmation.
+- Unsupported mock-only facility fields (code, ownership, community, address, contacts and onboarding date) are not displayed or submitted. The Beneficiaries tab remains disabled because the detail response provides only a count.
+- Facility list KPI cards are explicitly current-page totals because cursor metadata does not contain programme-wide totals.
 
 ### Field-worker PWA
 
@@ -116,6 +123,7 @@ Vite may choose the next port if `5174` is already occupied.
 - Keep server-owned ward records out of Zustand; React Query owns ward API state as read endpoints are integrated.
 - Keep `GET /wards/stream` for a separate PWA offline-sync phase; it is not used by the admin app.
 - Use the admin-specific `GET /wards/:id/detail` response rather than adding the simpler ward-by-ID endpoint without a consumer.
+- Keep `GET /health-facilities/stream` for a separate PWA offline-sync phase, and use the admin detail endpoint rather than the simpler by-ID endpoint without a consumer.
 
 ## Structure rules
 
@@ -167,10 +175,20 @@ On 30 August 2026 after the complete admin ward integration:
 - Static checks confirm ward components do not import Axios or services directly, and no `any` or ward mock-store dependency was introduced.
 - A live authenticated smoke test was not run because the backend was not listening on `localhost:3000`.
 
+On 30 August 2026 after the admin health-facility integration:
+
+- Admin frontend lint passes without warnings.
+- Admin frontend TypeScript and production build pass.
+- Static checks confirm facility components use hooks rather than services, contain no mock-store dependency, and introduce no `any` or direct Axios usage.
+- Ward list and detail builds still pass after adding the reusable ward-options query.
+- A live authenticated smoke test was not run because the backend was not available to this coding session.
+
 ## Known gaps
 
 - Remaining admin API integration beyond authentication and ward writes.
 - Ward beneficiary-list integration; the detail endpoint does not provide beneficiary rows.
+- Health-facility beneficiary-list integration and programme-wide facility KPI totals.
+- PWA ward and health-facility stream synchronization.
 - Remaining field-worker API integration beyond the ward assignment picker.
 - Refresh-token support and automatic session renewal.
 - PWA API integration and real authentication.

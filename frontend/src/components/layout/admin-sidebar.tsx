@@ -81,7 +81,7 @@ export function AdminSidebar({
   }
 
   const content = (
-    <aside className="flex h-full w-[270px] shrink-0 flex-col border-r bg-muted/40">
+    <aside className="flex h-full w-full flex-col border-r bg-muted/40">
       <div className="flex h-[72px] shrink-0 items-center gap-3 px-6">
         <img className="size-10 object-contain" src="/logo.png" alt="" />
         <span className="text-2xl font-semibold tracking-tight">PLASCHEMA</span>
@@ -158,7 +158,7 @@ export function AdminSidebar({
 
   return (
     <>
-      <div className="hidden lg:block">{content}</div>
+      <div className="hidden h-full w-[270px] shrink-0 lg:block">{content}</div>
       <Dialog.Root
         onOpenChange={(open) => {
           if (!open) onMobileClose()

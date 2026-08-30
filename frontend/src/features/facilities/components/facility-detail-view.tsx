@@ -1,407 +1,71 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { recentActivity } from "@/mocks/admin-data";
-import { useAdminDataStore } from "@/stores/admin-data.store";
-import { StatusBadge } from "@/components/admin/status-badge";
-import { cardShadow, btnPrimary, btnSecondary, thCell, tdCell, tabGroup } from "@/components/admin/styles";
+import { LoaderCircle, RefreshCw, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
-const TABS = ["Overview", "Beneficiaries", "Capitation", "Activity"] as const;
-type Tab = (typeof TABS)[number];
+import { getApiErrorStatus } from '@/api'
+import { StatusBadge } from '@/components/admin/status-badge'
+import { cardShadow, tdCell, thCell } from '@/components/admin/styles'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 
-function InfoRow({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="flex flex-col gap-1 py-3 border-b border-border last:border-b-0">
-      <span className="text-muted-foreground text-[12px]">{label}</span>
-      <span className="text-foreground text-[14px] font-medium">{value}</span>
-    </div>
-  );
+import { useHealthFacilityDetail, useUpdateHealthFacility } from '../hooks'
+import type { HealthFacilityActivityEntry, HealthFacilityStatus } from '../types'
+import { DeleteFacilityDialog } from './delete-facility-dialog'
+import { EditFacilityDialog } from './edit-facility-dialog'
+
+const TABS = ['Overview', 'Beneficiaries', 'Capitation', 'Activity'] as const
+type Tab = (typeof TABS)[number]
+
+interface FacilityDetailViewProps { facilityId: string }
+function statusLabel(status: HealthFacilityStatus) { return status === 'active' ? 'Active' : 'Inactive' }
+function slug(tab: Tab) { return tab.toLowerCase() }
+function formatDate(value: string | null, time = false) {
+  if (!value) return 'Not available'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Not available'
+  return new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', year: 'numeric', ...(time ? { hour: '2-digit', minute: '2-digit' } : {}), timeZone: 'Africa/Lagos' }).format(date)
 }
+function formatCurrency(value: number | null) { return value === null ? 'Not available' : new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 2 }).format(value) }
 
-function KpiCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className={`bg-card rounded-[12px] ${cardShadow} px-6 py-5 flex flex-col gap-1`}>
-      <span className="text-muted-foreground text-[12px] font-medium tracking-[0.24px]">{label}</span>
-      <span className="text-foreground text-[24px] font-semibold tracking-[-0.48px]">{value}</span>
-    </div>
-  );
-}
-
-function Initials({ name }: { name: string }) {
-  const parts = name.trim().split(" ");
-  const ini = (parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "");
-  return (
-    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[11px] font-semibold shrink-0">
-      {ini.toUpperCase()}
-    </div>
-  );
-}
-
-interface FacilityDetailViewProps {
-  facilityId: string;
+function InfoRow({ label, value }: { label: string; value: string }) { return <div className="flex justify-between gap-4 border-b border-border py-3 last:border-0"><span className="text-sm text-muted-foreground">{label}</span><span className="text-right text-sm font-medium">{value}</span></div> }
+function ActivityList({ entries }: { entries: HealthFacilityActivityEntry[] }) {
+  if (entries.length === 0) return <p className="py-12 text-center text-sm text-muted-foreground">No recent activity is available.</p>
+  return <div className="divide-y divide-border">{entries.map((entry) => <div className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:justify-between" key={entry.id}><div><p className="text-sm font-semibold">{entry.summary}</p><p className="mt-1 text-xs capitalize text-muted-foreground">{entry.actor?.name ?? 'System'} · {entry.category}</p></div><time className="text-xs text-muted-foreground" dateTime={entry.occurredAt}>{formatDate(entry.occurredAt, true)}</time></div>)}</div>
 }
 
 export function FacilityDetailView({ facilityId }: FacilityDetailViewProps) {
-  const navigate = useNavigate();
-  const facilities = useAdminDataStore((store) => store.facilities);
-  const beneficiaries = useAdminDataStore((store) => store.beneficiaries);
-  const capitationRecords = useAdminDataStore((store) => store.capitationRecords);
-  const [activeTab, setActiveTab] = useState<Tab>("Overview");
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const navigate = useNavigate()
+  const query = useHealthFacilityDetail(facilityId)
+  const updateMutation = useUpdateHealthFacility()
+  const [tab, setTab] = useState<Tab>('Overview')
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
-  const facility = facilities.find((f) => f.id === facilityId);
-
-  if (!facility) {
-    return (
-      <div
-        className="flex flex-col items-center justify-center flex-1 gap-4"
-        style={{ fontFamily: "'Inter Tight', sans-serif" }}
-      >
-        <p className="text-muted-foreground text-[16px]">Facility not found.</p>
-        <button onClick={() => navigate("/admin/facilities")} className={btnSecondary}>
-          Back to Facilities
-        </button>
-      </div>
-    );
+  if (query.isPending) return <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6" aria-label="Loading facility details"><Skeleton className="h-5 w-48" /><Skeleton className="h-16 w-full" /><div className="grid gap-4 sm:grid-cols-3">{Array.from({ length: 3 }, (_, index) => <Skeleton className="h-24" key={index} />)}</div><Skeleton className="h-72" /></div>
+  if (query.isError || !query.data) {
+    const notFound = getApiErrorStatus(query.error) === 404
+    return <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center" role="alert"><p className="text-lg font-semibold">{notFound ? 'Facility not found.' : 'Unable to load this facility.'}</p><p className="text-sm text-muted-foreground">{notFound ? 'It may have been deleted or the address is incorrect.' : 'Check your connection and try again.'}</p><div className="flex gap-2">{!notFound && <Button onClick={() => void query.refetch()} variant="outline"><RefreshCw aria-hidden="true" /> Retry</Button>}<Button onClick={() => navigate('/admin/facilities')} variant="outline">Back to Facilities</Button></div></div>
   }
 
-  const facCapitation = capitationRecords.filter((r) => r.facilityId === facility.id);
-  const totalCapitation = facCapitation.reduce((sum, r) => sum + r.amount, 0);
+  const { facility, stats, capitation, activityLog } = query.data
+  const nextStatus: HealthFacilityStatus = facility.status === 'active' ? 'inactive' : 'active'
+  function toggleStatus() { updateMutation.mutate({ id: facility.id, payload: { status: nextStatus } }) }
 
-  const filteredBeneficiaries = beneficiaries.filter((b) => {
-    const matchSearch =
-      !search ||
-      b.name.toLowerCase().includes(search.toLowerCase()) ||
-      b.id.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "All" || b.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  return <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6">
+    <div className="flex items-center gap-2 text-sm text-muted-foreground"><Link className="hover:text-foreground" to="/admin/facilities">Facilities</Link><span>/</span><span className="text-foreground">{facility.name}</span></div>
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div className="flex flex-wrap items-center gap-3"><h1 className="text-2xl font-semibold tracking-[-0.48px]">{facility.name}</h1><StatusBadge status={statusLabel(facility.status)} /></div><p className="mt-1 text-sm text-muted-foreground">{facility.ward.name} · {facility.lga} LGA</p></div><div className="flex flex-wrap gap-2"><Button onClick={() => setEditOpen(true)} variant="outline">Edit Facility</Button><Button disabled={updateMutation.isPending} onClick={toggleStatus} variant="outline">{updateMutation.isPending ? <><LoaderCircle aria-hidden="true" className="animate-spin" /> Updating…</> : nextStatus === 'inactive' ? 'Deactivate' : 'Activate'}</Button><Button onClick={() => setDeleteOpen(true)} variant="destructive"><Trash2 aria-hidden="true" /> Delete</Button></div></div>
 
-  return (
-    <div
-      className="flex flex-col gap-6 p-6 overflow-auto flex-1"
-      style={{ fontFamily: "'Inter Tight', sans-serif" }}
-    >
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-[12px] text-muted-foreground">
-        <Link to="/admin/facilities" className="hover:text-foreground transition-colors">
-          Facilities
-        </Link>
-        <span>/</span>
-        <span className="text-foreground">{facility.name}</span>
-      </div>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{[{ label: 'Assigned Beneficiaries', value: stats.totalBeneficiaries.toLocaleString() }, { label: 'Enrollments This Month', value: stats.enrollmentsThisMonth.toLocaleString() }, { label: 'Current Capitation', value: formatCurrency(stats.currentCapitation) }, { label: 'Last Activity', value: formatDate(stats.lastActivityAt, true) }].map((item) => <div className={`rounded-xl bg-card p-5 ${cardShadow}`} key={item.label}><p className="text-xs font-medium text-muted-foreground">{item.label}</p><p className="mt-1 text-xl font-semibold">{item.value}</p></div>)}</div>
 
-      {/* Page header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-foreground text-[24px] font-semibold tracking-[-0.48px]">
-            {facility.name}
-          </h1>
-          <span className="font-mono text-muted-foreground text-[14px]">{facility.code}</span>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <StatusBadge status={facility.status} />
-          <button className={btnSecondary} disabled title="Editing is not available in the mock app">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path
-                d="M9.917 1.75a1.237 1.237 0 0 1 1.75 1.75L4.083 11.083 1.167 11.667l.583-2.917L9.917 1.75Z"
-                stroke="currentColor"
-                strokeWidth="1.3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            Edit Facility
-          </button>
-          {facility.status === "Active" ? (
-            <button className={btnSecondary} disabled title="Status changes are not available in the mock app">Deactivate</button>
-          ) : (
-            <button className={btnPrimary} disabled title="Status changes are not available in the mock app">Activate</button>
-          )}
-        </div>
-      </div>
+    <div className="overflow-x-auto border-b border-border"><div className="flex min-w-max gap-1" role="tablist" aria-label="Facility details">{TABS.map((item) => { const disabled = item === 'Beneficiaries'; return <button aria-controls={`facility-panel-${slug(item)}`} aria-selected={tab === item} className={`border-b-2 px-4 py-2.5 text-sm font-semibold ${tab === item ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'} disabled:cursor-not-allowed disabled:opacity-60`} disabled={disabled} id={`facility-tab-${slug(item)}`} key={item} onClick={() => setTab(item)} role="tab" title={disabled ? 'Beneficiary rows require a separate endpoint.' : undefined}>{disabled ? 'Beneficiaries · Not connected' : item}</button> })}</div></div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <KpiCard label="Assigned Beneficiaries" value={facility.beneficiaries.toLocaleString()} />
-        <KpiCard
-          label="Current Capitation"
-          value={totalCapitation > 0 ? `₦${totalCapitation.toLocaleString()}` : "₦0"}
-        />
-        <KpiCard label="Enrollments This Month" value={facility.beneficiaries.toLocaleString()} />
-      </div>
+    <section aria-labelledby={`facility-tab-${slug(tab)}`} id={`facility-panel-${slug(tab)}`} role="tabpanel">
+      {tab === 'Overview' && <div className="grid gap-4 lg:grid-cols-2"><div className={`rounded-xl bg-card p-5 ${cardShadow}`}><h2 className="mb-3 text-sm font-semibold">Facility Information</h2><InfoRow label="Facility Name" value={facility.name} /><InfoRow label="Facility Type" value={facility.type} /><InfoRow label="Facility Level" value={facility.level[0].toUpperCase() + facility.level.slice(1)} /><InfoRow label="Status" value={statusLabel(facility.status)} /><InfoRow label="Created" value={formatDate(facility.createdAt)} /><InfoRow label="Updated" value={formatDate(facility.updatedAt)} /></div><div className={`rounded-xl bg-card p-5 ${cardShadow}`}><h2 className="mb-3 text-sm font-semibold">Location</h2><InfoRow label="State" value={facility.state ?? 'Plateau'} /><InfoRow label="LGA" value={facility.lga} /><InfoRow label="Ward" value={facility.ward.name} /></div></div>}
+      {tab === 'Capitation' && <div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}><div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/30 px-5 py-4"><div><p className="text-xs text-muted-foreground">CURRENT CAPITATION</p><p className="text-lg font-semibold">{formatCurrency(capitation.currentAmount)}</p></div><p className="text-sm text-muted-foreground">{capitation.records.length} records</p></div><div className="overflow-x-auto"><table className="w-full"><thead><tr>{['Period', 'Beneficiaries', 'Rate', 'Amount', 'Generated'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}</tr></thead><tbody>{capitation.records.map((record) => <tr className="hover:bg-muted/40" key={`${record.year}-${record.month}`}><td className={tdCell}>{record.period}</td><td className={tdCell}>{record.beneficiaryCount.toLocaleString()}</td><td className={tdCell}>{formatCurrency(record.rate)}</td><td className={`${tdCell} font-semibold`}>{formatCurrency(record.amount)}</td><td className={`${tdCell} text-muted-foreground`}>{formatDate(record.generatedAt)}</td></tr>)}{capitation.records.length === 0 && <tr><td className="px-6 py-12 text-center text-sm text-muted-foreground" colSpan={5}>No capitation records are available.</td></tr>}</tbody></table></div></div>}
+      {tab === 'Activity' && <div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}><ActivityList entries={activityLog} /></div>}
+    </section>
 
-      {/* Tab bar */}
-      <div className={tabGroup}>
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 h-[38px] text-[12px] font-semibold transition-colors ${
-              activeTab === tab
-                ? "bg-card text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* ── OVERVIEW ── */}
-      {activeTab === "Overview" && (
-        <div className="grid grid-cols-2 gap-4">
-          {/* Facility Information */}
-          <div className={`bg-card rounded-[12px] ${cardShadow} px-6 py-5`}>
-            <h2 className="text-foreground text-[14px] font-semibold mb-3">
-              Facility Information
-            </h2>
-            <InfoRow label="Facility Name" value={facility.name} />
-            <InfoRow label="Facility Code" value={facility.code} />
-            <InfoRow label="Facility Type" value={facility.type} />
-            <InfoRow label="Facility Level" value={facility.level} />
-            <InfoRow label="Ownership" value={facility.ownership} />
-            <InfoRow label="Status" value={facility.status} />
-          </div>
-
-          {/* Location */}
-          <div className={`bg-card rounded-[12px] ${cardShadow} px-6 py-5`}>
-            <h2 className="text-foreground text-[14px] font-semibold mb-3">Location</h2>
-            <InfoRow label="State" value={facility.state} />
-            <InfoRow label="LGA" value={facility.lga} />
-            <InfoRow label="Ward" value={facility.ward} />
-            <InfoRow label="Community" value={facility.community} />
-            <InfoRow label="Address" value={facility.address} />
-          </div>
-
-          {/* Contact Information — full width */}
-          <div className={`col-span-2 bg-card rounded-[12px] ${cardShadow} px-6 py-5`}>
-            <h2 className="text-foreground text-[14px] font-semibold mb-3">
-              Contact Information
-            </h2>
-            <div className="grid grid-cols-3 gap-6">
-              <div className="flex flex-col gap-1">
-                <span className="text-muted-foreground text-[12px]">Contact Person</span>
-                <span className="text-foreground text-[14px] font-medium">
-                  {facility.contactPerson}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-muted-foreground text-[12px]">Phone</span>
-                <span className="text-foreground text-[14px] font-medium">{facility.phone}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-muted-foreground text-[12px]">Email</span>
-                <span className="text-foreground text-[14px] font-medium">{facility.email}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── BENEFICIARIES ── */}
-      {activeTab === "Beneficiaries" && (
-        <div className={`bg-card rounded-[12px] ${cardShadow} overflow-hidden`}>
-          {/* Toolbar */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-            <div className="flex items-center gap-2 bg-muted border border-border rounded-[100px] px-3 h-[36px] flex-1 max-w-[280px]">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <circle cx="6" cy="6" r="4.5" stroke="#737373" strokeWidth="1.2" />
-                <path d="M9.5 9.5L12 12" stroke="#737373" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-              <input
-                className="bg-transparent text-[12px] text-foreground placeholder:text-muted-foreground outline-none flex-1"
-                placeholder="Search beneficiaries..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <select
-              className="bg-card border border-border rounded-[8px] px-3 h-[36px] text-[12px] text-foreground outline-none"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option>All</option>
-              <option>Enrolled</option>
-              <option>Pending</option>
-            </select>
-          </div>
-
-          {filteredBeneficiaries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-2">
-              <p className="text-muted-foreground text-[14px]">No beneficiaries found.</p>
-            </div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr>
-                  <th className={thCell}>Beneficiary Name</th>
-                  <th className={thCell}>Beneficiary ID</th>
-                  <th className={thCell}>Community</th>
-                  <th className={thCell}>Enrollment Date</th>
-                  <th className={thCell}>Status</th>
-                  <th className={thCell}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredBeneficiaries.map((b) => (
-                  <tr key={b.id} className="hover:bg-muted/40 transition-colors">
-                    <td className={tdCell}>
-                      <button
-                        className="flex items-center gap-2 hover:underline text-left"
-                        onClick={() => navigate(`/admin/beneficiaries/${b.id}`)}
-                      >
-                        <Initials name={b.name} />
-                        {b.name}
-                      </button>
-                    </td>
-                    <td className={tdCell}>
-                      <span className="font-mono text-[13px] text-muted-foreground">{b.id}</span>
-                    </td>
-                    <td className={tdCell}>{b.community}</td>
-                    <td className={tdCell}>{b.dateEnrolled}</td>
-                    <td className={tdCell}>
-                      <StatusBadge status={b.status} />
-                    </td>
-                    <td className={tdCell}>
-                      <button
-                        className={btnSecondary}
-                        onClick={() => navigate(`/admin/beneficiaries/${b.id}`)}
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {/* ── CAPITATION ── */}
-      {activeTab === "Capitation" && (
-        <div className={`bg-card rounded-[12px] ${cardShadow} overflow-hidden`}>
-          {facCapitation.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-2">
-              <p className="text-muted-foreground text-[14px]">
-                No capitation records for this facility.
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Summary strip */}
-              <div className="flex items-center gap-6 px-6 py-4 border-b border-border bg-muted/40">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-muted-foreground text-[11px] font-medium tracking-[0.22px]">
-                    TOTAL CAPITATION
-                  </span>
-                  <span className="text-foreground text-[18px] font-semibold">
-                    ₦{totalCapitation.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-muted-foreground text-[11px] font-medium tracking-[0.22px]">
-                    RECORDS
-                  </span>
-                  <span className="text-foreground text-[18px] font-semibold">
-                    {facCapitation.length}
-                  </span>
-                </div>
-              </div>
-
-              <table className="w-full">
-                <thead>
-                  <tr>
-                    <th className={thCell}>Period</th>
-                    <th className={thCell}>Beneficiaries</th>
-                    <th className={thCell}>Rate (₦)</th>
-                    <th className={thCell}>Amount (₦)</th>
-                    <th className={thCell}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {facCapitation.map((rec) => (
-                    <tr key={rec.id} className="hover:bg-muted/40 transition-colors">
-                      <td className={tdCell}>{rec.period}</td>
-                      <td className={tdCell}>{rec.beneficiaries.toLocaleString()}</td>
-                      <td className={tdCell}>{rec.rate.toLocaleString()}</td>
-                      <td className={tdCell}>{rec.amount.toLocaleString()}</td>
-                      <td className={tdCell}>
-                        <StatusBadge status={rec.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ── ACTIVITY ── */}
-      {activeTab === "Activity" && (
-        <div className={`bg-card rounded-[12px] ${cardShadow} px-6 py-5`}>
-          <h2 className="text-foreground text-[14px] font-semibold mb-4">Recent Activity</h2>
-          <div className="flex flex-col gap-0">
-            {recentActivity.map((item, idx) => {
-              const iconColor =
-                item.type === "enrollment"
-                  ? "#9fe870"
-                  : item.type === "sync"
-                  ? "#60a5fa"
-                  : item.type === "worker"
-                  ? "#fbbf24"
-                  : "#e5e5e5";
-
-              const icon =
-                item.type === "enrollment" ? (
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path
-                      d="M7 1a3 3 0 1 1 0 6 3 3 0 0 1 0-6ZM1.5 13a5.5 5.5 0 0 1 11 0"
-                      stroke="#163300"
-                      strokeWidth="1.3"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                ) : item.type === "sync" ? (
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path
-                      d="M2 7a5 5 0 0 1 9.33-2.5M12 7a5 5 0 0 1-9.33 2.5M2 4.5V2m0 2.5H4.5M12 9.5V12m0-2.5H9.5"
-                      stroke="white"
-                      strokeWidth="1.3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                ) : (
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <circle cx="7" cy="7" r="4" stroke="white" strokeWidth="1.3" />
-                  </svg>
-                );
-
-              return (
-                <div
-                  key={item.id}
-                  className={`flex items-start gap-3 py-3 ${idx < recentActivity.length - 1 ? "border-b border-border" : ""}`}
-                >
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ backgroundColor: iconColor }}
-                  >
-                    {icon}
-                  </div>
-                  <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                    <span className="text-foreground text-[13px] font-medium">{item.message}</span>
-                    <span className="text-muted-foreground text-[12px]">{item.community}</span>
-                  </div>
-                  <span className="text-muted-foreground text-[12px] shrink-0">{item.time}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    {editOpen && <EditFacilityDialog facility={facility} onOpenChange={setEditOpen} open />}
+    <DeleteFacilityDialog facilityId={facility.id} facilityName={facility.name} onDeleted={() => navigate('/admin/facilities')} onOpenChange={setDeleteOpen} open={deleteOpen} />
+  </div>
 }
