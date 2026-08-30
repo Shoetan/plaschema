@@ -26,13 +26,21 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Feature folders live under `frontend/src/features/`.
 - Thin route files live under `frontend/src/routes/`.
 - Admin designs and navigation are implemented.
-- Dashboard and feature data remain mock-only.
+- Dashboard and most feature data remain mock-only; ward list and detail data are API-backed.
 - Admin login uses `POST /auth/login`; saved sessions are validated with `GET /auth/me`.
 - The typed API layer is split into client, request, error and contract modules and is consumed through feature services and React Query hooks.
 - Authentication is admin-only. Zustand owns the access token, authenticated user and session status.
 - “Remember me” stores the token and user in local storage; unchecked sessions use session storage. No password is stored.
 - There is no refresh-token endpoint. A protected-request 401 clears the session, while a transient `/auth/me` failure preserves it and offers retry/sign-out actions.
 - Sonner provides login and session notifications. The existing forgot/reset-password screens are still mock-only.
+- Ward creation uses `POST /wards`; the form sends only `name` and `lga`, while Plateau and Active remain fixed display values.
+- Ward batch upload uses `POST /wards/batch` with a multipart `file` field. The UI accepts CSV, XLSX and XLS files up to 2 MB and displays created, failed and row-level results.
+- Ward list data uses `GET /wards` with debounced server search, status filters and cursor-based Previous/Next navigation.
+- Ward detail data uses `GET /wards/:id/detail` for overview statistics, enrollment trends, field workers, health facilities and activity.
+- Ward editing uses `PATCH /wards/:id`, field-worker assignment uses `PUT /wards/:id/field-workers`, and deletion uses `DELETE /wards/:id`.
+- The assignment picker reads real candidates from `GET /users?role=field_worker` with cursor pagination. Assignment replaces the ward's complete field-worker selection.
+- The ward Beneficiaries tab is visible but disabled because the detail response does not contain beneficiary rows.
+- Ward API server state is owned by React Query and is not mirrored into Zustand.
 
 ### Field-worker PWA
 
@@ -105,6 +113,9 @@ Vite may choose the next port if `5174` is already occupied.
 - Integrate admin APIs one Swagger endpoint at a time through API client → feature service → React Query hook → component.
 - Restrict the admin frontend to users whose API role is `admin`.
 - `sonner` is the approved toast dependency for the admin frontend.
+- Keep server-owned ward records out of Zustand; React Query owns ward API state as read endpoints are integrated.
+- Keep `GET /wards/stream` for a separate PWA offline-sync phase; it is not used by the admin app.
+- Use the admin-specific `GET /wards/:id/detail` response rather than adding the simpler ward-by-ID endpoint without a consumer.
 
 ## Structure rules
 
@@ -142,9 +153,25 @@ On 30 August 2026 after the admin authentication integration:
 - Static architecture checks confirm Axios is limited to `frontend/src/api/`, request wrappers are absent from components, and auth components do not import services.
 - A live API smoke test was not run because the backend was not listening on `localhost:3000`.
 
+On 30 August 2026 after the ward write integration:
+
+- Admin frontend lint passes.
+- Admin frontend TypeScript and production build pass.
+- Static architecture checks confirm ward components use hooks, request wrappers remain in the ward service, and no `any` was introduced.
+- Live create and batch-upload requests were not run because the backend was not listening on `localhost:3000`.
+
+On 30 August 2026 after the complete admin ward integration:
+
+- Admin frontend lint passes without warnings.
+- Admin frontend TypeScript and production build pass.
+- Static checks confirm ward components do not import Axios or services directly, and no `any` or ward mock-store dependency was introduced.
+- A live authenticated smoke test was not run because the backend was not listening on `localhost:3000`.
+
 ## Known gaps
 
-- Remaining admin API integration beyond authentication.
+- Remaining admin API integration beyond authentication and ward writes.
+- Ward beneficiary-list integration; the detail endpoint does not provide beneficiary rows.
+- Remaining field-worker API integration beyond the ward assignment picker.
 - Refresh-token support and automatic session renewal.
 - PWA API integration and real authentication.
 - Durable offline enrollment storage.

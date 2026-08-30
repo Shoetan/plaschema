@@ -9,16 +9,22 @@ export type RequestConfig<D = unknown> = Omit<
   'url' | 'method' | 'data'
 >
 
-export interface ApiResponse<T> {
+export interface ApiResponse<T, TMeta = PaginationMeta | null> {
   success: true
   data: T
-  meta: PaginationMeta | null
+  meta: TMeta
 }
 
 export interface PaginationMeta {
   total: number
   page: number
   pageSize: number
+}
+
+export interface CursorPaginationMeta {
+  nextCursor: string | null
+  hasMore: boolean
+  limit: number
 }
 
 export interface ApiErrorBody {
