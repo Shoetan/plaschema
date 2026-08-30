@@ -5,10 +5,14 @@ import {
   ACTIVITY_LOG_REPOSITORY,
   type ActivityLogRepository,
 } from '../../activity-log/application/activity-log.repository';
+import {
+  CAPITATION_REPOSITORY,
+  type CapitationRepository,
+} from '../../capitation/application/capitation.repository';
 import { WARD_STATE } from '../../ward/domain/ward';
 import type {
   HealthFacility,
-  HealthFacilityCapitationStub,
+  HealthFacilityCapitation,
   HealthFacilityDetailStats,
 } from '../domain/health-facility';
 import {
@@ -16,17 +20,10 @@ import {
   type HealthFacilityRepository,
 } from './health-facility.repository';
 
-const CAPITATION_STUB: HealthFacilityCapitationStub = {
-  implemented: false,
-  currentAmount: null,
-  currency: 'NGN',
-  records: [],
-};
-
 export type HealthFacilityDetail = {
   facility: HealthFacility & { state: typeof WARD_STATE };
   stats: HealthFacilityDetailStats;
-  capitation: HealthFacilityCapitationStub;
+  capitation: HealthFacilityCapitation;
   activityLog: ActivityLogEntry[];
 };
 
@@ -37,6 +34,8 @@ export class GetHealthFacilityDetailUseCase {
     private readonly facilities: HealthFacilityRepository,
     @Inject(ACTIVITY_LOG_REPOSITORY)
     private readonly activityLogs: ActivityLogRepository,
+    @Inject(CAPITATION_REPOSITORY)
+    private readonly capitation: CapitationRepository,
   ) {}
 
   async execute(id: string): Promise<HealthFacilityDetail> {
@@ -58,9 +57,10 @@ export class GetHealthFacilityDetailUseCase {
       );
     }
 
-    const [activityLog, latestActivity] = await Promise.all([
+    const [activityLog, latestActivity, capitationDetail] = await Promise.all([
       this.activityLogs.findRecentByHealthFacility(id, 50),
       this.activityLogs.findLatestByHealthFacility(id),
+      this.capitation.findFacilityCapitation(id),
     ]);
 
     const lastActivityAt =
@@ -70,9 +70,10 @@ export class GetHealthFacilityDetailUseCase {
       facility: { ...facility, state: WARD_STATE },
       stats: {
         ...aggregates.stats,
+        currentCapitation: capitationDetail.currentAmount,
         lastActivityAt,
       },
-      capitation: CAPITATION_STUB,
+      capitation: capitationDetail,
       activityLog,
     };
   }

@@ -44,6 +44,25 @@ export function startOfMonthInLagos(now = new Date()): Date {
   return new Date(`${key}-01T00:00:00+01:00`);
 }
 
+/** Current calendar month (1–12) and year in Africa/Lagos. */
+export function currentMonthYearInLagos(now = new Date()): {
+  month: number;
+  year: number;
+} {
+  const key = monthKeyInLagos(now);
+  const [yearStr, monthStr] = key.split('-');
+  return { year: Number(yearStr), month: Number(monthStr) };
+}
+
+export function formatCapitationPeriod(month: number, year: number): string {
+  const monthStr = String(month).padStart(2, '0');
+  const label = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Africa/Lagos',
+    month: 'long',
+  }).format(new Date(`${year}-${monthStr}-15T12:00:00+01:00`));
+  return `${label} ${year}`;
+}
+
 export type LagosMonth = {
   month: string;
   label: string;

@@ -4,6 +4,7 @@ import { IdentityModule } from '../modules/identity/identity.module';
 import { ActivityLogModule } from '../modules/activity-log/activity-log.module';
 import { EnrollmentModule } from '../modules/enrollment/enrollment.module';
 import { HealthFacilityModule } from '../modules/health-facility/health-facility.module';
+import { CapitationModule } from '../modules/capitation/capitation.module';
 import { WardModule } from '../modules/ward/ward.module';
 import { AuthModule } from '../platform/auth/auth.module';
 import { CacheModule } from '../platform/cache/cache.module';
@@ -33,6 +34,7 @@ import { StorageModule } from '../platform/storage/storage.module';
     IdentityModule,
     WardModule,
     HealthFacilityModule,
+    CapitationModule,
     EnrollmentModule,
   ],
 })

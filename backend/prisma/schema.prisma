@@ -152,9 +152,10 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  assignedWards UserWardAssignment[]
-  enrollments   Enrollment[]         @relation("EnrollmentEnrolledBy")
-  activityLogs  ActivityLog[]        @relation("ActivityLogActor")
+  assignedWards  UserWardAssignment[]
+  enrollments    Enrollment[]         @relation("EnrollmentEnrolledBy")
+  activityLogs   ActivityLog[]        @relation("ActivityLogActor")
+  capitationRuns CapitationRun[]
 }
 
 model UserWardAssignment {
@@ -181,8 +182,9 @@ model HealthFacility {
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
 
-  ward        Ward         @relation(fields: [wardId], references: [id], onDelete: Restrict)
-  enrollments Enrollment[]
+  ward               Ward                @relation(fields: [wardId], references: [id], onDelete: Restrict)
+  enrollments        Enrollment[]
+  capitationRecords  CapitationRecord[]
 
   @@unique([name, wardId])
   @@index([wardId])
@@ -190,6 +192,37 @@ model HealthFacility {
   @@index([status])
   @@index([type])
   @@index([level])
+}
+
+model CapitationRun {
+  id              String   @id @db.Uuid
+  month           Int
+  year            Int
+  rate            Int
+  createdAt       DateTime @default(now())
+  createdByUserId String   @db.Uuid
+
+  createdBy User               @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  records   CapitationRecord[]
+
+  @@index([year, month, createdAt(sort: Desc)])
+}
+
+model CapitationRecord {
+  id               String @id @db.Uuid
+  runId            String @db.Uuid
+  healthFacilityId String @db.Uuid
+  facilityName     String
+  lga              String
+  beneficiaryCount Int
+  rate             Int
+  amount           Int
+
+  run            CapitationRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  healthFacility HealthFacility   @relation(fields: [healthFacilityId], references: [id], onDelete: Restrict)
+
+  @@index([runId])
+  @@index([healthFacilityId])
 }
 
 model EnrollmentYearCounter {

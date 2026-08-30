@@ -294,8 +294,8 @@ export class HealthFacilityDetailStatsDto {
   @ApiProperty({
     type: Number,
     nullable: true,
-    example: null,
-    description: 'Stub until capitation billing is implemented',
+    example: 1400,
+    description: 'Latest capitation amount for the current Lagos month/year',
   })
   currentCapitation!: number | null;
 
@@ -303,18 +303,41 @@ export class HealthFacilityDetailStatsDto {
   lastActivityAt!: Date | null;
 }
 
-export class HealthFacilityCapitationStubDto {
-  @ApiProperty({ example: false })
-  implemented!: false;
+export class HealthFacilityCapitationHistoryItemDto {
+  @ApiProperty()
+  month!: number;
 
-  @ApiProperty({ type: Number, nullable: true, example: null })
+  @ApiProperty()
+  year!: number;
+
+  @ApiProperty({ example: 'August 2026' })
+  period!: string;
+
+  @ApiProperty()
+  beneficiaryCount!: number;
+
+  @ApiProperty()
+  rate!: number;
+
+  @ApiProperty()
+  amount!: number;
+
+  @ApiProperty()
+  generatedAt!: Date;
+}
+
+export class HealthFacilityCapitationDto {
+  @ApiProperty({ example: true })
+  implemented!: true;
+
+  @ApiProperty({ type: Number, nullable: true, example: 1400 })
   currentAmount!: number | null;
 
   @ApiProperty({ example: 'NGN' })
   currency!: 'NGN';
 
-  @ApiProperty({ type: 'array', example: [] })
-  records!: unknown[];
+  @ApiProperty({ type: [HealthFacilityCapitationHistoryItemDto] })
+  records!: HealthFacilityCapitationHistoryItemDto[];
 }
 
 export class HealthFacilityDetailActivityLogActorDto {
@@ -357,8 +380,8 @@ export class HealthFacilityDetailResponseDto {
   @ApiProperty({ type: HealthFacilityDetailStatsDto })
   stats!: HealthFacilityDetailStatsDto;
 
-  @ApiProperty({ type: HealthFacilityCapitationStubDto })
-  capitation!: HealthFacilityCapitationStubDto;
+  @ApiProperty({ type: HealthFacilityCapitationDto })
+  capitation!: HealthFacilityCapitationDto;
 
   @ApiProperty({
     type: HealthFacilityDetailActivityLogEntryDto,

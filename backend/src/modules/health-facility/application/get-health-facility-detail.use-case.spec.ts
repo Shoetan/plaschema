@@ -1,5 +1,6 @@
 import { AppError } from '../../../platform/http/app-error';
 import type { ActivityLogRepository } from '../../activity-log/application/activity-log.repository';
+import type { CapitationRepository } from '../../capitation/application/capitation.repository';
 import { GetHealthFacilityDetailUseCase } from './get-health-facility-detail.use-case';
 import type { HealthFacilityRepository } from './health-facility.repository';
 
@@ -19,6 +20,7 @@ describe('GetHealthFacilityDetailUseCase', () => {
 
   let facilities: jest.Mocked<HealthFacilityRepository>;
   let activityLogs: jest.Mocked<ActivityLogRepository>;
+  let capitation: jest.Mocked<CapitationRepository>;
   let useCase: GetHealthFacilityDetailUseCase;
 
   beforeEach(() => {
@@ -32,7 +34,15 @@ describe('GetHealthFacilityDetailUseCase', () => {
       findLatestByHealthFacility: jest.fn(),
     } as unknown as jest.Mocked<ActivityLogRepository>;
 
-    useCase = new GetHealthFacilityDetailUseCase(facilities, activityLogs);
+    capitation = {
+      findFacilityCapitation: jest.fn(),
+    } as unknown as jest.Mocked<CapitationRepository>;
+
+    useCase = new GetHealthFacilityDetailUseCase(
+      facilities,
+      activityLogs,
+      capitation,
+    );
   });
 
   it('returns 404 when the facility does not exist', async () => {
@@ -43,7 +53,7 @@ describe('GetHealthFacilityDetailUseCase', () => {
     } satisfies Partial<AppError>);
   });
 
-  it('returns facility detail with capitation stub and activity log', async () => {
+  it('returns facility detail with capitation and activity log', async () => {
     const latestActivity = {
       id: 'log-1',
       category: 'enrollment' as const,
@@ -53,6 +63,23 @@ describe('GetHealthFacilityDetailUseCase', () => {
       actor: { id: 'worker-1', name: 'Amina Yusuf' },
       enrollmentId: 'enrollment-1',
       occurredAt: new Date('2026-08-29T20:00:00.000Z'),
+    };
+
+    const capitationDetail = {
+      implemented: true as const,
+      currentAmount: 1400,
+      currency: 'NGN' as const,
+      records: [
+        {
+          month: 8,
+          year: 2026,
+          period: 'August 2026',
+          beneficiaryCount: 2,
+          rate: 700,
+          amount: 1400,
+          generatedAt: new Date('2026-08-29T12:00:00.000Z'),
+        },
+      ],
     };
 
     facilities.findById.mockResolvedValue(facility);
@@ -66,6 +93,7 @@ describe('GetHealthFacilityDetailUseCase', () => {
     });
     activityLogs.findRecentByHealthFacility.mockResolvedValue([latestActivity]);
     activityLogs.findLatestByHealthFacility.mockResolvedValue(latestActivity);
+    capitation.findFacilityCapitation.mockResolvedValue(capitationDetail);
 
     const result = await useCase.execute(facility.id);
 
@@ -81,13 +109,8 @@ describe('GetHealthFacilityDetailUseCase', () => {
       ward: facility.ward,
     });
     expect(result.stats.totalBeneficiaries).toBe(156);
-    expect(result.stats.currentCapitation).toBeNull();
-    expect(result.capitation).toEqual({
-      implemented: false,
-      currentAmount: null,
-      currency: 'NGN',
-      records: [],
-    });
+    expect(result.stats.currentCapitation).toBe(1400);
+    expect(result.capitation).toEqual(capitationDetail);
     expect(result.activityLog).toEqual([latestActivity]);
   });
 });

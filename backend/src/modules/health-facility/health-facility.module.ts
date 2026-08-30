@@ -1,5 +1,6 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ActivityLogModule } from '../activity-log/activity-log.module';
+import { CapitationModule } from '../capitation/capitation.module';
 import { WardModule } from '../ward/ward.module';
 import { BatchCreateHealthFacilitiesUseCase } from './application/batch-create-health-facilities.use-case';
 import { CreateHealthFacilityUseCase } from './application/create-health-facility.use-case';
@@ -14,7 +15,7 @@ import { PrismaHealthFacilityRepository } from './infrastructure/prisma-health-f
 import { HealthFacilityController } from './presentation/health-facility.controller';
 
 @Module({
-  imports: [ActivityLogModule, WardModule],
+  imports: [ActivityLogModule, forwardRef(() => CapitationModule), WardModule],
   controllers: [HealthFacilityController],
   providers: [
     {
