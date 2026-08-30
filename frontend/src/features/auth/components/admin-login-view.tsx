@@ -1,46 +1,87 @@
-import { useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
+import { type FieldErrors, useForm } from 'react-hook-form'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
+import { z } from 'zod'
 
-import { useAuthStore } from "@/features/auth/stores/auth.store";
+import { getApiErrorMessage } from '@/api'
+import { useAdminLogin } from '@/features/auth/hooks'
+import { useAuthStore } from '@/features/auth/stores/auth.store'
 
-type Screen = "login" | "forgot" | "sent" | "reset" | "success";
+type Screen = 'login' | 'forgot' | 'sent' | 'reset' | 'success'
+
+interface LoginFormValues {
+  email: string
+  password: string
+  remember: boolean
+}
+
+const loginSchema = z.object({
+  email: z.email('Enter a valid email address.'),
+  password: z.string().min(8, 'Password must be at least 8 characters.'),
+  remember: z.boolean(),
+})
 
 export function AdminLoginView() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const user = useAuthStore((auth) => auth.user);
-  const login = useAuthStore((auth) => auth.login);
-  const [screen, setScreen] = useState<Screen>("login");
-  const [form, setForm] = useState({ email: "", password: "", showPw: false, remember: false });
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetForm, setResetForm] = useState({ password: "", confirm: "", showPw: false });
-  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  const navigate = useNavigate()
+  const location = useLocation()
+  const status = useAuthStore((auth) => auth.status)
+  const loginMutation = useAdminLogin()
+  const [screen, setScreen] = useState<Screen>('login')
+  const [showPassword, setShowPassword] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetForm, setResetForm] = useState({ password: '', confirm: '', showPw: false })
+  const [mockState, setMockState] = useState<'idle' | 'loading'>('idle')
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '', remember: false },
+  })
 
-  function handleLogin() {
-    if (!form.email || !form.password) { setState("error"); return; }
-    setState("loading");
-    setTimeout(() => {
-      if (form.password === "password" || form.password.length >= 4) {
-        login(form.email);
-        const from = (location.state as { from?: string } | null)?.from;
-        navigate(from ?? "/admin", { replace: true });
-      } else {
-        setState("error");
-      }
-    }, 1200);
+  const errorMessage =
+    errors.email?.message ??
+    errors.password?.message ??
+    (loginMutation.isError
+      ? getApiErrorMessage(
+          loginMutation.error,
+          'Unable to sign in. Please try again.',
+        )
+      : null)
+
+  function handleLogin(values: LoginFormValues) {
+    loginMutation.mutate(values, {
+      onSuccess: () => {
+        const from = (location.state as { from?: string } | null)?.from
+        navigate(from?.startsWith('/admin') ? from : '/admin', {
+          replace: true,
+        })
+      },
+    })
+  }
+
+  function handleInvalidLogin(formErrors: FieldErrors<LoginFormValues>) {
+    const message =
+      formErrors.email?.message ??
+      formErrors.password?.message ??
+      'Check your details and try again.'
+    toast.error(message)
   }
 
   function handleForgot() {
-    setState("loading");
-    setTimeout(() => { setState("idle"); setScreen("sent"); }, 1000);
+    setMockState('loading')
+    setTimeout(() => { setMockState('idle'); setScreen('sent') }, 1000)
   }
 
   function handleReset() {
-    setState("loading");
-    setTimeout(() => { setState("idle"); setScreen("success"); }, 1000);
+    setMockState('loading')
+    setTimeout(() => { setMockState('idle'); setScreen('success') }, 1000)
   }
 
-  if (user) return <Navigate replace to="/admin" />;
+  if (status === 'authenticated') return <Navigate replace to="/admin" />
 
   return (
     <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4" style={{ fontFamily: "'Inter Tight', sans-serif" }}>
@@ -57,50 +98,56 @@ export function AdminLoginView() {
 
           {/* ── LOGIN ── */}
           {screen === "login" && (
-            <>
+            <form onSubmit={handleSubmit(handleLogin, handleInvalidLogin)}>
               <div className="mb-6">
                 <h1 className="text-foreground text-[22px] font-semibold tracking-[-0.44px]">Welcome back</h1>
                 <p className="text-muted-foreground text-sm mt-1">Sign in to access the enrollment management dashboard.</p>
               </div>
 
-              {state === "error" && (
-                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-[10px] px-3 py-2.5 mb-4">
+              {errorMessage && (
+                <div aria-live="polite" className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-[10px] px-3 py-2.5 mb-4" role="alert">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#dc2626" strokeWidth="1.5" /><path d="M8 5V8M8 11H8.01" stroke="#dc2626" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                  <p className="text-red-600 text-xs font-medium">Incorrect email or password. Please try again.</p>
+                  <p className="text-red-600 text-xs font-medium">{errorMessage}</p>
                 </div>
               )}
 
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-foreground text-sm font-semibold">Email Address</label>
+                  <label className="text-foreground text-sm font-semibold" htmlFor="admin-email">Email Address</label>
                   <input
+                    {...register('email', {
+                      onChange: () => loginMutation.reset(),
+                    })}
+                    aria-invalid={Boolean(errors.email)}
+                    autoComplete="email"
+                    id="admin-email"
                     type="email"
                     placeholder="Enter your email address"
-                    value={form.email}
-                    onChange={(e) => { setForm({ ...form, email: e.target.value }); setState("idle"); }}
                     className="w-full border border-border rounded-[10px] px-4 py-3 text-sm text-foreground placeholder-[#a3a3a3] outline-none focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/20 transition-all"
-                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-foreground text-sm font-semibold">Password</label>
-                    <button onClick={() => setScreen("forgot")} className="text-muted-foreground text-xs font-medium hover:text-foreground transition-colors">
+                    <label className="text-foreground text-sm font-semibold" htmlFor="admin-password">Password</label>
+                    <button onClick={() => setScreen("forgot")} className="text-muted-foreground text-xs font-medium hover:text-foreground transition-colors" type="button">
                       Forgot password?
                     </button>
                   </div>
                   <div className="relative">
                     <input
-                      type={form.showPw ? "text" : "password"}
+                      {...register('password', {
+                        onChange: () => loginMutation.reset(),
+                      })}
+                      aria-invalid={Boolean(errors.password)}
+                      autoComplete="current-password"
+                      id="admin-password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="Enter your password"
-                      value={form.password}
-                      onChange={(e) => { setForm({ ...form, password: e.target.value }); setState("idle"); }}
                       className="w-full border border-border rounded-[10px] px-4 py-3 text-sm text-foreground placeholder-[#a3a3a3] outline-none focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/20 transition-all pr-12"
-                      onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                     />
-                    <button onClick={() => setForm({ ...form, showPw: !form.showPw })} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground">
+                    <button aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground" type="button">
                       <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                        {form.showPw
+                        {showPassword
                           ? <><path d="M3 10C4.9 6.8 7.2 5 10 5C12.8 5 15.1 6.8 17 10C15.1 13.2 12.8 15 10 15C7.2 15 4.9 13.2 3 10Z" stroke="currentColor" strokeWidth="1.5" /><circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5" /><path d="M3 3L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></>
                           : <><path d="M3 10C4.9 6.8 7.2 5 10 5C12.8 5 15.1 6.8 17 10C15.1 13.2 12.8 15 10 15C7.2 15 4.9 13.2 3 10Z" stroke="currentColor" strokeWidth="1.5" /><circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5" /></>
                         }
@@ -110,9 +157,8 @@ export function AdminLoginView() {
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
+                    {...register('remember')}
                     type="checkbox"
-                    checked={form.remember}
-                    onChange={(e) => setForm({ ...form, remember: e.target.checked })}
                     className="w-4 h-4 rounded border-border accent-[#9FE870]"
                   />
                   <span className="text-muted-foreground text-sm">Remember me</span>
@@ -120,17 +166,17 @@ export function AdminLoginView() {
               </div>
 
               <button
-                onClick={handleLogin}
-                disabled={state === "loading"}
+                disabled={loginMutation.isPending}
                 className="mt-6 w-full bg-primary rounded-[10px] py-3.5 text-primary-foreground text-sm font-semibold hover:bg-[#8de05c] disabled:opacity-70 transition-colors flex items-center justify-center gap-2"
+                type="submit"
               >
-                {state === "loading"
+                {loginMutation.isPending
                   ? <><div className="w-4 h-4 border-2 border-[#163300]/30 border-t-[#163300] rounded-full animate-spin" />Signing in…</>
                   : "Sign In"
                 }
               </button>
 
-            </>
+            </form>
           )}
 
           {/* ── FORGOT PASSWORD ── */}
@@ -156,10 +202,10 @@ export function AdminLoginView() {
               </div>
               <button
                 onClick={handleForgot}
-                disabled={!resetEmail || state === "loading"}
+                disabled={!resetEmail || mockState === "loading"}
                 className="w-full bg-primary rounded-[10px] py-3.5 text-primary-foreground text-sm font-semibold hover:bg-[#8de05c] disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
               >
-                {state === "loading" ? <><div className="w-4 h-4 border-2 border-[#163300]/30 border-t-[#163300] rounded-full animate-spin" />Sending…</> : "Send Reset Link"}
+                {mockState === "loading" ? <><div className="w-4 h-4 border-2 border-[#163300]/30 border-t-[#163300] rounded-full animate-spin" />Sending…</> : "Send Reset Link"}
               </button>
             </>
           )}
@@ -239,10 +285,10 @@ export function AdminLoginView() {
               </div>
               <button
                 onClick={handleReset}
-                disabled={resetForm.password.length < 8 || resetForm.password !== resetForm.confirm || state === "loading"}
+                disabled={resetForm.password.length < 8 || resetForm.password !== resetForm.confirm || mockState === "loading"}
                 className="w-full bg-primary rounded-[10px] py-3.5 text-primary-foreground text-sm font-semibold hover:bg-[#8de05c] disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
               >
-                {state === "loading" ? <><div className="w-4 h-4 border-2 border-[#163300]/30 border-t-[#163300] rounded-full animate-spin" />Saving…</> : "Reset Password"}
+                {mockState === "loading" ? <><div className="w-4 h-4 border-2 border-[#163300]/30 border-t-[#163300] rounded-full animate-spin" />Saving…</> : "Reset Password"}
               </button>
             </>
           )}

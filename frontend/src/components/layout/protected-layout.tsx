@@ -8,6 +8,7 @@ import { AdminTopBar } from './admin-top-bar'
 
 export function ProtectedLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const status = useAuthStore((state) => state.status)
   const user = useAuthStore((state) => state.user)
   const location = useLocation()
   const matches = useMatches()
@@ -19,9 +20,12 @@ export function ProtectedLayout() {
     document.title = title?.title ? `${title.title} | PLASCHEMA` : 'PLASCHEMA'
   }, [title?.title])
 
-  if (!user) {
-    return <Navigate replace state={{ from: location.pathname }} to="/login" />
+  if (status === 'unauthenticated') {
+    const from = `${location.pathname}${location.search}${location.hash}`
+    return <Navigate replace state={{ from }} to="/login" />
   }
+
+  if (status === 'restoring' || !user) return null
 
   return (
     <div className="flex h-full overflow-hidden bg-background">
