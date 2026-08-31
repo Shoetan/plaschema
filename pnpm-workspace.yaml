@@ -8,3 +8,5 @@ onlyBuiltDependencies:
   - prisma
   - '@prisma/engines'
   - '@nestjs/core'
+  # Downloads Chrome into the Puppeteer cache (required for ID-card PDF rendering).
+  - puppeteer

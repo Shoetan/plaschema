@@ -107,6 +107,14 @@ Vite may choose the next port if `5174` is already occupied.
 - The initial sites were uploaded manually with the Netlify CLI. Connect both Netlify sites to this repository for continuous deployment, using the package directories above.
 - The admin deployment currently uses the safe relative `/api` fallback. Set a production `VITE_API_URL` in Netlify and rebuild when the live API is available. Do not commit its value.
 
+## Railway / ID-card Chromium
+
+- Backend ID-card PDFs need Puppeteer's Chrome binary on the Railway image.
+- `puppeteer` is allowlisted in `onlyBuiltDependencies` so its install script can download Chrome.
+- `backend` `build` also runs `puppeteer browsers install chrome`.
+- `nixpacks.toml` (repo root and `backend/`) installs the Linux libraries Chrome needs.
+- Optional: `PUPPETEER_EXECUTABLE_PATH` to point at a custom Chromium binary.
+
 ## Decisions already made
 
 - Keep admin and PWA as separate apps in the same Git repository.

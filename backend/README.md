@@ -115,3 +115,14 @@ pnpm --filter backend test:e2e
 pnpm --filter backend architecture:check
 pnpm --filter backend prisma:seed
 ```
+
+## Railway / Chromium (ID cards)
+
+ID-card PDF generation needs Puppeteer's Chrome binary plus Linux shared libraries.
+
+1. Set the Railway service **Root Directory** to `backend` so `backend/nixpacks.toml` installs Chrome system deps.
+2. Ensure the build command runs `pnpm build` (or `pnpm --filter backend build` from the monorepo root) — the backend build downloads Chrome via `puppeteer browsers install chrome`.
+3. Optional override: set `PUPPETEER_EXECUTABLE_PATH` if you provide your own Chromium binary.
+4. pnpm must allow Puppeteer's install script (`puppeteer` is listed under `onlyBuiltDependencies` in `pnpm-workspace.yaml`).
+
+After deploy, the warm-up log should say `ID card Chromium ready` instead of "Could not find Chrome".
