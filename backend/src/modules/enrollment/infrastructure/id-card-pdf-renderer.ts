@@ -70,10 +70,15 @@ export class IdCardPdfRenderer implements OnModuleInit, OnModuleDestroy {
     }
 
     if (!this.launchPromise) {
+      const executablePath =
+        process.env.PUPPETEER_EXECUTABLE_PATH?.trim() || undefined;
+
       this.launchPromise = puppeteer
         .launch({
           headless: true,
+          ...(executablePath ? { executablePath } : {}),
           args: [
+            // Required in containerized hosts (Railway/Docker) without a sandbox user.
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
@@ -83,7 +88,11 @@ export class IdCardPdfRenderer implements OnModuleInit, OnModuleDestroy {
         })
         .then((browser) => {
           this.browser = browser;
-          this.logger.log('ID card Chromium ready (reused across jobs)');
+          this.logger.log(
+            executablePath
+              ? `ID card Chromium ready (executablePath=${executablePath})`
+              : 'ID card Chromium ready (Puppeteer-managed Chrome)',
+          );
           browser.on('disconnected', () => {
             this.browser = null;
             this.launchPromise = null;
