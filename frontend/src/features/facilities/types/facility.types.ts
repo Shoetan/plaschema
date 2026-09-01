@@ -23,11 +23,11 @@ export interface HealthFacilityListParams {
 export interface HealthFacilityListItemApi {
   id: string
   name: string
-  type?: string | null
-  level?: HealthFacilityLevel | null
-  ward?: HealthFacilityWard | null
-  beneficiaries?: number | null
-  status?: HealthFacilityStatus | null
+  type: string
+  level: HealthFacilityLevel
+  ward: HealthFacilityWard
+  beneficiaries: number
+  status: HealthFacilityStatus
 }
 
 export interface HealthFacilityListItem {
@@ -60,10 +60,10 @@ export interface HealthFacilityRecord {
 }
 
 export interface HealthFacilityDetailStatsApi {
-  totalBeneficiaries?: number | null
-  enrollmentsThisMonth?: number | null
-  currentCapitation?: number | null
-  lastActivityAt?: string | null
+  totalBeneficiaries: number
+  enrollmentsThisMonth: number
+  currentCapitation: number | null
+  lastActivityAt: string | null
 }
 
 export interface HealthFacilityDetailStats {
@@ -77,9 +77,9 @@ export interface HealthFacilityCapitationRecordApi {
   month: number
   year: number
   period: string
-  beneficiaryCount?: number | null
-  rate?: number | null
-  amount?: number | null
+  beneficiaryCount: number
+  rate: number
+  amount: number
   generatedAt: string
 }
 
@@ -94,16 +94,16 @@ export interface HealthFacilityCapitationRecord {
 }
 
 export interface HealthFacilityCapitationApi {
-  implemented: true
-  currentAmount?: number | null
-  currency: 'NGN'
+  implemented: boolean
+  currentAmount: number | null
+  currency: string
   records: HealthFacilityCapitationRecordApi[]
 }
 
 export interface HealthFacilityCapitation {
-  implemented: true
+  implemented: boolean
   currentAmount: number | null
-  currency: 'NGN'
+  currency: string
   records: HealthFacilityCapitationRecord[]
 }
 
@@ -147,7 +147,38 @@ export interface HealthFacilityDetail {
 export interface CreateHealthFacilityPayload {
   name: string
   wardId: string
-  lga: string
+  type: string
+  level: HealthFacilityLevel
+  status: HealthFacilityStatus
+}
+
+export type FacilityBeneficiaryStatus = 'pending' | 'active' | 'disabled' | 'deceased'
+
+export interface FacilityBeneficiary {
+  id: string
+  enrollmentId: string
+  beneficiaryName: string
+  category: string
+  status: FacilityBeneficiaryStatus
+  healthFacility: {
+    id: string
+    name: string
+    ward: HealthFacilityWard
+  }
+  createdAt: string
+  hasPrinted: boolean
+  printCount: number
+  printedAt?: string | null
+}
+
+export interface FacilityBeneficiaryListParams {
+  cursor?: string
+  limit?: number
+}
+
+export interface FacilityBeneficiaryListResult {
+  items: FacilityBeneficiary[]
+  meta: CursorPaginationMeta
 }
 
 export interface UpdateHealthFacilityPayload {

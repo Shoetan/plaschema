@@ -6,3 +6,4 @@ export {
   useUploadHealthFacilitiesBatch,
 } from './useFacilityMutations'
 export { useHealthFacilities, useHealthFacilityDetail } from './useFacilities'
+export { useFacilityBeneficiaries } from './useFacilityBeneficiaries'

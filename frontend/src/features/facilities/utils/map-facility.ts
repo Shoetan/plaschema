@@ -6,21 +6,17 @@ import type {
   HealthFacilityListItemApi,
 } from '../types'
 
-function numberOrZero(value: number | null | undefined) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0
-}
-
 export function mapHealthFacilityListItem(
   facility: HealthFacilityListItemApi,
 ): HealthFacilityListItem {
   return {
     id: facility.id,
     name: facility.name,
-    type: facility.type?.trim() || 'Primary Health Care',
-    level: facility.level ?? 'primary',
-    ward: facility.ward ?? { id: '', name: 'Not available', lga: 'Not available' },
-    beneficiaries: numberOrZero(facility.beneficiaries),
-    status: facility.status ?? 'active',
+    type: facility.type,
+    level: facility.level,
+    ward: facility.ward,
+    beneficiaries: facility.beneficiaries,
+    status: facility.status,
   }
 }
 
@@ -30,20 +26,15 @@ export function mapHealthFacilityDetail(
   return {
     facility: detail.facility,
     stats: {
-      totalBeneficiaries: numberOrZero(detail.stats.totalBeneficiaries),
-      enrollmentsThisMonth: numberOrZero(detail.stats.enrollmentsThisMonth),
-      currentCapitation: detail.stats.currentCapitation ?? null,
-      lastActivityAt: detail.stats.lastActivityAt ?? null,
+      totalBeneficiaries: detail.stats.totalBeneficiaries,
+      enrollmentsThisMonth: detail.stats.enrollmentsThisMonth,
+      currentCapitation: detail.stats.currentCapitation,
+      lastActivityAt: detail.stats.lastActivityAt,
     },
     capitation: {
       ...detail.capitation,
-      currentAmount: detail.capitation.currentAmount ?? null,
-      records: detail.capitation.records.map((record) => ({
-        ...record,
-        beneficiaryCount: numberOrZero(record.beneficiaryCount),
-        rate: numberOrZero(record.rate),
-        amount: numberOrZero(record.amount),
-      })),
+      currentAmount: detail.capitation.currentAmount,
+      records: detail.capitation.records,
     },
     activityLog: detail.activityLog ?? [],
   }

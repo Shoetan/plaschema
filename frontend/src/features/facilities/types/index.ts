@@ -1,6 +1,10 @@
 export type {
   CreateHealthFacilityPayload,
   DeleteHealthFacilityResult,
+  FacilityBeneficiary,
+  FacilityBeneficiaryListParams,
+  FacilityBeneficiaryListResult,
+  FacilityBeneficiaryStatus,
   HealthFacilityActivityAction,
   HealthFacilityActivityCategory,
   HealthFacilityActivityEntry,

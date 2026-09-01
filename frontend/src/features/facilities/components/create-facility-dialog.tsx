@@ -14,6 +14,7 @@ import { useWardOptions } from '@/features/wards/hooks'
 import type { WardListItem } from '@/features/wards/types'
 
 import { useCreateHealthFacility } from '../hooks'
+import type { HealthFacilityLevel, HealthFacilityStatus } from '../types'
 
 interface CreateFacilityDialogProps {
   open: boolean
@@ -23,11 +24,17 @@ interface CreateFacilityDialogProps {
 interface CreateFacilityFormValues {
   name: string
   wardId: string
+  type: string
+  level: HealthFacilityLevel
+  status: HealthFacilityStatus
 }
 
 const schema = z.object({
   name: z.string().trim().min(2, 'Facility name must be at least 2 characters.').max(160, 'Facility name must be 160 characters or fewer.'),
   wardId: z.string().min(1, 'Select a ward.'),
+  type: z.string().trim().min(1, 'Enter a facility type.').max(120, 'Facility type must be 120 characters or fewer.'),
+  level: z.enum(['primary', 'secondary', 'tertiary']),
+  status: z.enum(['active', 'inactive']),
 })
 
 export function CreateFacilityDialog({ open, onOpenChange }: CreateFacilityDialogProps) {
@@ -37,7 +44,13 @@ export function CreateFacilityDialog({ open, onOpenChange }: CreateFacilityDialo
   const mutation = useCreateHealthFacility()
   const { control, register, handleSubmit, reset, formState: { errors } } = useForm<CreateFacilityFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: '', wardId: '' },
+    defaultValues: {
+      name: '',
+      wardId: '',
+      type: 'Primary Health Care',
+      level: 'primary',
+      status: 'active',
+    },
   })
 
   useEffect(() => {
@@ -60,16 +73,12 @@ export function CreateFacilityDialog({ open, onOpenChange }: CreateFacilityDialo
   }
 
   function submit(values: CreateFacilityFormValues) {
-    const lga = selectedWard?.lga.trim()
-    if (!lga || lga.length < 2 || lga.length > 120) {
-      toast.error('Select a ward with a valid LGA.')
-      return
-    }
-
     mutation.mutate({
       name: values.name,
       wardId: values.wardId,
-      lga,
+      type: values.type,
+      level: values.level,
+      status: values.status,
     }, {
       onSuccess: () => {
         reset()
@@ -80,7 +89,7 @@ export function CreateFacilityDialog({ open, onOpenChange }: CreateFacilityDialo
   }
 
   function invalid(formErrors: FieldErrors<CreateFacilityFormValues>) {
-    toast.error(formErrors.name?.message ?? formErrors.wardId?.message ?? 'Check the facility details and try again.')
+    toast.error(formErrors.name?.message ?? formErrors.wardId?.message ?? formErrors.type?.message ?? 'Check the facility details and try again.')
   }
 
   return (
@@ -110,6 +119,11 @@ export function CreateFacilityDialog({ open, onOpenChange }: CreateFacilityDialo
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5"><label className="text-sm font-semibold" htmlFor="facility-state">State</label><Input id="facility-state" readOnly value="Plateau" /></div>
                 <div className="flex flex-col gap-1.5"><label className="text-sm font-semibold" htmlFor="facility-lga">LGA</label><Input id="facility-lga" placeholder="Select a ward" readOnly value={selectedWard?.lga ?? ''} /></div>
+              </div>
+              <div className="flex flex-col gap-1.5"><label className="text-sm font-semibold" htmlFor="facility-type">Facility Type</label><Input {...register('type', { onChange: () => mutation.reset() })} aria-invalid={Boolean(errors.type)} id="facility-type" />{errors.type?.message && <p className="text-xs text-destructive">{errors.type.message}</p>}</div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5"><label className="text-sm font-semibold" htmlFor="facility-level">Level</label><select {...register('level')} className="h-9 rounded-lg border border-input bg-background px-3 text-sm" id="facility-level"><option value="primary">Primary</option><option value="secondary">Secondary</option><option value="tertiary">Tertiary</option></select></div>
+                <div className="flex flex-col gap-1.5"><label className="text-sm font-semibold" htmlFor="facility-status">Status</label><select {...register('status')} className="h-9 rounded-lg border border-input bg-background px-3 text-sm" id="facility-status"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
               </div>
             </div>
             <div className="flex gap-3 px-6 pb-6"><Button className={`${btnSecondary} flex-1`} disabled={mutation.isPending} onClick={() => changeOpen(false)} type="button" variant="outline">Cancel</Button><Button className={`${btnPrimary} flex-1`} disabled={mutation.isPending || wardsQuery.isError} type="submit">{mutation.isPending ? <><LoaderCircle aria-hidden="true" className="animate-spin" /> Creating…</> : 'Add Facility'}</Button></div>
