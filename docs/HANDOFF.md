@@ -48,6 +48,13 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Facility editing/status changes use `PATCH /health-facilities/:id`, and deletion uses `DELETE /health-facilities/:id` with confirmation.
 - Unsupported mock-only facility fields (code, ownership, community, address, contacts and onboarding date) are not displayed or submitted. The Beneficiaries tab reads `GET /enrollments?healthFacilityId=` with cursor pagination and remains display-only until beneficiary detail is API-backed.
 - Facility list KPI cards are explicitly current-page totals because cursor metadata does not contain programme-wide totals.
+- Field-worker list data uses `GET /users?role=field_worker` with debounced search, status filters and cursor-based Previous/Next navigation.
+- Field-worker creation uses `POST /users` with the role fixed to `field_worker`, optional multi-ward assignment and active/inactive status.
+- Empty field-worker ward assignment intentionally means access to all wards and is labelled explicitly throughout the UI.
+- Initial and reset passwords can be cryptographically generated in the browser or entered manually. Successful credentials are displayed once for the admin to copy and are not persisted in stores, query caches, URLs or browser storage.
+- Field-worker detail uses `GET /users/:id/detail`; edits and status changes use `PATCH /users/:id`, and admin password reset uses `POST /users/:id/reset-password`.
+- Field-worker Enrollment Activity and Sync Activity tabs filter the unified detail activity log. The Beneficiaries Enrolled tab reads `GET /enrollments?enrolledByUserId=` with cursor pagination and remains display-only until beneficiary detail is API-backed.
+- Field-worker server state is owned by React Query and is no longer mirrored from the mock Zustand store.
 
 ### Field-worker PWA
 
@@ -132,6 +139,9 @@ Vite may choose the next port if `5174` is already occupied.
 - Keep `GET /wards/stream` for a separate PWA offline-sync phase; it is not used by the admin app.
 - Use the admin-specific `GET /wards/:id/detail` response rather than adding the simpler ward-by-ID endpoint without a consumer.
 - Keep `GET /health-facilities/stream` for a separate PWA offline-sync phase, and use the admin detail endpoint rather than the simpler by-ID endpoint without a consumer.
+- Keep the field-worker role implicit on the Field Workers screens; the UI always submits `field_worker` and does not expose a role selector.
+- Field workers with no assigned wards have deliberate all-ward access; clearing every assignment preserves that backend behavior.
+- Generate field-worker passwords client-side with Web Crypto by default, allow manual passwords, reveal successful credentials once, and keep password recovery admin-controlled without an invitation/setup flow.
 
 ## Structure rules
 
@@ -199,6 +209,13 @@ On 1 September 2026 after the admin health-facility upgrade:
 - Facility beneficiary rows use `GET /enrollments?healthFacilityId=` with cursor pagination, loading, empty and retry states.
 - Facility wire types were aligned with the required and nullable fields in production Swagger.
 - No admin test dependencies were added; interactive browser verification was unavailable in this coding session.
+On 1 September 2026 after the admin field-worker integration:
+
+- Admin frontend lint passes without warnings.
+- Admin frontend TypeScript and production build pass.
+- Static checks confirm field-worker components use hooks, contain no mock-store dependency, introduce no `any`, and keep request wrappers inside the field-worker service.
+- Field-worker list, detail, optional ward access, create/edit/status actions, one-time generated/manual passwords, password reset, activity filtering and attributed beneficiary pagination are implemented.
+- A live authenticated smoke test was not run because the backend was not listening on `localhost:3000` during verification.
 
 ## Known gaps
 
@@ -206,7 +223,7 @@ On 1 September 2026 after the admin health-facility upgrade:
 - Ward beneficiary-list integration; the detail endpoint does not provide beneficiary rows.
 - Programme-wide facility KPI totals.
 - PWA ward and health-facility stream synchronization.
-- Remaining field-worker API integration beyond the ward assignment picker.
+- Beneficiary list/detail API integration outside the field-worker display-only beneficiary tab.
 - Refresh-token support and automatic session renewal.
 - PWA API integration and real authentication.
 - Durable offline enrollment storage.
