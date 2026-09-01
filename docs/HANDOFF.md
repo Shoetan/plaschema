@@ -1,6 +1,6 @@
 # PLASCHEMA Project Handoff
 
-Last updated: 30 August 2026
+Last updated: 1 September 2026
 Last verified code commit: `a73ed09`
 
 ## Purpose
@@ -41,12 +41,12 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - The assignment picker reads real candidates from `GET /users?role=field_worker` with cursor pagination. Assignment replaces the ward's complete field-worker selection.
 - The ward Beneficiaries tab is visible but disabled because the detail response does not contain beneficiary rows.
 - Ward API server state is owned by React Query and is not mirrored into Zustand.
-- Health-facility list data uses `GET /health-facilities` with debounced search, LGA/type/level/status filters and cursor navigation.
-- Health-facility creation uses `POST /health-facilities`; the frontend sends only `name`, the selected ward's `wardId`, and that ward's `lga` to match the live API contract.
+- Health-facility list data uses `GET /health-facilities` with debounced search, searchable ward selection, LGA/type/level/status filters and cursor navigation.
+- Health-facility creation uses `POST /health-facilities`; the frontend submits `name`, `wardId`, `type`, `level` and `status`. LGA is displayed from the selected ward but is derived by the backend rather than duplicated in the request.
 - Health-facility batch upload uses `POST /health-facilities/batch` with CSV/XLSX/XLS files up to 2 MB and displays server row errors.
 - Health-facility detail uses `GET /health-facilities/:id/detail` for overview statistics, capitation history and activity.
 - Facility editing/status changes use `PATCH /health-facilities/:id`, and deletion uses `DELETE /health-facilities/:id` with confirmation.
-- Unsupported mock-only facility fields (code, ownership, community, address, contacts and onboarding date) are not displayed or submitted. The Beneficiaries tab remains disabled because the detail response provides only a count.
+- Unsupported mock-only facility fields (code, ownership, community, address, contacts and onboarding date) are not displayed or submitted. The Beneficiaries tab reads `GET /enrollments?healthFacilityId=` with cursor pagination and remains display-only until beneficiary detail is API-backed.
 - Facility list KPI cards are explicitly current-page totals because cursor metadata does not contain programme-wide totals.
 
 ### Field-worker PWA
@@ -191,11 +191,20 @@ On 30 August 2026 after the admin health-facility integration:
 - Ward list and detail builds still pass after adding the reusable ward-options query.
 - A live authenticated smoke test was not run because the backend was not available to this coding session.
 
+On 1 September 2026 after the admin health-facility upgrade:
+
+- Admin frontend lint, TypeScript and production build pass.
+- Facility creation exposes and submits type, level and status while leaving LGA derivation to the selected ward on the backend.
+- Facility list filtering supports searchable ward selection through the production `wardId` query parameter.
+- Facility beneficiary rows use `GET /enrollments?healthFacilityId=` with cursor pagination, loading, empty and retry states.
+- Facility wire types were aligned with the required and nullable fields in production Swagger.
+- No admin test dependencies were added; interactive browser verification was unavailable in this coding session.
+
 ## Known gaps
 
 - Remaining admin API integration beyond authentication and ward writes.
 - Ward beneficiary-list integration; the detail endpoint does not provide beneficiary rows.
-- Health-facility beneficiary-list integration and programme-wide facility KPI totals.
+- Programme-wide facility KPI totals.
 - PWA ward and health-facility stream synchronization.
 - Remaining field-worker API integration beyond the ward assignment picker.
 - Refresh-token support and automatic session renewal.
