@@ -3,8 +3,6 @@ import { toast } from 'sonner'
 
 import { getApiErrorMessage } from '@/api'
 
-import { fieldWorkerKeys } from '@/features/field-workers/hooks'
-
 import {
   assignWardFieldWorkers,
   createWard,
@@ -82,7 +80,7 @@ export function useAssignWardFieldWorkers() {
       void queryClient.invalidateQueries({
         queryKey: wardKeys.detail(variables.id),
       })
-      void queryClient.invalidateQueries({ queryKey: fieldWorkerKeys.all })
+      void queryClient.invalidateQueries({ queryKey: ['field-workers'] })
       toast.success(result.message)
     },
     onError: (error) => {
