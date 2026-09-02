@@ -1,6 +1,6 @@
 # PLASCHEMA Project Handoff
 
-Last updated: 1 September 2026
+Last updated: 2 September 2026
 Last verified code commit: `a73ed09`
 
 ## Purpose
@@ -12,7 +12,7 @@ This is the living context document for engineers and future coding sessions. Up
 | Folder | Purpose | Current state |
 | --- | --- | --- |
 | `frontend/` | Admin web app | Designs implemented; login and session APIs integrated |
-| `pwa/` | Field-worker mobile PWA | Designs implemented with mock data |
+| `pwa/` | Field-worker mobile PWA | Production auth/profile integrated; enrollment data remains mock-only |
 | `backend/` | NestJS API, Prisma, PostgreSQL and Redis | Existing backend project; frontend work must not change it unless requested |
 | `docs/` | Project guides and handoff | Read before architecture or routing work |
 
@@ -59,14 +59,18 @@ This is a pnpm workspace. The root scripts manage all three apps.
 ### Field-worker PWA
 
 - Separate app under `pwa/` in the same workspace.
-- React, TypeScript, Vite, Tailwind, React Router and Zustand.
+- React, TypeScript, Vite, Tailwind, React Router, Zustand, Axios and TanStack React Query.
 - Routes: login, home, enrollment, beneficiaries, beneficiary detail, sync and profile.
 - Six-step enrollment includes passport and ID-document design inputs.
-- Login accepts any non-empty email and password.
-- Beneficiaries, worker profile, statistics and synchronization are mock-only.
+- Login uses `POST /auth/login`, accepts only active field-worker accounts and stores no password.
+- Saved sessions persist locally, are checked with `GET /auth/me` when online and may continue offline only until the JWT expires.
+- A protected-request 401, role mismatch or local token expiry clears the session. A transient `/auth/me` failure preserves it and offers Retry or Continue Offline.
+- Worker profile identity and assigned wards come from the authenticated user response; empty ward assignment means access to all wards.
+- Home identity is real, while beneficiaries, enrollment statistics and synchronization remain mock-only and are labelled as demo data throughout the protected app.
 - Mock enrollment adds a local in-memory beneficiary through Zustand.
-- Refreshing the browser resets the mock session and unsaved mock changes.
-- No backend requests, real uploads, database storage or real synchronization.
+- Refreshing the browser preserves an unexpired auth session but resets unsaved mock enrollment changes.
+- Logout is immediate; no refresh-token or server logout endpoint exists.
+- No real enrollment uploads, database storage or synchronization are implemented yet.
 
 ## PWA configuration
 
@@ -78,6 +82,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - An update prompt appears when a new version is ready.
 - Current icon is `pwa/public/logo.svg` for normal and maskable use.
 - No push notifications, background sync, authenticated API caching or private offline storage.
+- PWA API responses are not cached by the service worker. Set `VITE_API_URL` in local and Netlify environments; never commit its deployed value.
 - Production work should add tested PNG icons and an Apple touch icon.
 
 ## Commands
@@ -112,7 +117,7 @@ Vite may choose the next port if `5174` is already occupied.
 - Both sites use SPA rewrites so direct navigation to React Router routes resolves to `index.html`.
 - The PWA service worker is served with revalidation enabled so clients can discover new deployments.
 - The initial sites were uploaded manually with the Netlify CLI. Connect both Netlify sites to this repository for continuous deployment, using the package directories above.
-- The admin deployment currently uses the safe relative `/api` fallback. Set a production `VITE_API_URL` in Netlify and rebuild when the live API is available. Do not commit its value.
+- Set a production `VITE_API_URL` separately for both Netlify sites and rebuild after changing it. Do not commit deployed environment values.
 
 ## Railway / ID-card Chromium
 
@@ -142,6 +147,8 @@ Vite may choose the next port if `5174` is already occupied.
 - Keep the field-worker role implicit on the Field Workers screens; the UI always submits `field_worker` and does not expose a role selector.
 - Field workers with no assigned wards have deliberate all-ward access; clearing every assignment preserves that backend behavior.
 - Generate field-worker passwords client-side with Web Crypto by default, allow manual passwords, reveal successful credentials once, and keep password recovery admin-controlled without an invitation/setup flow.
+- Persist the PWA field-worker session in local storage without a Remember me control. Revalidate through `/auth/me` when online and permit offline access only before the JWT expires.
+- Keep PWA authentication separate from local enrollment state, reject admin accounts in the PWA, and never cache authenticated API responses in the service worker.
 
 ## Structure rules
 
@@ -217,6 +224,14 @@ On 1 September 2026 after the admin field-worker integration:
 - Field-worker list, detail, optional ward access, create/edit/status actions, one-time generated/manual passwords, password reset, activity filtering and attributed beneficiary pagination are implemented.
 - A live authenticated smoke test was not run because the backend was not listening on `localhost:3000` during verification.
 
+On 2 September 2026 after the PWA authentication integration:
+
+- PWA login and `/me` use production contracts through a typed Axios service and React Query hooks.
+- Persistent field-worker-only sessions, online restoration, unexpired offline continuation, background revalidation, local expiry, cross-tab logout and real Profile/Home identity are implemented.
+- The mock user was removed from the general app store; unfinished enrollment screens retain explicit demo-data labelling.
+- PWA TypeScript, lint, production build and eight Vitest tests pass.
+- No live authenticated production login was run because no field-worker credentials were supplied to this coding session.
+
 ## Known gaps
 
 - Remaining admin API integration beyond authentication and ward writes.
@@ -225,7 +240,7 @@ On 1 September 2026 after the admin field-worker integration:
 - PWA ward and health-facility stream synchronization.
 - Beneficiary list/detail API integration outside the field-worker display-only beneficiary tab.
 - Refresh-token support and automatic session renewal.
-- PWA API integration and real authentication.
+- PWA API integration beyond authentication and current-user profile.
 - Durable offline enrollment storage.
 - Real file upload and synchronization.
 - Production PWA PNG icons and iPhone install assets.

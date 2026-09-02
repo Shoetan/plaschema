@@ -79,3 +79,7 @@ button:disabled { cursor: not-allowed; }
 @media (min-width: 700px) {
   .app-frame { margin-block: 1.5rem; height: calc(100dvh - 3rem); min-height: calc(100dvh - 3rem); border-radius: 20px; overflow: hidden; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

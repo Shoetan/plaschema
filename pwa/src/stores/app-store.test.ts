@@ -5,12 +5,7 @@ import { useAppStore } from '@/stores/app-store'
 
 describe('app store', () => {
   beforeEach(() => {
-    useAppStore.setState({ user: null, beneficiaries: initialBeneficiaries, lastSyncAt: null })
-  })
-
-  it('signs in with the entered demo email', () => {
-    useAppStore.getState().signIn('field@example.com')
-    expect(useAppStore.getState().user?.email).toBe('field@example.com')
+    useAppStore.setState({ beneficiaries: initialBeneficiaries, lastSyncAt: null })
   })
 
   it('adds an enrollment to the mock beneficiary list', () => {

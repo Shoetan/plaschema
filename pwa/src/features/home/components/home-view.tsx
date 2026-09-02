@@ -2,11 +2,12 @@ import { ArrowRight, Plus, RefreshCw, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { StatusBadge } from '@/components/status-badge'
+import { useAuthStore } from '@/features/auth/stores/auth.store'
 import { useNetworkStatus } from '@/hooks/use-network-status'
 import { useAppStore } from '@/stores/app-store'
 
 export function HomeView() {
-  const user = useAppStore((state) => state.user)!
+  const user = useAuthStore((state) => state.user)!
   const beneficiaries = useAppStore((state) => state.beneficiaries)
   const isOnline = useNetworkStatus()
   const pending = beneficiaries.filter((record) => record.syncStatus !== 'Synced').length
@@ -17,7 +18,7 @@ export function HomeView() {
     <div className="space-y-5 px-4 py-6">
       <section>
         <h1 className="text-[22px] font-bold tracking-tight">Hello, {user.name.split(' ')[0]} 👋</h1>
-        <p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${isOnline ? 'bg-success text-success-foreground' : 'bg-amber-50 text-amber-700'}`}>{isOnline ? 'Online · Connected' : 'Offline · Demo mode'}</p>
+        <p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${isOnline ? 'bg-success text-success-foreground' : 'bg-amber-50 text-amber-700'}`}>{isOnline ? 'Online' : 'Offline · Saved session'}</p>
       </section>
 
       <section aria-label="Enrollment summary" className="grid grid-cols-3 gap-3">

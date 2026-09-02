@@ -1,25 +1,19 @@
 import { create } from 'zustand'
 
-import { initialBeneficiaries, mockUser } from '@/data/mock-data'
-import type { Beneficiary, EnrollmentDraft, MockUser, SyncStatus } from '@/types'
+import { initialBeneficiaries } from '@/data/mock-data'
+import type { Beneficiary, EnrollmentDraft, SyncStatus } from '@/types'
 
 interface AppState {
-  user: MockUser | null
   beneficiaries: Beneficiary[]
   lastSyncAt: string | null
-  signIn: (email: string) => void
-  signOut: () => void
   addEnrollment: (draft: EnrollmentDraft) => Beneficiary
   setSyncStatus: (id: string, status: SyncStatus, message?: string) => void
   syncAll: () => Promise<void>
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  user: null,
   beneficiaries: initialBeneficiaries,
   lastSyncAt: '2026-08-28T09:42:00.000Z',
-  signIn: (email) => set({ user: { ...mockUser, email } }),
-  signOut: () => set({ user: null }),
   addEnrollment: (draft) => {
     const beneficiary: Beneficiary = {
       ...draft,
