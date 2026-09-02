@@ -12,7 +12,7 @@ This is the living context document for engineers and future coding sessions. Up
 | Folder | Purpose | Current state |
 | --- | --- | --- |
 | `frontend/` | Admin web app | Designs implemented; login and session APIs integrated |
-| `pwa/` | Field-worker mobile PWA | Production auth/profile integrated; enrollment data remains mock-only |
+| `pwa/` | Field-worker mobile PWA | Production auth/profile and offline-first enrollment sync integrated |
 | `backend/` | NestJS API, Prisma, PostgreSQL and Redis | Existing backend project; frontend work must not change it unless requested |
 | `docs/` | Project guides and handoff | Read before architecture or routing work |
 
@@ -66,11 +66,16 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Saved sessions persist locally, are checked with `GET /auth/me` when online and may continue offline only until the JWT expires.
 - A protected-request 401, role mismatch or local token expiry clears the session. A transient `/auth/me` failure preserves it and offers Retry or Continue Offline.
 - Worker profile identity and assigned wards come from the authenticated user response; empty ward assignment means access to all wards.
-- Home identity is real, while beneficiaries, enrollment statistics and synchronization remain mock-only and are labelled as demo data throughout the protected app.
-- Mock enrollment adds a local in-memory beneficiary through Zustand.
-- Refreshing the browser preserves an unexpired auth session but resets unsaved mock enrollment changes.
+- Enrollment drafts, selected files, local queues, reference data and cached worker statistics use IndexedDB through Dexie. Authentication remains separate in local storage.
+- The six-step enrollment wizard always saves locally first. One active draft survives refreshes and app restarts; completed drafts enter an owner-scoped pending queue with a UUID v7 idempotency key.
+- Wards and health facilities are downloaded from their NDJSON stream endpoints when missing, older than 24 hours or when the worker's ward access changes. Workers can also refresh them manually.
+- Synchronization runs in the foreground while the app is open: presign each file, upload it directly with the returned PUT URL, then create each enrollment one at a time.
+- Pending work retries with durable leases and bounded delays. Failed records retain their form, error and files for Review, Edit, Retry or Discard actions.
+- A successful create keeps a durable pending sync-report marker until `POST /auth/sync` succeeds, including when only part of a batch succeeded.
+- File blobs are removed only after the backend accepts the enrollment. Recently synced text records remain on the device for 30 days for offline review.
+- Home Pending is device-local. Today and Total combine own `/users/:id/detail` statistics with unsent device records without double-counting retained synced rows; dates use the Africa/Lagos calendar day.
+- People and Sync display only records created on the current device. The PWA does not use `GET /enrollments` as a server-backed beneficiary list.
 - Logout is immediate; no refresh-token or server logout endpoint exists.
-- No real enrollment uploads, database storage or synchronization are implemented yet.
 
 ### Backend contracts for PWA sync (ready)
 
@@ -89,9 +94,10 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - SPA navigation falls back to `index.html`.
 - An update prompt appears when a new version is ready.
 - Current icon is `pwa/public/logo.svg` for normal and maskable use.
-- No push notifications, background sync, authenticated API caching or private offline storage.
+- No push notifications, service-worker background sync or authenticated API caching. Private enrollment data is stored in IndexedDB and scoped by the authenticated worker id.
 - PWA API responses are not cached by the service worker. Set `VITE_API_URL` in local and Netlify environments; never commit its deployed value.
 - Production work should add tested PNG icons and an Apple touch icon.
+- Production enrollment uploads require Railway object-storage CORS to allow the deployed PWA origin, `PUT` and the requested `Content-Type`. Uploaded objects that are never attached to a completed enrollment require backend lifecycle cleanup.
 
 ## Commands
 
@@ -100,8 +106,8 @@ From the repository root:
 ```bash
 pnpm install
 pnpm dev              # backend, admin and PWA
-pnpm dev:frontend     # admin only
-pnpm dev:pwa          # PWA only, normally http://localhost:5174
+pnpm dev:frontend     # admin only, fixed at http://localhost:5173
+pnpm dev:pwa          # PWA only, fixed at http://localhost:5174
 pnpm dev:backend      # backend and infrastructure only
 
 pnpm build
@@ -112,7 +118,7 @@ pnpm lint:pwa
 pnpm test:pwa
 ```
 
-Vite may choose the next port if `5174` is already occupied.
+Both frontend development servers use Vite's `--strictPort` option and exit instead of choosing another port when `5173` or `5174` is occupied.
 
 ## Netlify deployment
 
@@ -160,6 +166,9 @@ Vite may choose the next port if `5174` is already occupied.
 - PWA enrollment sync is one-by-one via `POST /enrollments` (idempotent); after the loop call `POST /auth/sync` to persist `lastSyncedAt`.
 - PWA profile does not use a worker code field; use `/auth/me` or own `/users/:id/detail`.
 - Home/People/Sync analytics and pending/failed queues are device-local; do not list server-synced enrollments on the PWA. Today/Total can use detail `stats.enrollmentsToday` / `stats.totalEnrolled`.
+- Keep PWA enrollment API traffic in typed services. Components consume hooks; direct `fetch` is limited to the NDJSON and presigned-upload transport helpers.
+- Keep recent synced device records for 30 days, but remove their file blobs immediately after the backend acknowledges enrollment creation.
+- Refresh offline reference streams when absent, more than 24 hours old or ward access changes; do not download both streams on every queue polling interval.
 
 ## Structure rules
 
@@ -181,6 +190,15 @@ At commit `a73ed09`:
 - Backend had no working-tree changes.
 
 After later edits, rerun the relevant checks before updating this section.
+
+On 2 September 2026 after the PWA offline enrollment integration:
+
+- PWA lint and TypeScript pass.
+- All 22 PWA tests pass, including durable draft/outbox storage, UUID v7, file blobs, NDJSON parsing, bearer isolation for presigned PUTs, partial sync batches, delayed `/auth/sync` reporting, reference freshness and Africa/Lagos Home counts.
+- The PWA production build passes and generates its service worker. Vite reports a non-blocking warning because the main JavaScript chunk is larger than 500 kB.
+- A local production-preview smoke test returned HTTP 200 for the root, a nested beneficiary route, the web manifest and the generated service worker.
+- Static checks confirm enrollment components use hooks/services rather than direct Axios or fetch, and the old mock beneficiary/Zustand enrollment store has been removed.
+- Live authenticated uploads were not run in this coding session. Production still needs a real-device offline/reconnect test and confirmation of Railway object-storage CORS and abandoned-upload cleanup.
 
 On 30 August 2026:
 

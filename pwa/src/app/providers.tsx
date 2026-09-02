@@ -2,8 +2,9 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import type { PropsWithChildren } from 'react'
 
 import { AuthSessionGate } from '@/features/auth/components'
+import { OfflineEnrollmentCoordinator } from '@/features/enrollment/components/offline-enrollment-coordinator'
 import { queryClient } from '@/lib/query-client'
 
 export function AppProviders({ children }: PropsWithChildren) {
-  return <QueryClientProvider client={queryClient}><AuthSessionGate>{children}</AuthSessionGate></QueryClientProvider>
+  return <QueryClientProvider client={queryClient}><AuthSessionGate><OfflineEnrollmentCoordinator />{children}</AuthSessionGate></QueryClientProvider>
 }
