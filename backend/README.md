@@ -65,9 +65,11 @@ Clean Architecture only (no DDD / bounded contexts). Feature modules:
 ## Key endpoints
 
 - `POST /api/auth/login`
+- `GET /api/auth/me` — authenticated profile (`assignedWards`, `lastSyncedAt`, …)
+- `POST /api/auth/sync` — report successful device sync (sets `lastSyncedAt` to now; returns updated user)
 - `POST /api/users/:id/reset-password` (admin only; no email)
 - `GET /api/users` — cursor list; with `role=field_worker` returns wards + enrollment stats (`beneficiariesEnrolled`, `lastEnrollmentAt`, `lastSyncedAt`)
-- `GET /api/users/:id/detail` — field worker detail for admin (`fieldWorker` overview without assigned wards, `stats`, `wards` tab data, unified `activityLog`). Beneficiaries tab uses `GET /api/enrollments?enrolledByUserId=`
+- `GET /api/users/:id/detail` — field worker detail for admin **or the worker’s own profile** (`fieldWorker` overview with `lastSyncedAt`, `stats` with `totalEnrolled` / `enrollmentsToday` / `enrollmentsThisMonth`, `wards`, unified `activityLog`). Field workers may only request their own `id`. Beneficiaries tab uses `GET /api/enrollments?enrolledByUserId=`
 - `POST /api/wards/batch` — CSV or Excel (.xlsx/.xls); columns: `name,lga`
 - `GET /api/wards` — cursor list for wards table (`name`, `state`, `lga`, `fieldWorkers`, `beneficiaries`, `newEnrollments`, `status`)
 - `GET /api/wards/:id/detail` — admin ward detail page payload (`ward`, `stats`, `enrollmentTrend`, `fieldWorkers`, `healthFacilities`, unified `activityLog`). Beneficiaries tab uses `GET /api/enrollments?wardId=`
@@ -82,7 +84,7 @@ Clean Architecture only (no DDD / bounded contexts). Feature modules:
 - `GET /api/capitations` — list latest-run records for a month/year (defaults to current Lagos period). Filters: `lga`, `healthFacilityId`, `search`. Returns `{ data, meta, summary }`
 - `POST /api/enrollments/files/presign-upload` — Railway presigned PUT URL for passport/ID upload
 - `POST /api/enrollments/files/dev-upload` — **dev/test only**: multipart upload that presigns + PUTs to Railway (returns `objectKey`)
-- `POST /api/enrollments` — create enrollment (idempotent via `idempotencyId`; duplicate = first+last+DOB)
+- `POST /api/enrollments` — create enrollment (idempotent via `idempotencyId`; duplicate = first+last+DOB). Returns slim sync acknowledgement (`id`, `enrollmentId`, `idempotencyId`, `status`, `capturedAt`, `createdAt`, `idempotentReplay`)
 - `GET /api/enrollments` — cursor list for beneficiaries / ID-card page (`enrollmentId`, name, category, lga, facility, ward, status, `hasPrinted`, `printCount`, `printedAt`). Filters: `category`, `printedStatus` (`all`|`printed`|`not_printed`), `lga`, `wardId`, `healthFacilityId`, `enrolledByUserId` (admin), `beneficiaryName`, `enrollmentId`, `createdFrom`/`createdTo`, `status`, `search`, `enrolledByMe`, `ageMin`/`ageMax`
 - `GET /api/enrollments/:id/detail` — beneficiary detail page payload (`overview` personal details + unified `activityLog` for sync/activity tabs)
 - `GET /api/enrollments/:id` — full enrollment detail with presigned `passportUrl` + `idDocumentUrl` (+ print fields)
@@ -97,9 +99,10 @@ Roles: `admin` | `field_worker`. Field workers with assigned wards are scoped to
 ### Offline-first enrollment sync
 
 1. On device, generate a UUID v7 `idempotencyId` and capture `capturedAt` when the form is filled offline.
-2. When online, request presigned upload URLs, PUT passport + ID files to Railway, then `POST /api/enrollments` with the object keys (server generates enrollment `id`).
-3. Retrying with the same `idempotencyId` returns the original enrollment (`idempotentReplay: true`).
+2. When online, request presigned upload URLs, PUT passport + ID files to Railway, then `POST /api/enrollments` with the object keys. Response is a slim acknowledgement (`id`, `enrollmentId`, `idempotencyId`, `status`, `capturedAt`, `createdAt`, `idempotentReplay`).
+3. Retrying with the same `idempotencyId` returns the same slim acknowledgement with `idempotentReplay: true`.
 4. A different request with the same first name + last name + `dateOfBirth` (`YYYY-MM-DD`) is rejected as `DUPLICATE_ENROLLMENT`.
+5. After the client finishes its one-by-one pending loop, call `POST /api/auth/sync` to persist `lastSyncedAt` on the user record.
 
 ## Scripts
 

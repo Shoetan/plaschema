@@ -17,8 +17,10 @@ import {
   type AuthenticatedUser,
 } from '../../../platform/auth/current-user.decorator';
 import { Public } from '../../../platform/auth/public.decorator';
+import { Roles } from '../../../platform/auth/roles.decorator';
 import { GetUserUseCase } from '../application/get-user.use-case';
 import { LoginUseCase } from '../application/login.use-case';
+import { ReportLastSyncUseCase } from '../application/report-last-sync.use-case';
 import { LoginDto, LoginResponseDto, UserResponseDto } from './identity.dto';
 
 @ApiTags('auth')
@@ -27,6 +29,7 @@ export class AuthController {
   constructor(
     private readonly loginUseCase: LoginUseCase,
     private readonly getUserUseCase: GetUserUseCase,
+    private readonly reportLastSync: ReportLastSyncUseCase,
   ) {}
 
   @Post('login')
@@ -44,5 +47,18 @@ export class AuthController {
   @ApiOkResponse({ type: UserResponseDto })
   me(@CurrentUser() user: AuthenticatedUser) {
     return this.getUserUseCase.execute(user.id);
+  }
+
+  @Post('sync')
+  @ApiBearerAuth('bearer')
+  @Roles('admin', 'field_worker')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Report a successful device sync (sets lastSyncedAt to now). Call after the PWA finishes its pending enrollment loop.',
+  })
+  @ApiOkResponse({ type: UserResponseDto })
+  sync(@CurrentUser() user: AuthenticatedUser) {
+    return this.reportLastSync.execute(user.id);
   }
 }

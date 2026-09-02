@@ -277,6 +277,12 @@ export class FieldWorkerDetailOverviewDto {
   @ApiProperty({ enum: ['active', 'inactive'] })
   status!: 'active' | 'inactive';
 
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'ISO datetime of the last reported device/app sync',
+  })
+  lastSyncedAt!: Date | null;
+
   @ApiProperty()
   createdAt!: Date;
 
@@ -287,6 +293,13 @@ export class FieldWorkerDetailOverviewDto {
 export class FieldWorkerDetailStatsDto {
   @ApiProperty({ example: 156 })
   totalEnrolled!: number;
+
+  @ApiProperty({
+    example: 4,
+    description:
+      'Enrollments created today (Africa/Lagos calendar day). Already synced to the server.',
+  })
+  enrollmentsToday!: number;
 
   @ApiProperty({ example: 31 })
   enrollmentsThisMonth!: number;

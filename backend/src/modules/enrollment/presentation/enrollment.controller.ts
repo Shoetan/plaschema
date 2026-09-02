@@ -40,6 +40,7 @@ import { ListEnrollmentsUseCase } from '../application/list-enrollments.use-case
 import { PresignEnrollmentUploadUseCase } from '../application/presign-enrollment-upload.use-case';
 import {
   CreateEnrollmentDto,
+  CreateEnrollmentResponseDto,
   EnrollmentDetailResponseDto,
   EnrollmentDevUploadResponseDto,
   EnrollmentListItemDto,
@@ -174,25 +175,23 @@ export class EnrollmentController {
   @Roles('admin', 'field_worker')
   @ApiOperation({
     summary:
-      'Create enrollment (idempotent via idempotencyId; duplicate identity = first+last+DOB)',
+      'Create enrollment (idempotent via idempotencyId; duplicate identity = first+last+DOB). Returns a slim sync acknowledgement; retries with the same key set idempotentReplay=true.',
   })
-  @ApiCreatedResponse({
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          example: 'Enrollment submitted successfully',
-        },
-      },
-    },
-  })
+  @ApiCreatedResponse({ type: CreateEnrollmentResponseDto })
   async create(
     @CurrentUser() user: AuthenticatedUser,
     @Body() body: CreateEnrollmentDto,
-  ) {
-    await this.createEnrollment.execute(user, body);
-    return { message: 'Enrollment submitted successfully' };
+  ): Promise<CreateEnrollmentResponseDto> {
+    const enrollment = await this.createEnrollment.execute(user, body);
+    return {
+      id: enrollment.id,
+      enrollmentId: enrollment.enrollmentId,
+      idempotencyId: enrollment.idempotencyId,
+      status: enrollment.status,
+      capturedAt: enrollment.capturedAt,
+      createdAt: enrollment.createdAt,
+      idempotentReplay: enrollment.idempotentReplay === true,
+    };
   }
 
   @Get()

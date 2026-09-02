@@ -19,6 +19,10 @@ import {
   ApiTags,
   getSchemaPath,
 } from '@nestjs/swagger';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../../../platform/auth/current-user.decorator';
 import { Roles } from '../../../platform/auth/roles.decorator';
 import { CursorPaginationMetaDto } from '../../../platform/http/cursor-pagination.dto';
 import { UuidV7Pipe } from '../../../platform/http/uuid-v7.pipe';
@@ -123,12 +127,17 @@ export class UsersController {
   }
 
   @Get(':id/detail')
+  @Roles('admin', 'field_worker')
   @ApiOperation({
-    summary: 'Get field worker detail (admin overview, wards, activity log)',
+    summary:
+      'Get field worker detail (admin overview, or own profile for field workers). Includes overview with lastSyncedAt, stats, assigned wards, and activity log.',
   })
   @ApiOkResponse({ type: FieldWorkerDetailResponseDto })
-  detail(@Param('id', UuidV7Pipe) id: string) {
-    return this.getFieldWorkerDetail.execute(id);
+  detail(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', UuidV7Pipe) id: string,
+  ) {
+    return this.getFieldWorkerDetail.execute(user, id);
   }
 
   @Get(':id')

@@ -526,6 +526,35 @@ export class EnrollmentListItemDto {
   printedAt!: Date | null;
 }
 
+/** Slim create/sync acknowledgement — client already has the offline draft. */
+export class CreateEnrollmentResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'PL/CBHI/2026/001' })
+  enrollmentId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  idempotencyId!: string;
+
+  @ApiProperty({ enum: ENROLLMENT_STATUSES, example: 'pending' })
+  status!: EnrollmentStatus;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'When the form was captured on-device',
+  })
+  capturedAt!: Date | null;
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty({
+    description: 'True when this create call was an idempotent replay',
+  })
+  idempotentReplay!: boolean;
+}
+
 export class EnrollmentResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;

@@ -10,7 +10,7 @@ import type {
 } from '../domain/user';
 import { toPublicUser } from '../domain/user';
 import { WARD_STATE } from '../../ward/domain/ward';
-import { startOfMonthInLagos } from '../../ward/domain/ward-date';
+import { startOfMonthInLagos, startOfTodayInLagos } from '../../ward/domain/ward-date';
 import type {
   CreateUserInput,
   ListUsersQuery,
@@ -274,11 +274,18 @@ export class PrismaUserRepository implements UserRepository {
     }
 
     const monthStart = startOfMonthInLagos();
+    const todayStart = startOfTodayInLagos();
 
-    const [totalEnrolled, enrollmentsThisMonth, lastEnrollment] =
+    const [totalEnrolled, enrollmentsToday, enrollmentsThisMonth, lastEnrollment] =
       await Promise.all([
         this.prisma.enrollment.count({
           where: { enrolledByUserId: userId },
+        }),
+        this.prisma.enrollment.count({
+          where: {
+            enrolledByUserId: userId,
+            createdAt: { gte: todayStart },
+          },
         }),
         this.prisma.enrollment.count({
           where: {
@@ -296,6 +303,7 @@ export class PrismaUserRepository implements UserRepository {
     return {
       stats: {
         totalEnrolled,
+        enrollmentsToday,
         enrollmentsThisMonth,
         lastEnrollmentAt: lastEnrollment?.createdAt ?? null,
         lastSyncedAt: user.lastSyncedAt,
