@@ -1,9 +1,10 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 
-import { useAppStore } from '@/stores/app-store'
+import { useAuthStore } from '@/features/auth/stores/auth.store'
 
 export function ProtectedLayout() {
-  const user = useAppStore((state) => state.user)
+  const status = useAuthStore((state) => state.status)
   const location = useLocation()
-  return user ? <Outlet /> : <Navigate replace to="/login" state={{ from: location.pathname }} />
+  const from = `${location.pathname}${location.search}${location.hash}`
+  return status === 'authenticated' ? <Outlet /> : <Navigate replace to="/login" state={{ from }} />
 }

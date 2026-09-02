@@ -1,3 +1,3 @@
-import { LoginView } from '@/features/auth/components/login-view'
+import { LoginView } from '@/features/auth/components'
 
 export function LoginPage() { return <LoginView /> }

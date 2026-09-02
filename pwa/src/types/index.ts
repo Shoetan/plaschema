@@ -1,14 +1,5 @@
 export type SyncStatus = 'Pending' | 'Syncing' | 'Failed' | 'Synced'
 
-export interface MockUser {
-  id: string
-  name: string
-  email: string
-  phone: string
-  workerCode: string
-  assignedWards: string[]
-}
-
 export interface EnrollmentDraft {
   id: string
   capturedAt: string

@@ -1,13 +1,4 @@
-import type { Beneficiary, MockUser } from '@/types'
-
-export const mockUser: MockUser = {
-  id: 'worker-001',
-  name: 'Amina Yusuf',
-  email: 'amina.yusuf@plaschema.ng',
-  phone: '+234 803 456 7890',
-  workerCode: 'FW001',
-  assignedWards: ['Tudun Wada', 'Angwan Rogo'],
-}
+import type { Beneficiary } from '@/types'
 
 export const wards = ['Tudun Wada', 'Angwan Rogo', 'Gangare', 'Jenta Adamu']
 
