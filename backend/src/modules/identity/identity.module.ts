@@ -5,6 +5,7 @@ import { GetFieldWorkerDetailUseCase } from './application/get-field-worker-deta
 import { GetUserUseCase } from './application/get-user.use-case';
 import { ListUsersUseCase } from './application/list-users.use-case';
 import { LoginUseCase } from './application/login.use-case';
+import { ReportLastSyncUseCase } from './application/report-last-sync.use-case';
 import { ResetPasswordUseCase } from './application/reset-password.use-case';
 import { UpdateUserUseCase } from './application/update-user.use-case';
 import { USER_REPOSITORY } from './application/user.repository';
@@ -22,6 +23,7 @@ import { UsersController } from './presentation/users.controller';
     ListUsersUseCase,
     GetUserUseCase,
     GetFieldWorkerDetailUseCase,
+    ReportLastSyncUseCase,
     UpdateUserUseCase,
     ResetPasswordUseCase,
   ],

@@ -42,6 +42,8 @@ export type FieldWorkerListItem = {
 
 export type FieldWorkerDetailStats = {
   totalEnrolled: number;
+  /** Enrollments created today (Africa/Lagos calendar day) — already on server / synced. */
+  enrollmentsToday: number;
   enrollmentsThisMonth: number;
   lastEnrollmentAt: Date | null;
   lastSyncedAt: Date | null;
@@ -53,6 +55,7 @@ export type FieldWorkerDetailOverview = {
   email: string;
   phone: string | null;
   status: UserStatus;
+  lastSyncedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };

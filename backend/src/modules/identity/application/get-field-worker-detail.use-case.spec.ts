@@ -18,6 +18,22 @@ describe('GetFieldWorkerDetailUseCase', () => {
     updatedAt: new Date('2024-06-01T00:00:00.000Z'),
   };
 
+  const adminActor = {
+    id: '01900000-0000-7000-8000-000000000001',
+    email: 'admin@cbhi.local',
+    role: 'admin' as const,
+    name: 'Admin',
+    status: 'active' as const,
+  };
+
+  const fieldWorkerActor = {
+    id: fieldWorker.id,
+    email: fieldWorker.email,
+    role: 'field_worker' as const,
+    name: fieldWorker.name,
+    status: 'active' as const,
+  };
+
   let users: jest.Mocked<UserRepository>;
   let activityLogs: jest.Mocked<ActivityLogRepository>;
   let useCase: GetFieldWorkerDetailUseCase;
@@ -41,21 +57,34 @@ describe('GetFieldWorkerDetailUseCase', () => {
       role: 'admin',
     });
 
-    await expect(useCase.execute(fieldWorker.id)).rejects.toMatchObject({
+    await expect(
+      useCase.execute(adminActor, fieldWorker.id),
+    ).rejects.toMatchObject({
       code: 'USER_NOT_FOUND',
     } satisfies Partial<AppError>);
   });
 
-  it('returns field worker detail without wards on overview payload', async () => {
+  it('forbids a field worker from viewing another worker detail', async () => {
+    await expect(
+      useCase.execute(fieldWorkerActor, '01900000-0000-7000-8000-000000000099'),
+    ).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    } satisfies Partial<AppError>);
+  });
+
+  it('returns field worker detail for admin and own profile for field worker', async () => {
     users.findById.mockResolvedValue(fieldWorker);
     users.findFieldWorkerDetailAggregates.mockResolvedValue({
       stats: {
         totalEnrolled: 156,
+        enrollmentsToday: 4,
         enrollmentsThisMonth: 31,
         lastEnrollmentAt: new Date('2026-08-29T18:00:00.000Z'),
         lastSyncedAt: fieldWorker.lastSyncedAt,
       },
-      wards: [{ id: 'ward-1', name: 'Vom Central', lga: 'Jos South', state: 'Plateau' }],
+      wards: [
+        { id: 'ward-1', name: 'Vom Central', lga: 'Jos South', state: 'Plateau' },
+      ],
     });
     activityLogs.findRecentByActor.mockResolvedValue([
       {
@@ -70,7 +99,7 @@ describe('GetFieldWorkerDetailUseCase', () => {
       },
     ]);
 
-    const result = await useCase.execute(fieldWorker.id);
+    const result = await useCase.execute(fieldWorkerActor, fieldWorker.id);
 
     expect(result.fieldWorker).toEqual({
       id: fieldWorker.id,
@@ -78,6 +107,7 @@ describe('GetFieldWorkerDetailUseCase', () => {
       email: fieldWorker.email,
       phone: fieldWorker.phone,
       status: fieldWorker.status,
+      lastSyncedAt: fieldWorker.lastSyncedAt,
       createdAt: fieldWorker.createdAt,
       updatedAt: fieldWorker.updatedAt,
     });

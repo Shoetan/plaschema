@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { AuthenticatedUser } from '../../../platform/auth/current-user.decorator';
 import { AppError } from '../../../platform/http/app-error';
 import type { ActivityLogEntry } from '../../activity-log/domain/activity-log';
 import {
@@ -30,7 +31,18 @@ export class GetFieldWorkerDetailUseCase {
     private readonly activityLogs: ActivityLogRepository,
   ) {}
 
-  async execute(id: string): Promise<FieldWorkerDetail> {
+  async execute(
+    actor: AuthenticatedUser,
+    id: string,
+  ): Promise<FieldWorkerDetail> {
+    if (actor.role === 'field_worker' && actor.id !== id) {
+      throw new AppError(
+        'FORBIDDEN',
+        'Field workers can only view their own profile detail',
+        403,
+      );
+    }
+
     const user = await this.users.findById(id);
     if (!user || user.role !== 'field_worker') {
       throw new AppError('USER_NOT_FOUND', 'Field worker not found', 404);
@@ -50,6 +62,7 @@ export class GetFieldWorkerDetailUseCase {
         email: user.email,
         phone: user.phone,
         status: user.status,
+        lastSyncedAt: user.lastSyncedAt,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },

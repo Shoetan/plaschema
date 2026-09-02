@@ -43,7 +43,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Ward API server state is owned by React Query and is not mirrored into Zustand.
 - Health-facility list data uses `GET /health-facilities` with debounced search, searchable ward selection, LGA/type/level/status filters and cursor navigation.
 - Health-facility creation uses `POST /health-facilities`; the frontend submits `name`, `wardId`, `type`, `level` and `status`. LGA is displayed from the selected ward but is derived by the backend rather than duplicated in the request.
-- Health-facility batch upload uses `POST /health-facilities/batch` with CSV/XLSX/XLS files up to 2 MB and displays server row errors.
+- Health-facility batch upload uses `POST /health-facilities/batch` with CSV/XLSX and XLS files up to 2 MB and displays server row errors.
 - Health-facility detail uses `GET /health-facilities/:id/detail` for overview statistics, capitation history and activity.
 - Facility editing/status changes use `PATCH /health-facilities/:id`, and deletion uses `DELETE /health-facilities/:id` with confirmation.
 - Unsupported mock-only facility fields (code, ownership, community, address, contacts and onboarding date) are not displayed or submitted. The Beneficiaries tab reads `GET /enrollments?healthFacilityId=` with cursor pagination and remains display-only until beneficiary detail is API-backed.
@@ -71,6 +71,14 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Refreshing the browser preserves an unexpired auth session but resets unsaved mock enrollment changes.
 - Logout is immediate; no refresh-token or server logout endpoint exists.
 - No real enrollment uploads, database storage or synchronization are implemented yet.
+
+### Backend contracts for PWA sync (ready)
+
+- `POST /api/enrollments` returns a slim sync acknowledgement (`id`, `enrollmentId`, `idempotencyId`, `status`, `capturedAt`, `createdAt`, `idempotentReplay`).
+- `POST /api/auth/sync` sets the authenticated user’s `lastSyncedAt` to now (call after the client’s one-by-one pending loop).
+- `GET /api/users/:id/detail` allows `field_worker` for **own** id only; overview includes `lastSyncedAt`, plus `stats` (`totalEnrolled`, `enrollmentsToday`, `enrollmentsThisMonth`, …), `wards`, and `activityLog`. Pending counts stay device-local.
+- No refresh-token endpoint; clients re-login when the JWT expires.
+- No batch enrollment create; PWA syncs pending records one-by-one.
 
 ## PWA configuration
 
@@ -149,6 +157,9 @@ Vite may choose the next port if `5174` is already occupied.
 - Generate field-worker passwords client-side with Web Crypto by default, allow manual passwords, reveal successful credentials once, and keep password recovery admin-controlled without an invitation/setup flow.
 - Persist the PWA field-worker session in local storage without a Remember me control. Revalidate through `/auth/me` when online and permit offline access only before the JWT expires.
 - Keep PWA authentication separate from local enrollment state, reject admin accounts in the PWA, and never cache authenticated API responses in the service worker.
+- PWA enrollment sync is one-by-one via `POST /enrollments` (idempotent); after the loop call `POST /auth/sync` to persist `lastSyncedAt`.
+- PWA profile does not use a worker code field; use `/auth/me` or own `/users/:id/detail`.
+- Home/People/Sync analytics and pending/failed queues are device-local; do not list server-synced enrollments on the PWA. Today/Total can use detail `stats.enrollmentsToday` / `stats.totalEnrolled`.
 
 ## Structure rules
 
@@ -240,7 +251,7 @@ On 2 September 2026 after the PWA authentication integration:
 - PWA ward and health-facility stream synchronization.
 - Beneficiary list/detail API integration outside the field-worker display-only beneficiary tab.
 - Refresh-token support and automatic session renewal.
-- PWA API integration beyond authentication and current-user profile.
+- PWA enrollment sync client integration (backend contracts ready).
 - Durable offline enrollment storage.
 - Real file upload and synchronization.
 - Production PWA PNG icons and iPhone install assets.
@@ -249,11 +260,10 @@ On 2 September 2026 after the PWA authentication integration:
 
 ## Suggested next work
 
-1. Review every admin and PWA screen against the source designs.
-2. Record UI fixes before starting API work.
-3. Agree on backend contracts for login, lists, enrollment, files and sync.
-4. Add typed services and hooks one feature at a time.
-5. Add durable offline storage only when backend integration begins.
+1. Wire PWA sync to `POST /enrollments` + `POST /auth/sync` and home stats to own `/users/:id/detail`.
+2. Add durable offline enrollment storage.
+3. Stream wards and health facilities for offline enrollment forms.
+4. Production PWA icons and real-device browser testing.
 
 ## Handoff update checklist
 
