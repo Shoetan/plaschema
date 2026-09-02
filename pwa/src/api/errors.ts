@@ -17,3 +17,11 @@ export function getApiErrorMessage(error: unknown, fallback = DEFAULT_ERROR_MESS
 export function getApiErrorStatus(error: unknown) {
   return isApiError(error) ? error.response?.status : undefined
 }
+
+export function getApiErrorCode(error: unknown) {
+  return isApiError(error) ? error.response?.data.error.code : undefined
+}
+
+export function getApiErrorDetails(error: unknown) {
+  return isApiError(error) ? error.response?.data.error.details : undefined
+}

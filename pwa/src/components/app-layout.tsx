@@ -25,7 +25,6 @@ export function AppLayout() {
           {isOnline ? <Wifi size={13} /> : <WifiOff size={13} />}{isOnline ? 'Online' : 'Offline'}
         </div>
       </header>
-      <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-[11px] font-semibold text-amber-800" role="note">Enrollment, People and Sync records are demo data and are not sent to the production API.</div>
       <main className="min-h-0 flex-1 overflow-y-auto pb-24"><Outlet /></main>
       <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-[430px] items-end border-t border-neutral-200 bg-white px-1 pb-[max(.35rem,env(safe-area-inset-bottom))]">
         {navItems.map(({ to, label, icon: Icon, primary }) => (
