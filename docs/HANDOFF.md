@@ -1,7 +1,7 @@
 # PLASCHEMA Project Handoff
 
-Last updated: 2 September 2026
-Last verified code commit: `a73ed09`
+Last updated: 3 September 2026
+Last verified code commit: `7d5456a`
 
 ## Purpose
 
@@ -72,9 +72,11 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Synchronization runs in the foreground while the app is open: presign each file, upload it directly with the returned PUT URL, then create each enrollment one at a time.
 - Pending work retries with durable leases and bounded delays. Failed records retain their form, error and files for Review, Edit, Retry or Discard actions.
 - A successful create keeps a durable pending sync-report marker until `POST /auth/sync` succeeds, including when only part of a batch succeeded.
-- File blobs are removed only after the backend accepts the enrollment. Recently synced text records remain on the device for 30 days for offline review.
+- Server-accepted records remain locally only while the final `POST /auth/sync` report is owed. After that report succeeds, their records and file blobs are removed from the device.
 - Home Pending is device-local. Today and Total combine own `/users/:id/detail` statistics with unsent device records without double-counting retained synced rows; dates use the Africa/Lagos calendar day.
 - People and Sync display only records created on the current device. The PWA does not use `GET /enrollments` as a server-backed beneficiary list.
+- Enrollment State of Residence is fixed to `PLATEAU`. Beneficiary and emergency phones are required 11-digit local numbers; NIN is optional but must contain exactly 10 digits when supplied.
+- Profile ward access shows unrestricted workers as **All wards**, one assigned ward directly, and multiple assigned wards in an expandable list. An unrestricted worker still selects one specific ward for each enrollment.
 - Logout is immediate; no refresh-token or server logout endpoint exists.
 
 ### Backend contracts for PWA sync (ready)
@@ -93,7 +95,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Static app files are precached.
 - SPA navigation falls back to `index.html`.
 - An update prompt appears when a new version is ready.
-- Current icon is `pwa/public/logo.svg` for normal and maskable use.
+- The PWA reuses the admin PLASCHEMA logo, with padded 192 px, 512 px and Apple-touch PNG variants for installation.
 - No push notifications, service-worker background sync or authenticated API caching. Private enrollment data is stored in IndexedDB and scoped by the authenticated worker id.
 - PWA API responses are not cached by the service worker. Set `VITE_API_URL` in local and Netlify environments; never commit its deployed value.
 - Production work should add tested PNG icons and an Apple touch icon.
@@ -167,7 +169,7 @@ Both frontend development servers use Vite's `--strictPort` option and exit inst
 - PWA profile does not use a worker code field; use `/auth/me` or own `/users/:id/detail`.
 - Home/People/Sync analytics and pending/failed queues are device-local; do not list server-synced enrollments on the PWA. Today/Total can use detail `stats.enrollmentsToday` / `stats.totalEnrolled`.
 - Keep PWA enrollment API traffic in typed services. Components consume hooks; direct `fetch` is limited to the NDJSON and presigned-upload transport helpers.
-- Keep recent synced device records for 30 days, but remove their file blobs immediately after the backend acknowledges enrollment creation.
+- Remove accepted local enrollment records and their file blobs after the final `/auth/sync` report succeeds; server history remains in the admin app.
 - Refresh offline reference streams when absent, more than 24 hours old or ward access changes; do not download both streams on every queue polling interval.
 
 ## Structure rules
@@ -199,6 +201,17 @@ On 2 September 2026 after the PWA offline enrollment integration:
 - A local production-preview smoke test returned HTTP 200 for the root, a nested beneficiary route, the web manifest and the generated service worker.
 - Static checks confirm enrollment components use hooks/services rather than direct Axios or fetch, and the old mock beneficiary/Zustand enrollment store has been removed.
 - Live authenticated uploads were not run in this coding session. Production still needs a real-device offline/reconnect test and confirmation of Railway object-storage CORS and abandoned-upload cleanup.
+
+On 3 September 2026 after production enrollment feedback:
+
+- Synced records are removed after the final sync report succeeds; a failed report retains enough local state to retry without recreating the enrollment.
+- The Synced filter and recent-synced device UI were removed. All now means all pending and failed records on the current device.
+- State, phone and optional NIN validation match the agreed production rules, including normalization of pasted Nigerian `+234` phone numbers.
+- Profile ward access handles unrestricted, single-ward and multi-ward workers, and the PWA now shares the admin logo and install artwork.
+- The PWA shell reserves separate space for its header, scrolling page content and bottom navigation instead of overlaying page content. Enrollment fields scroll independently between the step header and an always-visible action bar, so fields cannot pass beneath Back or Save.
+- The update prompt is rendered in the shell's normal flow and cannot cover enrollment actions or navigation.
+- PWA TypeScript, lint and production build pass; all 32 tests pass, including layout regression checks. Production-preview checks returned HTTP 200 for the root, Profile route, manifest, install icons and service worker.
+- The admin and PWA visible logo files are byte-for-byte identical, and generated install artwork has the required 192×192, 512×512 and 180×180 dimensions.
 
 On 30 August 2026:
 

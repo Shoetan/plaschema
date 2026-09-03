@@ -10,7 +10,7 @@ import type {
   ReferenceWard,
   StoredEnrollmentFile,
 } from '../types'
-import { EMPTY_ENROLLMENT_FORM, hasDraftProgress } from '../utils'
+import { EMPTY_ENROLLMENT_FORM, hasDraftProgress, normalizeEnrollmentForm } from '../utils'
 
 export async function createEnrollmentDraft(ownerUserId: string) {
   const now = new Date().toISOString()
@@ -62,7 +62,7 @@ export async function queueEnrollment(draft: EnrollmentDraftRecord, wardName: st
     ownerUserId: draft.ownerUserId,
     idempotencyId: draft.idempotencyId,
     capturedAt,
-    form: draft.form,
+    form: normalizeEnrollmentForm(draft.form),
     wardName,
     facilityName,
     syncStatus: 'pending',
@@ -89,7 +89,7 @@ export async function restoreFailedEnrollmentAsDraft(localId: string) {
       ownerUserId: record.ownerUserId,
       idempotencyId: record.idempotencyId,
       step: 0,
-      form: record.form,
+      form: normalizeEnrollmentForm(record.form),
       passportObjectKey: record.passportObjectKey,
       idDocumentObjectKey: record.idDocumentObjectKey,
       createdAt: record.capturedAt,
@@ -129,10 +129,15 @@ export async function replaceReferenceData(ownerUserId: string, wardAccess: stri
   })
 }
 
-export async function cleanupExpiredEnrollments(ownerUserId: string) {
-  const now = new Date().toISOString()
-  const expired = await offlineDb.enrollments.where('ownerUserId').equals(ownerUserId).filter((record) => record.syncStatus === 'synced' && Boolean(record.cacheExpiresAt && record.cacheExpiresAt < now)).primaryKeys()
-  await offlineDb.enrollments.bulkDelete(expired)
+export async function removeSyncedEnrollments(ownerUserId: string) {
+  const syncedIds = await offlineDb.enrollments.where('ownerUserId').equals(ownerUserId)
+    .filter((record) => record.syncStatus === 'synced').primaryKeys()
+  if (syncedIds.length === 0) return 0
+  await offlineDb.transaction('rw', offlineDb.enrollments, offlineDb.files, async () => {
+    await offlineDb.files.where('enrollmentLocalId').anyOf(syncedIds).delete()
+    await offlineDb.enrollments.bulkDelete(syncedIds)
+  })
+  return syncedIds.length
 }
 
 export function enrollmentDisplayName(form: EnrollmentFormValues) {
