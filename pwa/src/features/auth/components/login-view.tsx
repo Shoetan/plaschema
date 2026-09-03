@@ -75,7 +75,7 @@ export function LoginView() {
   return (
     <main className="app-frame flex min-h-dvh flex-col bg-white px-6 pb-8 pt-14">
       <div className="mb-10 flex flex-col items-center text-center">
-        <img src="/logo.svg" alt="PLASCHEMA" className="mb-3 h-16 w-16" />
+        <img src="/logo.png" alt="PLASCHEMA" className="mb-3 h-16 w-20 object-contain" />
         <h1 className="text-2xl font-bold tracking-tight">PLASCHEMA</h1>
         <p className="mt-1 text-xs font-bold uppercase tracking-[.18em] text-neutral-500">Field Worker Login</p>
         <p className="mt-3 max-w-64 text-sm text-neutral-500">Sign in to open your enrollment workspace.</p>

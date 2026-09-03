@@ -4,11 +4,11 @@ import { version as uuidVersion } from 'uuid'
 import { offlineDb } from '@/lib/offline-db'
 
 import type { EnrollmentFormValues } from '../types'
-import { EMPTY_ENROLLMENT_FORM, getEnrollmentHomeSummary, toCreateEnrollmentPayload } from '../utils'
+import { EMPTY_ENROLLMENT_FORM, getEnrollmentHomeSummary, isValidNin, isValidPhoneNumber, normalizeNin, normalizePhoneNumber, toCreateEnrollmentPayload } from '../utils'
 import {
-  cleanupExpiredEnrollments,
   createEnrollmentDraft,
   queueEnrollment,
+  removeSyncedEnrollments,
   replaceReferenceData,
   restoreFailedEnrollmentAsDraft,
   saveEnrollmentDraft,
@@ -40,7 +40,7 @@ describe('offline enrollment storage', () => {
   it('creates one durable draft with a UUID v7 idempotency key', async () => {
     const draft = await createEnrollmentDraft(owner)
     expect(uuidVersion(draft.idempotencyId)).toBe(7)
-    expect((await offlineDb.drafts.get(owner))?.form.stateOfResidence).toBe('Plateau')
+    expect((await offlineDb.drafts.get(owner))?.form.stateOfResidence).toBe('PLATEAU')
   })
 
   it('stores a selected file as a Blob scoped to the worker and draft', async () => {
@@ -74,12 +74,12 @@ describe('offline enrollment storage', () => {
     expect(await offlineDb.facilities.where('ownerUserId').equals(owner).count()).toBe(1)
   })
 
-  it('removes synchronized records after their 30-day cache expiry', async () => {
+  it('removes synchronized records from the device', async () => {
     const draft = await createEnrollmentDraft(owner)
     draft.form = completeForm()
     const queued = await queueEnrollment(draft, 'Ward', 'Facility')
-    await offlineDb.enrollments.update(queued.localId, { syncStatus: 'synced', cacheExpiresAt: '2020-01-01T00:00:00.000Z' })
-    await cleanupExpiredEnrollments(owner)
+    await offlineDb.enrollments.update(queued.localId, { syncStatus: 'synced' })
+    await removeSyncedEnrollments(owner)
     expect(await offlineDb.enrollments.get(queued.localId)).toBeUndefined()
   })
 
@@ -121,6 +121,36 @@ describe('offline enrollment storage', () => {
     expect(payload).not.toHaveProperty('email')
     expect(payload).not.toHaveProperty('bloodGroup')
     expect(payload.category).toBe('IDPs')
+    expect(payload.phone).toBe('08012345678')
+    expect(payload.emergencyPhone).toBe('08098765432')
+    expect(payload.stateOfResidence).toBe('PLATEAU')
+  })
+
+  it('rejects invalid phone and NIN values in older queued records', () => {
+    const base = {
+      localId: 'local', ownerUserId: owner, idempotencyId: '01900000-0000-7000-8000-000000000099',
+      capturedAt: '2026-09-02T12:00:00.000Z', wardName: 'Ward', facilityName: 'Facility',
+      syncStatus: 'pending' as const, uploadStage: 'queued' as const,
+      passportObjectKey: 'passport-key', idDocumentObjectKey: 'id-key', attemptCount: 0,
+    }
+    expect(() => toCreateEnrollmentPayload({ ...base, form: { ...completeForm(), phone: '0801234' } })).toThrow('exactly 11 digits')
+    expect(() => toCreateEnrollmentPayload({ ...base, form: { ...completeForm(), nin: '12345678901' } })).toThrow('exactly 10 digits')
+  })
+
+  it('normalizes local and international Nigerian phone input', () => {
+    expect(normalizePhoneNumber('0801 abc 234-5678')).toBe('08012345678')
+    expect(normalizePhoneNumber('+234 801 234 5678')).toBe('08012345678')
+    expect(normalizePhoneNumber('08012345678999')).toBe('08012345678')
+    expect(isValidPhoneNumber('08012345678')).toBe(true)
+    expect(isValidPhoneNumber('0801234')).toBe(false)
+  })
+
+  it('keeps NIN optional but requires exactly 10 digits when supplied', () => {
+    expect(normalizeNin('12 34-ab56-7890')).toBe('1234567890')
+    expect(normalizeNin('123456789012')).toBe('1234567890')
+    expect(isValidNin('')).toBe(true)
+    expect(isValidNin('1234567890')).toBe(true)
+    expect(isValidNin('123456789')).toBe(false)
   })
 
   it('combines server statistics with unsent device records without counting synced rows twice', async () => {

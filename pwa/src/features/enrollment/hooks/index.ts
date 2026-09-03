@@ -1,5 +1,6 @@
 export {
   useEnrollmentDraft,
+  useDeviceSyncState,
   useEnrollmentReferences,
   useEnrollmentSync,
   useLocalEnrollment,

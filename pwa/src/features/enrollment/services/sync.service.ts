@@ -12,7 +12,7 @@ import {
   reportDeviceSync,
   uploadEnrollmentFile,
 } from './enrollment.service'
-import { cleanupExpiredEnrollments, replaceReferenceData } from './offline-enrollment.service'
+import { removeSyncedEnrollments, replaceReferenceData } from './offline-enrollment.service'
 
 const referenceInflight = new Map<string, Promise<void>>()
 let queueInflight: Promise<boolean> | null = null
@@ -86,15 +86,13 @@ async function syncOne(record: LocalEnrollmentRecord) {
     await offlineDb.enrollments.update(record.localId, { syncStatus: 'submitting', uploadStage: 'enrollment' })
     const acknowledgement = await createEnrollment(toCreateEnrollmentPayload(ready))
     const syncedAt = new Date().toISOString()
-    const cacheExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString()
-    await offlineDb.transaction('rw', offlineDb.enrollments, offlineDb.files, offlineDb.syncState, async () => {
+    await offlineDb.transaction('rw', offlineDb.enrollments, offlineDb.syncState, async () => {
       await offlineDb.enrollments.update(record.localId, {
         syncStatus: 'synced', uploadStage: 'complete', serverId: acknowledgement.id,
         enrollmentId: acknowledgement.enrollmentId, serverStatus: acknowledgement.status,
-        syncedAt, cacheExpiresAt, attemptCount: 0, retryAt: undefined,
+        syncedAt, attemptCount: 0, retryAt: undefined,
         leaseUntil: undefined, errorCode: undefined, errorMessage: undefined, errorDetails: undefined,
       })
-      await offlineDb.files.where('enrollmentLocalId').equals(record.localId).delete()
       await offlineDb.syncState.put({ ownerUserId: record.ownerUserId, needsReport: true, updatedAt: syncedAt })
     })
     return true
@@ -119,7 +117,8 @@ async function syncOne(record: LocalEnrollmentRecord) {
 }
 
 async function runQueue(ownerUserId: string) {
-  await cleanupExpiredEnrollments(ownerUserId)
+  const initialSyncState = await offlineDb.syncState.get(ownerUserId)
+  if (!initialSyncState?.needsReport) await removeSyncedEnrollments(ownerUserId)
   const now = new Date().toISOString()
   const abandoned = await offlineDb.enrollments.where('ownerUserId').equals(ownerUserId)
     .filter((record) => (record.syncStatus === 'uploading' || record.syncStatus === 'submitting') && (!record.leaseUntil || record.leaseUntil <= now)).toArray()
@@ -135,6 +134,7 @@ async function runQueue(ownerUserId: string) {
   if (syncState?.needsReport) {
     const user = await reportDeviceSync()
     await offlineDb.syncState.put({ ownerUserId, needsReport: false, updatedAt: new Date().toISOString() })
+    await removeSyncedEnrollments(ownerUserId)
     useAuthStore.getState().completeRestore(user)
     reported = true
   }

@@ -24,6 +24,10 @@ export function useLocalEnrollment(localId: string) {
   return useLiveQuery(() => offlineDb.enrollments.get(localId), [localId])
 }
 
+export function useDeviceSyncState(ownerUserId: string) {
+  return useLiveQuery(() => offlineDb.syncState.get(ownerUserId), [ownerUserId])
+}
+
 export function useEnrollmentReferences(ownerUserId: string) {
   const wards = useLiveQuery(() => offlineDb.wards.where('ownerUserId').equals(ownerUserId).toArray(), [ownerUserId], [])
   const facilities = useLiveQuery(() => offlineDb.facilities.where('ownerUserId').equals(ownerUserId).toArray(), [ownerUserId], [])

@@ -8,13 +8,13 @@ export {
   uploadEnrollmentFile,
 } from './enrollment.service'
 export {
-  cleanupExpiredEnrollments,
   createEnrollmentDraft,
   discardEnrollmentDraft,
   discardLocalEnrollment,
   enrollmentDisplayName,
   queueEnrollment,
   removeEnrollmentFile,
+  removeSyncedEnrollments,
   replaceReferenceData,
   restoreFailedEnrollmentAsDraft,
   retryLocalEnrollment,

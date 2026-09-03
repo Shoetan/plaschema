@@ -4,7 +4,7 @@ Last updated: 2 September 2026
 
 This document explains how beneficiary enrollment is meant to work on the **PLASCHEMA Field Worker PWA**, with emphasis on **offline behaviour**, **sync**, and **which API endpoints to call for what**.
 
-It is written for engineers wiring the remaining PWA integration. Auth is already live; enrollment screens still use local mock data today.
+It is written for engineers maintaining the live PWA enrollment integration.
 
 ---
 
@@ -28,23 +28,23 @@ The model is **offline-first**:
         │
         │ offline: read/write local storage only
         ▼
-   IndexedDB / local storage (planned)
+   IndexedDB / local storage
 ```
 
 ---
 
-## 2. What exists today vs what is planned
+## 2. Current implementation
 
 | Area | Status |
 | --- | --- |
 | Login, session restore, offline session | **Live** — `POST /auth/login`, `GET /auth/me`, local storage |
 | Profile name, phone, assigned wards | **Live** — from authenticated user |
 | Six-step enrollment UI | **Built** — design-complete |
-| Saving enrollments | **Mock only** — in-memory Zustand store, lost on refresh |
-| File upload to server | **Not wired** |
-| Real sync to backend | **Not wired** — mock “Sync now” button |
+| Saving enrollments | **Live** — durable IndexedDB draft and outbox |
+| File upload to server | **Live** — presigned PUT upload |
+| Real sync to backend | **Live** — foreground one-by-one sync |
 | Backend create/sync APIs | **Ready** — see endpoint table below |
-| Ward/facility pickers offline cache | **Not wired** — mock lists today; streams exist on backend |
+| Ward/facility pickers offline cache | **Live** — NDJSON streams cached in IndexedDB |
 
 ---
 
@@ -55,7 +55,7 @@ The model is **offline-first**:
 | `/login` | Field-worker login (online required first time) |
 | `/` (Home) | Greeting, Today/Total/Pending cards, recent local records |
 | `/enroll` | Six-step enrollment wizard |
-| `/beneficiaries` | Search/filter local pending, failed, and optionally recent synced |
+| `/beneficiaries` | Search/filter device-local pending and failed records |
 | `/beneficiaries/:id` | Review one local draft |
 | `/sync` | Pending/failed queue, Sync now, Retry, Review |
 | `/profile` | Worker identity, assigned wards, sign out |
@@ -69,7 +69,7 @@ The model is **offline-first**:
 5. **Facility** — health facility for the selected ward
 6. **Review** — confirm and save locally
 
-Passport and ID files: images or PDF (ID only), max 5 MB each.
+Passport and ID files: images or PDF (ID only), max 5 MB each. State is fixed to `PLATEAU`; both phone fields require exactly 11 digits; optional NIN requires exactly 10 digits.
 
 ---
 
@@ -82,7 +82,7 @@ Every saved enrollment on the device has one of these statuses:
 | **Pending** | Saved locally, not yet uploaded (or waiting for retry) | Home, People, Sync |
 | **Syncing** | Upload in progress (UI-only transient state) | Sync |
 | **Failed** | Upload attempted; error stored for review/retry | Home, People, Sync |
-| **Synced** | Successfully accepted by server | May be removed from lists after sync (product choice) |
+| **Synced** | Successfully accepted but final sync reporting is still finishing | Hidden, then removed after `/auth/sync` succeeds |
 
 **Failed sync handling (client-side, no special API):**
 
@@ -102,7 +102,7 @@ Typical error mapping:
 
 ---
 
-## 5. Online enrolment flow (target)
+## 5. Online enrolment flow
 
 When the device is **online** at save time, you can sync immediately or still save locally first — product prefers **always save locally**, then sync.
 
@@ -148,7 +148,7 @@ For each pending record:
 ```
 
 - On **retry with same `idempotencyId`**: same shape, `idempotentReplay: true` → treat as success.
-- Store `enrollmentId` on the local record, then mark **Synced** and optionally remove from People/Sync lists.
+- Store `enrollmentId` temporarily and mark **Synced** while the final sync report is owed.
 
 ### Step D — Report sync complete
 
@@ -156,14 +156,16 @@ After the **one-by-one** pending loop finishes (all success or user stops):
 
 `POST /api/auth/sync` → updates the user’s `lastSyncedAt` on the server.
 
+After this succeeds, delete all successfully synced local records and their file blobs. If it fails, keep the records and retry only `/auth/sync`; do not upload or create those enrollments again.
+
 ---
 
-## 6. Offline enrolment flow (target)
+## 6. Offline enrolment flow
 
 When the device is **offline** at save time:
 
 1. Worker completes the same six steps.
-2. App saves the draft **only on device** (IndexedDB recommended — not implemented yet).
+2. App saves the draft **only on device** in IndexedDB.
 3. Status = **Pending**.
 4. Passport/ID files stay as **local blobs** (not uploaded).
 5. Home **Pending** count increases; **Today** can count local captures by `capturedAt` calendar day.
@@ -184,7 +186,7 @@ When connectivity returns:
 
 - Pending and failed enrollment drafts (full form + files).
 - Local counters for **Pending**.
-- Optional: local **all-time total** counter incremented on each successful sync (so Total does not drop when synced rows are removed from lists).
+- Local unsent count used alongside server totals so new device records appear immediately without double-counting accepted records.
 - Session token + cached user profile (for offline app access).
 
 ### On the server (source of truth after sync)
@@ -195,7 +197,7 @@ When connectivity returns:
 
 ### Do **not** fetch synced beneficiary lists for the PWA
 
-The PWA should **not** mirror the admin beneficiary table. After sync, drop or hide synced rows locally. Server-backed history belongs in admin, not the field app.
+The PWA does **not** mirror the admin beneficiary table. After the final sync report, synced rows are deleted locally. Server-backed history belongs in admin, not the field app.
 
 ---
 
@@ -205,7 +207,7 @@ The PWA should **not** mirror the admin beneficiary table. After sync, drop or h
 | --- | --- |
 | **Pending** | Count device records where status is Pending or Failed |
 | **Today** | **Synced today (server)** + **captured today (device, not yet synced)** |
-| **Total** | **All-time synced (server)** + **local lifetime counter** (recommended) |
+| **Total** | **All-time synced (server)** + **unsent records on this device** |
 
 Server side for synced portions:
 
@@ -334,7 +336,7 @@ Online:  Open Sync → upload each pending record → POST /auth/sync
 
 ---
 
-## 12. Suggested local storage shape (not implemented)
+## 12. Local storage shape
 
 Each pending enrollment record on device:
 
@@ -358,16 +360,16 @@ Use **IndexedDB** for blobs + drafts; keep auth session in **localStorage** (alr
 
 ---
 
-## 13. Implementation checklist (remaining PWA work)
+## 13. Implementation checklist
 
-1. Replace Zustand mock beneficiaries with durable IndexedDB store.
-2. Wire enrollment save → local Pending (always), not mock “Synced when online”.
-3. Cache wards/facilities from stream endpoints after login.
-4. Implement sync service: presign → PUT → create, one record at a time.
-5. Map API errors to Failed + `syncError`; support Retry with same `idempotencyId`.
-6. Wire Home stats: server detail + local pending/today.
-7. Call `POST /auth/sync` after sync batch.
-8. Remove or hide synced rows from People/Sync per product rule.
+1. Durable IndexedDB drafts, files and outbox — **complete**.
+2. Always save locally before sync — **complete**.
+3. Offline ward/facility stream cache — **complete**.
+4. Presign → PUT → one-by-one create — **complete**.
+5. Durable errors, Review, Edit and Retry with the same idempotency key — **complete**.
+6. Server and local Home statistics — **complete**.
+7. Durable final `/auth/sync` reporting — **complete**.
+8. Remove synced device rows after final reporting — **complete**.
 
 ---
 
@@ -378,8 +380,8 @@ Use **IndexedDB** for blobs + drafts; keep auth session in **localStorage** (alr
 | Project handoff (high level) | `docs/HANDOFF.md` |
 | Backend endpoint list | `backend/README.md` |
 | PWA auth store | `pwa/src/features/auth/stores/auth.store.ts` |
-| Mock enrollment (to replace) | `pwa/src/features/enrollment/components/enrollment-view.tsx` |
-| Mock sync (to replace) | `pwa/src/stores/app-store.ts`, `pwa/src/features/sync/components/sync-view.tsx` |
+| Enrollment wizard | `pwa/src/features/enrollment/components/enrollment-view.tsx` |
+| Offline sync | `pwa/src/features/enrollment/services/sync.service.ts` |
 | PWA service worker config | `pwa/vite.config.ts` |
 
 ---
@@ -394,12 +396,13 @@ for each local record where status in (Pending, Failed):
     idKey = presign + PUT id blob
     response = POST /enrollments { ...draft, passportObjectKey, idDocumentObjectKey, idempotencyId, capturedAt }
     save response.enrollmentId on draft
-    set status = Synced (or delete draft)
+    set status = Synced while final reporting is owed
   catch error:
     set status = Failed, syncError = error.message
 
 if any record synced successfully:
   POST /auth/sync
+  delete successfully synced device records and blobs
   refresh GET /users/:id/detail for home stats
 ```
 

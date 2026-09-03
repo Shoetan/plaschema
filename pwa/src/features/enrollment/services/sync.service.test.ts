@@ -57,7 +57,8 @@ describe('enrollment synchronization', () => {
     await syncPendingEnrollments(owner)
 
     expect(mocks.reportDeviceSync).toHaveBeenCalledOnce()
-    expect(await offlineDb.enrollments.where('ownerUserId').equals(owner).and((record) => record.syncStatus === 'synced').count()).toBe(1)
+    expect(await offlineDb.enrollments.where('ownerUserId').equals(owner).count()).toBe(1)
+    expect((await offlineDb.enrollments.where('ownerUserId').equals(owner).first())?.form.firstName).toBe('Second')
   })
 
   it('retries an owed sync report without creating the enrollment again', async () => {
@@ -67,11 +68,23 @@ describe('enrollment synchronization', () => {
 
     await expect(syncPendingEnrollments(owner)).rejects.toThrow('Temporary report failure')
     expect((await offlineDb.syncState.get(owner))?.needsReport).toBe(true)
+    expect(await offlineDb.enrollments.where('ownerUserId').equals(owner).count()).toBe(1)
+    expect(await offlineDb.files.where('ownerUserId').equals(owner).count()).toBe(2)
     await syncPendingEnrollments(owner)
 
     expect(mocks.createEnrollment).toHaveBeenCalledOnce()
     expect(mocks.reportDeviceSync).toHaveBeenCalledTimes(2)
     expect((await offlineDb.syncState.get(owner))?.needsReport).toBe(false)
+    expect(await offlineDb.enrollments.where('ownerUserId').equals(owner).count()).toBe(0)
+    expect(await offlineDb.files.where('ownerUserId').equals(owner).count()).toBe(0)
+  })
+
+  it('removes a legacy synced record when no final report is owed', async () => {
+    const record = await queueCompleteEnrollment('Legacy')
+    await offlineDb.enrollments.update(record.localId, { syncStatus: 'synced' })
+    await syncPendingEnrollments(owner)
+    expect(await offlineDb.enrollments.get(record.localId)).toBeUndefined()
+    expect(mocks.createEnrollment).not.toHaveBeenCalled()
   })
 
   it('refreshes references only when missing, stale, or ward access changes', async () => {

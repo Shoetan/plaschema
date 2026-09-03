@@ -27,7 +27,7 @@ export interface EnrollmentFormValues {
   nin: string
   bloodGroup: BloodGroup | ''
   genotype: Genotype | ''
-  stateOfResidence: string
+  stateOfResidence: 'PLATEAU'
   lgaOfResidence: string
   residentialAddress: string
   wardId: string
@@ -77,7 +77,6 @@ export interface LocalEnrollmentRecord {
   enrollmentId?: string
   serverStatus?: EnrollmentStatus
   syncedAt?: string
-  cacheExpiresAt?: string
   attemptCount: number
   retryAt?: string
   errorCode?: string
@@ -154,7 +153,7 @@ export interface CreateEnrollmentPayload {
   nextOfKinFullName: string
   emergencyPhone: string
   nextOfKinRelationship?: NextOfKinRelationship
-  stateOfResidence?: string
+  stateOfResidence: 'PLATEAU'
   lgaOfResidence: string
   residentialAddress: string
   wardId: string
