@@ -1,716 +1,104 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { cardShadow, btnPrimary, btnSecondary, thCell, tdCell, searchBar, tabGroup } from "@/components/admin/styles";
-import { useAdminDataStore } from "@/stores/admin-data.store";
-import { capitationRecords as initialCapitationRecords } from "@/mocks/admin-data";
-import { StatusBadge } from "@/components/admin/status-badge";
+import { ChevronLeft, ChevronRight, LoaderCircle, Plus, RefreshCw, Search } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
-const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const YEARS = [2024, 2025, 2026, 2027];
-const LGAS = [...new Set(initialCapitationRecords.map((r) => r.lga))].sort();
-const STATUS_TABS = ["All", "Paid", "Partially Paid", "Unpaid", "Approved", "Generated"];
-const CAPITATION_RATE = 570;
-const PAGE_SIZE = 10;
+import { btnPrimary, cardShadow, searchBar, tdCell, thCell } from '@/components/admin/styles'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 
-function formatNGN(amount: number) {
-  return "₦" + amount.toLocaleString();
-}
+import { useCapitations } from '../hooks'
+import type { GenerateCapitationResult } from '../types'
+import { CAPITATION_MONTHS, PLATEAU_LGAS, currentLagosPeriod, formatLagosDate, formatNaira } from '../utils'
+import { GenerateCapitationDialog } from './generate-capitation-dialog'
 
-const selectCls = "border border-border rounded-[8px] px-3 py-2 text-sm bg-card outline-none focus:border-[#9fe870] transition-colors text-foreground";
-
-// ─── Icons ───────────────────────────────────────────────────────────────────
-
-function PrinterIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M4 5V2h8v3M4 11H2V6h12v5h-2M4 9h8v5H4V9z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function DownloadIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M8 3v10M3 8h10" stroke="#163300" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function DotsIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="4" r="1.2" fill="#737373" />
-      <circle cx="8" cy="8" r="1.2" fill="#737373" />
-      <circle cx="8" cy="12" r="1.2" fill="#737373" />
-    </svg>
-  );
-}
-
-function CheckCircleIcon() {
-  return (
-    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-      <circle cx="28" cy="28" r="28" fill="#effefa" />
-      <circle cx="28" cy="28" r="20" fill="#c6ede5" />
-      <path d="M19 28l6 6 12-12" stroke="#287f6e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="7" cy="7" r="5" stroke="#737373" strokeWidth="1.5" />
-      <path d="M11 11L14 14" stroke="#737373" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function EmptyStateIllustration() {
-  return (
-    <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-      <rect width="80" height="80" rx="40" fill="#f5f5f5" />
-      <rect x="18" y="26" width="44" height="32" rx="4" fill="#e5e5e5" />
-      <rect x="24" y="32" width="20" height="3" rx="1.5" fill="#a3a3a3" />
-      <rect x="24" y="39" width="32" height="3" rx="1.5" fill="#d4d4d4" />
-      <rect x="24" y="46" width="26" height="3" rx="1.5" fill="#d4d4d4" />
-    </svg>
-  );
-}
-
-// ─── Modal Shell ─────────────────────────────────────────────────────────────
-
-function Modal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40" />
-      <div
-        className="relative bg-card rounded-[16px] w-full max-w-[560px] flex flex-col max-h-[88vh] mx-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function ModalHeader({ title, step, totalSteps, onClose }: { title: string; step?: number; totalSteps?: number; onClose: () => void }) {
-  return (
-    <div className="flex items-center justify-between px-6 py-5 border-b border-border shrink-0">
-      <div>
-        <h2 className="text-foreground text-[16px] font-semibold">{title}</h2>
-        {step !== undefined && totalSteps !== undefined && (
-          <p className="text-muted-foreground text-[12px] font-medium mt-0.5">Step {step} of {totalSteps}</p>
-        )}
-      </div>
-      <button
-        onClick={onClose}
-        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </button>
-    </div>
-  );
-}
-
-function ModalBody({ children }: { children: React.ReactNode }) {
-  return <div className="overflow-auto flex-1 px-6 py-5">{children}</div>;
-}
-
-function ModalFooter({ children }: { children: React.ReactNode }) {
-  return <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border shrink-0">{children}</div>;
-}
-
-// ─── Step Indicator ───────────────────────────────────────────────────────────
-
-function StepDots({ current, total }: { current: number; total: number }) {
-  return (
-    <div className="flex items-center gap-2 mb-5">
-      {Array.from({ length: total }).map((_, i) => (
-        <div
-          key={i}
-          className={`h-1.5 rounded-full transition-all ${i < current ? "bg-primary w-6" : i === current ? "bg-[#163300] w-6" : "bg-[#e5e5e5] w-4"}`}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ─── Generate Modal ───────────────────────────────────────────────────────────
-
-type GenScope = "all" | "lga" | "specific";
-
-function GenerateModal({ onClose }: { onClose: () => void }) {
-  const [step, setStep] = useState(0); // 0–3 wizard, 4 = success
-  const [month, setMonth] = useState("August");
-  const [year, setYear] = useState(2026);
-  const [scope, setScope] = useState<GenScope>("all");
-  const [selectedLGAs, setSelectedLGAs] = useState<string[]>([]);
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  const TOTAL_STEPS = 4;
-
-  const totalBen = 1913;
-  const totalCap = totalBen * CAPITATION_RATE;
-
-  const previewRows = initialCapitationRecords.slice(0, 5);
-
-  function toggleLGA(lga: string) {
-    setSelectedLGAs((prev) =>
-      prev.includes(lga) ? prev.filter((l) => l !== lga) : [...prev, lga]
-    );
-  }
-
-  // Step 0: Select Period
-  if (step === 0) {
-    return (
-      <Modal onClose={onClose}>
-        <ModalHeader title="Generate Capitation" step={1} totalSteps={TOTAL_STEPS} onClose={onClose} />
-        <ModalBody>
-          <StepDots current={0} total={TOTAL_STEPS} />
-          <h3 className="text-foreground text-[14px] font-semibold mb-1">Select Period</h3>
-          <p className="text-muted-foreground text-[13px] mb-4">Select the capitation period to generate records for.</p>
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="block text-[12px] font-medium text-muted-foreground mb-1.5">Month</label>
-              <select className={`${selectCls} w-full`} value={month} onChange={(e) => setMonth(e.target.value)}>
-                {MONTHS.map((m) => <option key={m}>{m}</option>)}
-              </select>
-            </div>
-            <div className="w-28">
-              <label className="block text-[12px] font-medium text-muted-foreground mb-1.5">Year</label>
-              <select className={`${selectCls} w-full`} value={year} onChange={(e) => setYear(Number(e.target.value))}>
-                {YEARS.map((y) => <option key={y}>{y}</option>)}
-              </select>
-            </div>
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <button className={btnSecondary} onClick={onClose}>Cancel</button>
-          <button className={btnPrimary} onClick={() => setStep(1)}>Next</button>
-        </ModalFooter>
-      </Modal>
-    );
-  }
-
-  // Step 1: Select Scope
-  if (step === 1) {
-    return (
-      <Modal onClose={onClose}>
-        <ModalHeader title="Generate Capitation" step={2} totalSteps={TOTAL_STEPS} onClose={onClose} />
-        <ModalBody>
-          <StepDots current={1} total={TOTAL_STEPS} />
-          <h3 className="text-foreground text-[14px] font-semibold mb-1">Select Scope</h3>
-          <p className="text-muted-foreground text-[13px] mb-4">Choose which facilities to include in this capitation run.</p>
-          <div className="flex flex-col gap-3">
-            {(["all", "lga", "specific"] as GenScope[]).map((s) => (
-              <label key={s} className="flex items-start gap-3 p-3 border border-border rounded-[10px] cursor-pointer hover:border-[#9fe870] transition-colors">
-                <input
-                  type="radio"
-                  name="scope"
-                  className="mt-0.5"
-                  checked={scope === s}
-                  onChange={() => setScope(s)}
-                />
-                <div>
-                  <p className="text-[14px] font-semibold text-foreground">
-                    {s === "all" ? "All Facilities" : s === "lga" ? "By LGA" : "Specific Facilities"}
-                  </p>
-                  <p className="text-[12px] text-muted-foreground">
-                    {s === "all"
-                      ? "Generate capitation for all participating healthcare facilities."
-                      : s === "lga"
-                      ? "Select one or more Local Government Areas."
-                      : "Choose individual facilities to include."}
-                  </p>
-                </div>
-              </label>
-            ))}
-          </div>
-          {scope === "lga" && (
-            <div className="mt-4 border border-border rounded-[10px] p-4">
-              <p className="text-[12px] font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Select LGAs</p>
-              <div className="grid grid-cols-2 gap-2">
-                {LGAS.map((lga) => (
-                  <label key={lga} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedLGAs.includes(lga)}
-                      onChange={() => toggleLGA(lga)}
-                      className="rounded"
-                    />
-                    <span className="text-[13px] text-foreground">{lga}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </ModalBody>
-        <ModalFooter>
-          <button className={btnSecondary} onClick={() => setStep(0)}>Back</button>
-          <button className={btnPrimary} onClick={() => setStep(2)}>Next</button>
-        </ModalFooter>
-      </Modal>
-    );
-  }
-
-  // Step 2: Preview
-  if (step === 2) {
-    return (
-      <Modal onClose={onClose}>
-        <ModalHeader title="Generate Capitation" step={3} totalSteps={TOTAL_STEPS} onClose={onClose} />
-        <ModalBody>
-          <StepDots current={2} total={TOTAL_STEPS} />
-          <h3 className="text-foreground text-[14px] font-semibold mb-1">Preview</h3>
-          <p className="text-muted-foreground text-[13px] mb-4">Review the capitation summary before generating.</p>
-
-          <div className="bg-muted rounded-[10px] p-4 flex gap-6 mb-5">
-            <div>
-              <p className="text-[12px] text-muted-foreground font-medium">Facilities</p>
-              <p className="text-[20px] font-semibold text-foreground">9</p>
-            </div>
-            <div>
-              <p className="text-[12px] text-muted-foreground font-medium">Beneficiaries</p>
-              <p className="text-[20px] font-semibold text-foreground">1,913</p>
-            </div>
-            <div>
-              <p className="text-[12px] text-muted-foreground font-medium">Estimated Capitation</p>
-              <p className="text-[20px] font-semibold text-foreground">{formatNGN(totalCap)}</p>
-            </div>
-          </div>
-
-          <div className="border border-border rounded-[10px] overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr>
-                  <th className={thCell}>Code</th>
-                  <th className={thCell}>Facility</th>
-                  <th className={thCell}>Beneficiaries</th>
-                  <th className={thCell}>Rate</th>
-                  <th className={thCell}>Est. Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {previewRows.map((r) => (
-                  <tr key={r.id} className="hover:bg-muted/40">
-                    <td className={`${tdCell} font-mono text-[11px] text-muted-foreground`}>{r.code}</td>
-                    <td className={`${tdCell} text-[13px]`}>{r.facilityName}</td>
-                    <td className={tdCell}>{r.beneficiaries.toLocaleString()}</td>
-                    <td className={`${tdCell} text-muted-foreground`}>{formatNGN(r.rate)}</td>
-                    <td className={`${tdCell} font-semibold`}>{formatNGN(r.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <button className={btnSecondary} onClick={() => setStep(1)}>Back</button>
-          <button className={btnPrimary} onClick={() => setStep(3)}>Confirm &amp; Generate</button>
-        </ModalFooter>
-      </Modal>
-    );
-  }
-
-  // Step 3: Confirm dialog inside modal
-  if (step === 3 && !showConfirm) {
-    return (
-      <Modal onClose={onClose}>
-        <ModalHeader title="Generate Capitation" step={4} totalSteps={TOTAL_STEPS} onClose={onClose} />
-        <ModalBody>
-          <StepDots current={3} total={TOTAL_STEPS} />
-          <h3 className="text-foreground text-[16px] font-semibold mb-2">
-            Generate capitation for {month} {year}?
-          </h3>
-          <p className="text-muted-foreground text-[13px] leading-relaxed">
-            Capitation will be calculated for eligible beneficiaries assigned to participating healthcare
-            facilities for this period.
-          </p>
-        </ModalBody>
-        <ModalFooter>
-          <button className={btnSecondary} onClick={() => setStep(2)}>Back</button>
-          <button className={btnPrimary} onClick={() => setShowConfirm(true)}>Generate Capitation</button>
-        </ModalFooter>
-      </Modal>
-    );
-  }
-
-  // Success state
-  return (
-    <Modal onClose={onClose}>
-      <ModalHeader title="Capitation Generated" onClose={onClose} />
-      <ModalBody>
-        <div className="flex flex-col items-center text-center py-4">
-          <CheckCircleIcon />
-          <h3 className="text-foreground text-[18px] font-semibold mt-4 mb-1">Capitation generated successfully</h3>
-          <p className="text-muted-foreground text-[13px] mb-6">
-            Capitation records for {month} {year} are now available for review.
-          </p>
-          <div className="w-full bg-muted rounded-[12px] p-5 grid grid-cols-2 gap-4 text-left">
-            {[
-              { label: "Facilities Processed", value: "9" },
-              { label: "Beneficiaries Included", value: "1,913" },
-              { label: "Total Capitation", value: formatNGN(totalCap) },
-              { label: "Exceptions", value: "2" },
-            ].map(({ label, value }) => (
-              <div key={label}>
-                <p className="text-[12px] text-muted-foreground font-medium">{label}</p>
-                <p className="text-[16px] font-semibold text-foreground">{value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </ModalBody>
-      <ModalFooter>
-        <button className={btnSecondary} disabled title="Exceptions are not available in the mock app">View Exceptions</button>
-        <button className={btnPrimary} onClick={onClose}>View Capitation</button>
-      </ModalFooter>
-    </Modal>
-  );
-}
-
-// ─── Regenerate Modal ─────────────────────────────────────────────────────────
-
-function RegenerateModal({ month, year, onClose }: { month: string; year: number; onClose: () => void }) {
-  return (
-    <Modal onClose={onClose}>
-      <ModalHeader title="Regenerate Capitation" onClose={onClose} />
-      <ModalBody>
-        <h3 className="text-foreground text-[16px] font-semibold mb-2">
-          Regenerate capitation for {month} {year}?
-        </h3>
-        <p className="text-muted-foreground text-[13px] leading-relaxed mb-4">
-          This will recalculate the capitation records for the selected period using the latest eligible
-          beneficiary and facility information. Existing records for this period will be overwritten.
-        </p>
-        <span className="inline-flex items-center gap-1.5 bg-[#fffbeb] border border-[#fde68a] text-[#b45309] px-3 py-1.5 rounded-[8px] text-[12px] font-semibold">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 2L13 12H1L7 2z" stroke="#b45309" strokeWidth="1.3" strokeLinejoin="round" />
-            <path d="M7 6v3M7 10.5v.5" stroke="#b45309" strokeWidth="1.3" strokeLinecap="round" />
-          </svg>
-          This action cannot be undone
-        </span>
-      </ModalBody>
-      <ModalFooter>
-        <button className={btnSecondary} onClick={onClose}>Cancel</button>
-        <button
-          className="bg-[#ef4444] rounded-[100px] px-[16px] h-[40px] text-white text-[12px] font-semibold flex items-center gap-2 shrink-0 hover:bg-[#dc2626] transition-colors"
-          onClick={onClose}
-        >
-          Regenerate Capitation
-        </button>
-      </ModalFooter>
-    </Modal>
-  );
-}
-
-// ─── Actions Menu ─────────────────────────────────────────────────────────────
-
-function ActionsMenu({ facilityId, onClose }: { facilityId: string; onClose: () => void }) {
-  const navigate = useNavigate();
-  return (
-    <div className="absolute right-4 top-12 z-20 bg-card border border-border rounded-[10px] shadow-lg w-[180px] py-1" onClick={(e) => e.stopPropagation()}>
-      <button
-        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-muted"
-        onClick={() => { navigate(`/admin/facilities/${facilityId}`); onClose(); }}
-      >
-        View Facility
-      </button>
-      <button
-        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-muted"
-        onClick={onClose}
-      >
-        Mark as Paid
-      </button>
-      <button
-        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-muted"
-        onClick={onClose}
-      >
-        View Breakdown
-      </button>
-    </div>
-  );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+const YEARS = Array.from({ length: 101 }, (_, index) => 2100 - index)
+const PAGE_SIZE = 50
 
 export function CapitationView() {
-  const navigate = useNavigate();
-  const capitationRecords = useAdminDataStore((store) => store.capitationRecords);
+  const navigate = useNavigate()
+  const initialPeriod = useMemo(() => currentLagosPeriod(), [])
+  const [month, setMonth] = useState(initialPeriod.month)
+  const [year, setYear] = useState(initialPeriod.year)
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [lga, setLga] = useState('')
+  const [cursors, setCursors] = useState<Array<string | undefined>>([undefined])
+  const [pageIndex, setPageIndex] = useState(0)
+  const [showGenerate, setShowGenerate] = useState(false)
 
-  // Period
-  const [periodMonth, setPeriodMonth] = useState("August");
-  const [periodYear, setPeriodYear] = useState(2026);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim())
+      setCursors([undefined])
+      setPageIndex(0)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [search])
 
-  // Filters
-  const [search, setSearch] = useState("");
-  const [lgaFilter, setLgaFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const query = useCapitations({
+    month,
+    year,
+    cursor: cursors[pageIndex],
+    limit: PAGE_SIZE,
+    lga: lga || undefined,
+    search: debouncedSearch || undefined,
+  })
+  const records = query.data?.items ?? []
+  const meta = query.data?.meta
+  const summary = query.data?.summary
+  const hasRun = Boolean(summary || records.length)
+  const totalsAreRunWide = Boolean(summary)
+  const totals = summary ?? {
+    totalFacilities: records.length,
+    totalBeneficiaries: records.reduce((total, record) => total + record.beneficiaryCount, 0),
+    totalCapitation: records.reduce((total, record) => total + record.amount, 0),
+  }
+  const displayedRate = summary?.rate ?? records[0]?.rate
 
-  // Pagination
-  const [page, setPage] = useState(1);
+  function resetPage() {
+    setCursors([undefined])
+    setPageIndex(0)
+  }
 
-  // Modals
-  const [showGenerate, setShowGenerate] = useState(false);
-  const [showRegenerate, setShowRegenerate] = useState(false);
+  function nextPage() {
+    const nextCursor = meta?.nextCursor
+    if (!meta?.hasMore || !nextCursor) return
+    setCursors((current) => {
+      const next = current.slice(0, pageIndex + 1)
+      next[pageIndex + 1] = nextCursor
+      return next
+    })
+    setPageIndex((current) => current + 1)
+  }
 
-  // Actions menu
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  function generated(result: GenerateCapitationResult) {
+    setMonth(result.month)
+    setYear(result.year)
+    resetPage()
+  }
 
-  // Derived data
-  const filtered = useMemo(() => {
-    return capitationRecords.filter((r) => {
-      const matchSearch =
-        r.facilityName.toLowerCase().includes(search.toLowerCase()) ||
-        r.code.toLowerCase().includes(search.toLowerCase()) ||
-        r.lga.toLowerCase().includes(search.toLowerCase());
-      const matchLGA = lgaFilter === "All" || r.lga === lgaFilter;
-      const matchStatus = statusFilter === "All" || r.status === statusFilter;
-      return matchSearch && matchLGA && matchStatus;
-    });
-  }, [capitationRecords, search, lgaFilter, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  // KPIs
-  const totalBeneficiaries = capitationRecords.reduce((s, r) => s + r.beneficiaries, 0);
-  const totalAmount = capitationRecords.reduce((s, r) => s + r.amount, 0);
-  const paidAmount = capitationRecords.filter((r) => r.status === "Paid").reduce((s, r) => s + r.amount, 0);
-  const unpaidAmount = capitationRecords
-    .filter((r) => r.status === "Unpaid" || r.status === "Partially Paid")
-    .reduce((s, r) => s + r.amount, 0);
-
-  const kpis = [
-    { label: "Total Facilities", value: String(capitationRecords.length) },
-    { label: "Total Beneficiaries", value: totalBeneficiaries.toLocaleString() },
-    { label: "Total Capitation", value: formatNGN(totalAmount) },
-    { label: "Paid", value: formatNGN(paidAmount) },
-    { label: "Unpaid", value: formatNGN(unpaidAmount) },
-  ];
+  const periodLabel = `${CAPITATION_MONTHS[month - 1]} ${year}`
 
   return (
-    <div
-      className="flex flex-col gap-6 p-6 overflow-auto flex-1"
-      style={{ fontFamily: "'Inter Tight', sans-serif" }}
-      onClick={() => setOpenMenuId(null)}
-    >
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-foreground text-[24px] font-semibold tracking-[-0.48px]">Capitation</h1>
-          <p className="text-muted-foreground text-[14px] font-medium tracking-[0.28px] mt-0.5">
-            Manage and review capitation payments for participating healthcare facilities.
-          </p>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <button className={btnSecondary} disabled title="Printing is not available in the mock app">
-            <PrinterIcon />
-            Print
-          </button>
-          <button className={btnSecondary} disabled title="Export is not available in the mock app">
-            <DownloadIcon />
-            Export
-          </button>
-          <button className={btnPrimary} onClick={() => setShowGenerate(true)}>
-            <PlusIcon />
-            Generate Capitation
-          </button>
-        </div>
+    <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-2xl font-semibold tracking-[-0.48px]">Capitation</h1><p className="mt-0.5 text-sm text-muted-foreground">Calculate and review monthly capitation for active healthcare facilities.</p></div><Button className={btnPrimary} onClick={() => setShowGenerate(true)}><Plus aria-hidden="true" /> {hasRun ? 'Regenerate capitation' : 'Generate capitation'}</Button></div>
+
+      <div className="flex w-fit flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-5 py-4"><span className="shrink-0 text-sm font-semibold">Capitation period:</span><select aria-label="Capitation month" className="h-10 rounded-lg border border-border bg-card px-3 text-sm" onChange={(event) => { setMonth(Number(event.target.value)); resetPage() }} value={month}>{CAPITATION_MONTHS.map((label, index) => <option key={label} value={index + 1}>{label}</option>)}</select><select aria-label="Capitation year" className="h-10 rounded-lg border border-border bg-card px-3 text-sm" onChange={(event) => { setYear(Number(event.target.value)); resetPage() }} value={year}>{YEARS.map((value) => <option key={value}>{value}</option>)}</select>{query.isFetching && <LoaderCircle aria-label="Updating capitation" className="size-4 animate-spin text-muted-foreground" />}</div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{[[`Facilities · ${totalsAreRunWide ? 'Run total' : 'Current page'}`, totals.totalFacilities.toLocaleString()], [`Beneficiaries · ${totalsAreRunWide ? 'Run total' : 'Current page'}`, totals.totalBeneficiaries.toLocaleString()], ['Capitation rate', displayedRate === undefined ? '—' : formatNaira(displayedRate)], [`Capitation · ${totalsAreRunWide ? 'Run total' : 'Current page'}`, formatNaira(totals.totalCapitation)]].map(([label, value]) => <div className={`rounded-xl bg-card p-5 ${cardShadow}`} key={label}><p className="text-xs font-medium text-muted-foreground">{label}</p>{query.isPending ? <Skeleton className="mt-2 h-7 w-28" /> : <p className="mt-1 text-xl font-semibold">{value}</p>}</div>)}</div>
+
+      {summary && <p className="-mt-3 text-xs text-muted-foreground">Latest run generated {formatLagosDate(summary.generatedAt)}</p>}
+      {records.length > 0 && summary === undefined && <p className="-mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">Full run totals were not included by the API, so the cards show totals for this page only.</p>}
+      {query.isError && query.data && <p className="-mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">The latest capitation update failed. The previous results remain visible. <button className="font-semibold underline" onClick={() => void query.refetch()} type="button">Retry</button></p>}
+
+      <div className="flex flex-wrap items-center gap-3"><div className={searchBar} style={{ flex: '1 1 0', maxWidth: '300px' }}><Search aria-hidden="true" className="size-4" /><input aria-label="Search capitation facilities" className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" maxLength={120} onChange={(event) => setSearch(event.target.value)} placeholder="Search facility or LGA..." value={search} /></div><select aria-label="Filter capitation by LGA" className="h-10 rounded-full border border-border bg-card px-3 text-sm" onChange={(event) => { setLga(event.target.value); resetPage() }} value={lga}><option value="">All LGAs</option>{PLATEAU_LGAS.map((item) => <option key={item}>{item}</option>)}</select><span className="ml-auto text-sm text-muted-foreground">{query.isPending ? 'Loading records…' : `${records.length} facilities on this page`}</span></div>
+
+      <div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}>
+        {query.isError && !query.data ? <div className="flex min-h-72 flex-col items-center justify-center gap-3 p-6 text-center" role="alert"><p className="font-semibold">Unable to load capitation.</p><p className="text-sm text-muted-foreground">Check your connection and try again.</p><Button onClick={() => void query.refetch()} variant="outline"><RefreshCw aria-hidden="true" /> Retry</Button></div> : <div className="overflow-x-auto"><table className="w-full"><thead><tr>{['Facility', 'LGA', 'Period', 'Beneficiaries', 'Rate', 'Amount', 'Action'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}</tr></thead><tbody>{query.isPending ? Array.from({ length: 6 }, (_, row) => <tr key={row}>{Array.from({ length: 7 }, (__, cell) => <td className={tdCell} key={cell}><Skeleton className="h-5 w-full" /></td>)}</tr>) : records.map((record) => <tr className="hover:bg-muted/40" key={record.id}><td className={`${tdCell} font-semibold`}>{record.facilityName}</td><td className={`${tdCell} text-muted-foreground`}>{record.lga}</td><td className={`${tdCell} text-muted-foreground`}>{record.period}</td><td className={tdCell}>{record.beneficiaryCount.toLocaleString()}</td><td className={tdCell}>{formatNaira(record.rate)}</td><td className={`${tdCell} font-semibold`}>{formatNaira(record.amount)}</td><td className={tdCell}><Button onClick={() => navigate(`/admin/facilities/${record.healthFacilityId}`)} size="sm" variant="ghost">View facility</Button></td></tr>)}{!query.isPending && records.length === 0 && <tr><td className="px-6 py-16 text-center" colSpan={7}><p className="font-semibold">{debouncedSearch || lga ? 'No facilities match these filters.' : `No capitation run is available for ${periodLabel}.`}</p><p className="mt-1 text-sm text-muted-foreground">{debouncedSearch || lga ? 'Change the search or LGA filter and try again.' : 'Generate a run to calculate capitation for active facilities.'}</p>{!debouncedSearch && !lga && <Button className={`${btnPrimary} mt-4`} onClick={() => setShowGenerate(true)}><Plus aria-hidden="true" /> Generate capitation</Button>}</td></tr>}</tbody></table></div>}
+        {!query.isError && <div className="flex items-center justify-between border-t border-border px-4 py-3"><p className="text-sm text-muted-foreground">Page {pageIndex + 1}</p><div className="flex gap-2"><Button disabled={pageIndex === 0 || query.isFetching} onClick={() => setPageIndex((current) => Math.max(0, current - 1))} variant="outline"><ChevronLeft aria-hidden="true" /> Previous</Button><Button disabled={!meta?.hasMore || !meta.nextCursor || query.isFetching} onClick={nextPage} variant="outline">Next <ChevronRight aria-hidden="true" /></Button></div></div>}
       </div>
 
-      {/* ── Period Selector ── */}
-      <div className="flex items-center gap-3 bg-card rounded-[12px] border border-border px-5 py-4 w-fit">
-        <span className="text-[13px] font-semibold text-foreground shrink-0">Capitation Period:</span>
-        <select
-          className={selectCls}
-          value={periodMonth}
-          onChange={(e) => setPeriodMonth(e.target.value)}
-        >
-          {MONTHS.map((m) => <option key={m}>{m}</option>)}
-        </select>
-        <select
-          className={selectCls}
-          value={periodYear}
-          onChange={(e) => setPeriodYear(Number(e.target.value))}
-        >
-          {YEARS.map((y) => <option key={y}>{y}</option>)}
-        </select>
-        <button
-          className="text-[12px] font-semibold text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors ml-2"
-          onClick={() => setShowRegenerate(true)}
-        >
-          Regenerate
-        </button>
-      </div>
-
-      {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-5 gap-4">
-        {kpis.map(({ label, value }) => (
-          <div key={label} className={`bg-card rounded-[12px] ${cardShadow} px-5 py-4 flex flex-col gap-1`}>
-            <p className="text-muted-foreground text-[12px] font-medium tracking-[0.24px]">{label}</p>
-            <p className="text-foreground text-[20px] font-semibold tracking-[-0.4px]">{value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Filters ── */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className={searchBar}>
-          <SearchIcon />
-          <input
-            className="bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground outline-none w-[200px]"
-            placeholder="Search facility..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          />
-        </div>
-        <select
-          className={selectCls}
-          value={lgaFilter}
-          onChange={(e) => { setLgaFilter(e.target.value); setPage(1); }}
-        >
-          <option value="All">All LGAs</option>
-          {LGAS.map((l) => <option key={l}>{l}</option>)}
-        </select>
-        <div className={tabGroup}>
-          {STATUS_TABS.map((s) => (
-            <button
-              key={s}
-              onClick={() => { setStatusFilter(s); setPage(1); }}
-              className={`px-4 h-[38px] text-[12px] font-semibold tracking-[0.24px] transition-colors ${
-                statusFilter === s
-                  ? "bg-card text-foreground shadow-[0px_0px_0px_1px_#e5e5e5] rounded-[8px]"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Table ── */}
-      {filtered.length === 0 ? (
-        <div className={`bg-card rounded-[12px] ${cardShadow} flex flex-col items-center justify-center py-20 gap-4`}>
-          <EmptyStateIllustration />
-          <div className="text-center">
-            <p className="text-foreground text-[16px] font-semibold mb-1">No capitation records yet</p>
-            <p className="text-muted-foreground text-[13px] mb-4">Capitation has not been generated for this period.</p>
-            <button className={btnPrimary} onClick={() => setShowGenerate(true)}>
-              <PlusIcon />
-              Generate Capitation
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className={`bg-card rounded-[12px] ${cardShadow} overflow-hidden`}>
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className={thCell}>HCP Code</th>
-                <th className={thCell}>Facility Name</th>
-                <th className={thCell}>Capitation Month</th>
-                <th className={thCell}>No. of Beneficiaries</th>
-                <th className={thCell}>Capitation Rate</th>
-                <th className={thCell}>Capitation Amount</th>
-                <th className={thCell}>Status</th>
-                <th className={thCell}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginated.map((r) => (
-                <tr key={r.id} className="hover:bg-muted/40 transition-colors relative">
-                  <td className={`${tdCell} font-mono text-[12px] text-muted-foreground`}>{r.code}</td>
-                  <td className={tdCell}>
-                    <button
-                      className="font-semibold text-foreground hover:text-primary-foreground hover:underline text-left transition-colors"
-                      onClick={() => navigate(`/admin/facilities/${r.facilityId}`)}
-                    >
-                      {r.facilityName}
-                    </button>
-                  </td>
-                  <td className={`${tdCell} text-muted-foreground`}>{r.period}</td>
-                  <td className={tdCell}>{r.beneficiaries.toLocaleString()}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{formatNGN(CAPITATION_RATE)}</td>
-                  <td className={`${tdCell} font-semibold`}>{formatNGN(r.amount)}</td>
-                  <td className={tdCell}>
-                    <StatusBadge status={r.status} />
-                  </td>
-                  <td className={`${tdCell} relative`}>
-                    <button
-                      className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
-                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === r.id ? null : r.id); }}
-                    >
-                      <DotsIcon />
-                    </button>
-                    {openMenuId === r.id && (
-                      <ActionsMenu facilityId={r.facilityId} onClose={() => setOpenMenuId(null)} />
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <p className="text-[12px] text-muted-foreground font-medium">
-              Showing {Math.min(filtered.length, (page - 1) * PAGE_SIZE + paginated.length)} of {filtered.length} facilities
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="w-8 h-8 flex items-center justify-center rounded-[6px] text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M9 3L5 7l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setPage(i + 1)}
-                  className={`w-8 h-8 flex items-center justify-center rounded-[6px] text-[12px] font-semibold transition-colors ${
-                    page === i + 1 ? "bg-[#163300] text-white" : "text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-              <button
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="w-8 h-8 flex items-center justify-center rounded-[6px] text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modals ── */}
-      {showGenerate && <GenerateModal onClose={() => setShowGenerate(false)} />}
-      {showRegenerate && (
-        <RegenerateModal
-          month={periodMonth}
-          year={periodYear}
-          onClose={() => setShowRegenerate(false)}
-        />
-      )}
+      {showGenerate && <GenerateCapitationDialog initialPeriod={{ month, year }} onGenerated={generated} onOpenChange={setShowGenerate} open={showGenerate} />}
     </div>
-  );
+  )
 }

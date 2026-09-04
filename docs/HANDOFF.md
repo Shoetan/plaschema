@@ -1,6 +1,6 @@
 # PLASCHEMA Project Handoff
 
-Last updated: 3 September 2026
+Last updated: 4 September 2026
 Last verified code commit: `7d5456a`
 
 ## Purpose
@@ -55,6 +55,11 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Field-worker detail uses `GET /users/:id/detail`; edits and status changes use `PATCH /users/:id`, and admin password reset uses `POST /users/:id/reset-password`.
 - Field-worker Enrollment Activity and Sync Activity tabs filter the unified detail activity log. The Beneficiaries Enrolled tab reads `GET /enrollments?enrolledByUserId=` with cursor pagination and remains display-only until beneficiary detail is API-backed.
 - Field-worker server state is owned by React Query and is no longer mirrored from the mock Zustand store.
+- Capitation records use `GET /capitations` with the selected month/year, debounced server search, LGA filtering and cursor-based Previous/Next navigation.
+- Capitation preview and generation use `GET /capitations/preview` and `POST /capitations/generate`. The admin selects a period, reviews the server calculation, confirms generation and sees the real result.
+- The backend-configured capitation rate is authoritative; the admin UI does not submit a rate override. Generating a newer run for an existing period requires confirmation.
+- Payment statuses, marking payments, scoped generation, printing, exports, exceptions and breakdown actions were removed because production does not expose those contracts.
+- Swagger documents a full-run `summary` on the capitation list, but the backend response interceptor currently appears to discard it. The frontend uses it when available and otherwise labels calculated cards as current-page totals. See `docs/capitation-backend-feedback.md`.
 
 ### Field-worker PWA
 
@@ -171,6 +176,8 @@ Both frontend development servers use Vite's `--strictPort` option and exit inst
 - Keep PWA enrollment API traffic in typed services. Components consume hooks; direct `fetch` is limited to the NDJSON and presigned-upload transport helpers.
 - Remove accepted local enrollment records and their file blobs after the final `/auth/sync` report succeeds; server history remains in the admin app.
 - Refresh offline reference streams when absent, more than 24 hours old or ward access changes; do not download both streams on every queue polling interval.
+- Keep the capitation rate owned by backend configuration. The admin may select the period and preview the calculation but does not override the rate.
+- Allow repeated capitation generation for a period with a warning; the newest run is the one displayed by the backend.
 
 ## Structure rules
 
@@ -192,6 +199,15 @@ At commit `a73ed09`:
 - Backend had no working-tree changes.
 
 After later edits, rerun the relevant checks before updating this section.
+
+On 4 September 2026 after the admin capitation integration:
+
+- Capitation list, preview, generation and regeneration use the production endpoints through typed services and React Query hooks.
+- The screen supports current-Lagos-period defaults, server search, LGA filters, cursor pagination, loading, empty, retry and retained-data error states.
+- Unsupported mock-only payment, export, print, exception, breakdown and scoped-generation features were removed, along with capitation mock data and Zustand state.
+- Admin lint, TypeScript and production build pass. Static checks confirm capitation components contain no API request wrappers, mock-store dependency or `any`.
+- Local production-preview smoke checks returned HTTP 200 for the root, login, Capitation route and a nested facility route.
+- An authenticated production API smoke test and interactive browser check were not run because credentials and the in-app browser connection were unavailable. The possible missing list `summary` is documented in `docs/capitation-backend-feedback.md` for the backend team.
 
 On 2 September 2026 after the PWA offline enrollment integration:
 
