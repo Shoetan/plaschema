@@ -2,14 +2,12 @@ import { create } from 'zustand'
 
 import {
   beneficiaries as initialBeneficiaries,
-  capitationRecords as initialCapitationRecords,
   communities as initialCommunities,
   facilities as initialFacilities,
   fieldWorkers as initialFieldWorkers,
 } from '@/mocks/admin-data'
 import type {
   Beneficiary,
-  CapitationRecord,
   Facility,
   FieldWorker,
   Ward,
@@ -22,7 +20,6 @@ interface AdminDataState {
   fieldWorkers: FieldWorker[]
   beneficiaries: Beneficiary[]
   facilities: Facility[]
-  capitationRecords: CapitationRecord[]
   addWard: (ward: Ward) => void
   addFieldWorker: (fieldWorker: FieldWorker) => void
   addFacility: (facility: Facility) => void
@@ -35,7 +32,6 @@ export const useAdminDataStore = create<AdminDataState>((set) => ({
   fieldWorkers: initialFieldWorkers,
   beneficiaries: initialBeneficiaries,
   facilities: initialFacilities,
-  capitationRecords: initialCapitationRecords,
   addWard: (ward) =>
     set((state) => ({ communities: [...state.communities, ward] })),
   addFieldWorker: (fieldWorker) =>

@@ -1,6 +1,5 @@
 import type {
   Beneficiary,
-  CapitationRecord,
   Facility,
   FieldWorker,
   Ward,
@@ -74,16 +73,4 @@ export const facilities: Facility[] = [
   { id: "FAC008", code: "HCP/SHD/G/008", name: "Shendam General Hospital", type: "Hospital", level: "Secondary", ownership: "Public", state: "Plateau", lga: "Shendam", ward: "Shendam Central", community: "Shendam", address: "Hospital Road, Shendam LGA", contactPerson: "Dr. Chidi Okafor", phone: "+234 803 888 0008", email: "shendam.gh@plateau.gov.ng", status: "Inactive", beneficiaries: 0, onboardingDate: "15 May 2024" },
   { id: "FAC009", code: "HCP/MNG/G/009", name: "Mangu General Hospital", type: "Hospital", level: "Secondary", ownership: "Public", state: "Plateau", lga: "Mangu", ward: "Mangu Central", community: "Mangu", address: "Government Road, Mangu LGA", contactPerson: "Dr. Ibrahim Musa", phone: "+234 803 999 0009", email: "mangu.gh@plateau.gov.ng", status: "Active", beneficiaries: 201, onboardingDate: "01 Jun 2024" },
   { id: "FAC010", code: "HCP/JOS/P/010", name: "JUTH - Jos University Teaching Hospital", type: "Specialist Hospital", level: "Tertiary", ownership: "Public", state: "Plateau", lga: "Jos North", ward: "Anglo Jos", community: "Jos", address: "JUTH Road, Jos North LGA", contactPerson: "Prof. Aliyu Bello", phone: "+234 803 100 0010", email: "juth@plateau.edu.ng", status: "Active", beneficiaries: 378, onboardingDate: "01 Jan 2024" },
-];
-
-export const capitationRecords: CapitationRecord[] = [
-  { id: "CAP001", facilityId: "FAC001", code: "HCP/JOS/N/001", facilityName: "Tudun Wada PHC", month: "August", year: 2026, period: "August 2026", beneficiaries: 156, rate: 570, amount: 88920, status: "Unpaid", lga: "Jos North" },
-  { id: "CAP002", facilityId: "FAC002", code: "HCP/JOS/S/002", facilityName: "Vom Christian Hospital", month: "August", year: 2026, period: "August 2026", beneficiaries: 412, rate: 570, amount: 234840, status: "Paid", lga: "Jos South" },
-  { id: "CAP003", facilityId: "FAC003", code: "HCP/BKL/G/003", facilityName: "Barkin Ladi General Hospital", month: "August", year: 2026, period: "August 2026", beneficiaries: 289, rate: 570, amount: 164730, status: "Partially Paid", lga: "Barkin Ladi" },
-  { id: "CAP004", facilityId: "FAC004", code: "HCP/PAN/G/004", facilityName: "Pankshin General Hospital", month: "August", year: 2026, period: "August 2026", beneficiaries: 178, rate: 570, amount: 101460, status: "Unpaid", lga: "Pankshin" },
-  { id: "CAP005", facilityId: "FAC005", code: "HCP/LTN/G/005", facilityName: "Langtang General Hospital", month: "August", year: 2026, period: "August 2026", beneficiaries: 134, rate: 570, amount: 76380, status: "Unpaid", lga: "Langtang North" },
-  { id: "CAP006", facilityId: "FAC006", code: "HCP/RYM/P/006", facilityName: "Riyom PHC", month: "August", year: 2026, period: "August 2026", beneficiaries: 98, rate: 570, amount: 55860, status: "Paid", lga: "Riyom" },
-  { id: "CAP007", facilityId: "FAC007", code: "HCP/MKG/P/007", facilityName: "Mikang PHC", month: "August", year: 2026, period: "August 2026", beneficiaries: 67, rate: 570, amount: 38190, status: "Unpaid", lga: "Mikang" },
-  { id: "CAP009", facilityId: "FAC009", code: "HCP/MNG/G/009", facilityName: "Mangu General Hospital", month: "August", year: 2026, period: "August 2026", beneficiaries: 201, rate: 570, amount: 114570, status: "Unpaid", lga: "Mangu" },
-  { id: "CAP010", facilityId: "FAC010", code: "HCP/JOS/P/010", facilityName: "JUTH - Jos University Teaching Hospital", month: "August", year: 2026, period: "August 2026", beneficiaries: 378, rate: 570, amount: 215460, status: "Approved", lga: "Jos North" },
 ];

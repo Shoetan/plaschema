@@ -61,18 +61,3 @@ export interface Facility {
   beneficiaries: number
   onboardingDate: string
 }
-
-export interface CapitationRecord {
-  id: string
-  facilityId: string
-  code: string
-  facilityName: string
-  month: string
-  year: number
-  period: string
-  beneficiaries: number
-  rate: number
-  amount: number
-  status: string
-  lga: string
-}
