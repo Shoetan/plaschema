@@ -152,35 +152,6 @@ export interface CreateHealthFacilityPayload {
   status: HealthFacilityStatus
 }
 
-export type FacilityBeneficiaryStatus = 'pending' | 'active' | 'disabled' | 'deceased'
-
-export interface FacilityBeneficiary {
-  id: string
-  enrollmentId: string
-  beneficiaryName: string
-  category: string
-  status: FacilityBeneficiaryStatus
-  healthFacility: {
-    id: string
-    name: string
-    ward: HealthFacilityWard
-  }
-  createdAt: string
-  hasPrinted: boolean
-  printCount: number
-  printedAt?: string | null
-}
-
-export interface FacilityBeneficiaryListParams {
-  cursor?: string
-  limit?: number
-}
-
-export interface FacilityBeneficiaryListResult {
-  items: FacilityBeneficiary[]
-  meta: CursorPaginationMeta
-}
-
 export interface UpdateHealthFacilityPayload {
   name?: string
   wardId?: string

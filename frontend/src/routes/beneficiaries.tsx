@@ -1,5 +1,5 @@
-import { BeneficiariesView } from '@/features/beneficiaries/components'
+import { EnrollmentsView } from '@/features/enrollments/components'
 
 export function BeneficiariesPage() {
-  return <BeneficiariesView />
+  return <EnrollmentsView />
 }

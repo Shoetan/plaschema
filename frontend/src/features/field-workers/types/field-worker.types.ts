@@ -1,7 +1,6 @@
 import type { CursorPaginationMeta } from '@/api'
 
 export type FieldWorkerStatus = 'active' | 'inactive'
-export type EnrollmentStatus = 'pending' | 'active' | 'disabled' | 'deceased'
 
 export interface FieldWorkerWard {
   id: string
@@ -112,31 +111,4 @@ export interface ResetFieldWorkerPasswordVariables {
 
 export interface ResetFieldWorkerPasswordResult {
   message: string
-}
-
-export interface FieldWorkerBeneficiary {
-  id: string
-  enrollmentId: string
-  beneficiaryName: string
-  category: string
-  status: EnrollmentStatus
-  healthFacility: {
-    id: string
-    name: string
-    ward: { id: string; name: string; lga: string }
-  }
-  createdAt: string
-  hasPrinted: boolean
-  printCount: number
-  printedAt: string | null
-}
-
-export interface FieldWorkerBeneficiaryListParams {
-  cursor?: string
-  limit?: number
-}
-
-export interface FieldWorkerBeneficiaryListResult {
-  items: FieldWorkerBeneficiary[]
-  meta: CursorPaginationMeta
 }

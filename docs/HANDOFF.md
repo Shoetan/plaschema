@@ -60,6 +60,12 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - The backend-configured capitation rate is authoritative; the admin UI does not submit a rate override. Generating a newer run for an existing period requires confirmation.
 - Payment statuses, marking payments, scoped generation, printing, exports, exceptions and breakdown actions were removed because production does not expose those contracts.
 - Swagger documents a full-run `summary` on the capitation list, but the backend response interceptor currently appears to discard it. The frontend uses it when available and otherwise labels calculated cards as current-page totals. See `docs/capitation-backend-feedback.md`.
+- Admin CBHI Enrolments now uses `GET /enrollments` with cursor pagination and production search, status, category, printed-state, LGA, ward, facility, field-worker, date and age filters.
+- Enrollment detail combines `GET /enrollments/:id` with `GET /enrollments/:id/detail` to show the complete beneficiary record, temporary document links and real activity history.
+- Ward, facility, field-worker and dashboard enrollment rows share the enrollment feature query and open the API-backed detail route.
+- ID Cards queues one to nine records through `POST /enrollments/id-cards/generate`. Excel exports use `POST /enrollments/reports/export`; unsupported search and printed-state filters are explained before export.
+- Files replaces Settings in the sidebar and uses `/file-jobs`, `/file-jobs/:id` and `/file-jobs/:id/download` for progress and fresh download links. The Settings route remains available but unlisted.
+- Enrollment creation remains in the field-worker PWA. Admin enrollment status and records are read-only because production exposes no update, status-change or delete endpoint. See `docs/enrollment-backend-feedback.md`.
 
 ### Field-worker PWA
 
@@ -178,6 +184,9 @@ Both frontend development servers use Vite's `--strictPort` option and exit inst
 - Refresh offline reference streams when absent, more than 24 hours old or ward access changes; do not download both streams on every queue polling interval.
 - Keep the capitation rate owned by backend configuration. The admin may select the period and preview the calculation but does not override the rate.
 - Allow repeated capitation generation for a period with a warning; the newest run is the one displayed by the backend.
+- Keep admin enrollment creation in the PWA workflow; the admin app reviews, filters, prints and exports server records.
+- Keep enrollment selection across result pages up to the backend limit of nine ID cards per job.
+- Always request a fresh presigned download URL for a completed file job rather than storing temporary Railway links.
 
 ## Structure rules
 
@@ -208,6 +217,16 @@ On 4 September 2026 after the admin capitation integration:
 - Admin lint, TypeScript and production build pass. Static checks confirm capitation components contain no API request wrappers, mock-store dependency or `any`.
 - Local production-preview smoke checks returned HTTP 200 for the root, login, Capitation route and a nested facility route.
 - An authenticated production API smoke test and interactive browser check were not run because credentials and the in-app browser connection were unavailable. The possible missing list `summary` is documented in `docs/capitation-backend-feedback.md` for the backend team.
+
+On 4 September 2026 after the admin enrollment integration:
+
+- Enrollment list, full detail, ID-card generation, Excel export and generated file jobs use typed production services and React Query hooks.
+- The mock enrollment and browser-print implementations were removed. The dashboard, ward, facility and field-worker enrollment rows now reuse the shared server enrollment query.
+- The Files route supports job filters, cursor navigation, active-job polling, completed downloads, failed ID-card recreation and a clear path for rerunning failed reports.
+- Unsupported admin enrollment editing and status controls were removed and backend gaps are recorded in `docs/enrollment-backend-feedback.md`.
+- Admin lint, TypeScript and production build pass. Static checks confirm enrollment components contain no request wrappers, mock-store dependency or `any`, and backend files are unchanged.
+- Local production-preview checks returned HTTP 200 for the root, login, Enrolments, enrollment detail, ID Cards, Files and the ward/facility/field-worker detail routes.
+- An authenticated production smoke test was not run because no admin credentials were supplied; interactive browser verification was unavailable in this environment.
 
 On 2 September 2026 after the PWA offline enrollment integration:
 
@@ -292,25 +311,21 @@ On 2 September 2026 after the PWA authentication integration:
 
 ## Known gaps
 
-- Remaining admin API integration beyond authentication and ward writes.
-- Ward beneficiary-list integration; the detail endpoint does not provide beneficiary rows.
+- Remaining mock-only admin areas include the dashboard summary, general Reports and Settings screens.
 - Programme-wide facility KPI totals.
-- PWA ward and health-facility stream synchronization.
-- Beneficiary list/detail API integration outside the field-worker display-only beneficiary tab.
+- Programme-wide enrollment totals are unavailable from cursor metadata.
+- Admin enrollment editing, status changes and deletion are unavailable in the production API.
+- Enrollment export cannot apply broad search or printed-state filters, and failed report jobs cannot be retried directly.
 - Refresh-token support and automatic session renewal.
-- PWA enrollment sync client integration (backend contracts ready).
-- Durable offline enrollment storage.
-- Real file upload and synchronization.
-- Production PWA PNG icons and iPhone install assets.
 - Full real-device browser testing.
 - Broader frontend test coverage.
 
 ## Suggested next work
 
-1. Wire PWA sync to `POST /enrollments` + `POST /auth/sync` and home stats to own `/users/:id/detail`.
-2. Add durable offline enrollment storage.
-3. Stream wards and health facilities for offline enrollment forms.
-4. Production PWA icons and real-device browser testing.
+1. Test admin enrollment filtering, document links, ID-card PDFs and Excel downloads with a production admin account.
+2. Agree the enrollment API gaps in `docs/enrollment-backend-feedback.md` with the backend team.
+3. Integrate the remaining dashboard and general report contracts when their production endpoints are ready.
+4. Complete real-device PWA browser testing.
 
 ## Handoff update checklist
 

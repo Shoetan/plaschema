@@ -10,9 +10,6 @@ import {
 import type {
   CreateHealthFacilityPayload,
   DeleteHealthFacilityResult,
-  FacilityBeneficiary,
-  FacilityBeneficiaryListParams,
-  FacilityBeneficiaryListResult,
   HealthFacilityBatchResult,
   HealthFacilityDetail,
   HealthFacilityDetailApi,
@@ -64,20 +61,6 @@ export async function createHealthFacility(
     CreateHealthFacilityPayload
   >('/health-facilities', body)
   return response.data.data
-}
-
-export async function fetchHealthFacilityBeneficiaries(
-  id: string,
-  params: FacilityBeneficiaryListParams,
-): Promise<FacilityBeneficiaryListResult> {
-  const response = await _get<
-    ApiResponse<FacilityBeneficiary[], CursorPaginationMeta>
-  >('/enrollments', {
-    cursor: params.cursor,
-    limit: params.limit,
-    healthFacilityId: id,
-  })
-  return { items: response.data.data, meta: response.data.meta }
 }
 
 export async function uploadHealthFacilitiesBatch(

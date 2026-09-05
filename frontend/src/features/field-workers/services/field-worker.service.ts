@@ -9,9 +9,6 @@ import {
 import type {
   CreateFieldWorkerPayload,
   FieldWorker,
-  FieldWorkerBeneficiary,
-  FieldWorkerBeneficiaryListParams,
-  FieldWorkerBeneficiaryListResult,
   FieldWorkerDetail,
   FieldWorkerListParams,
   FieldWorkerListResult,
@@ -88,20 +85,4 @@ export async function resetFieldWorkerPassword({
     { newPassword: string }
   >(`/users/${id}/reset-password`, { newPassword: password })
   return response.data.data
-}
-
-/** GET /enrollments?enrolledByUserId=:id */
-export async function fetchFieldWorkerBeneficiaries(
-  id: string,
-  params: FieldWorkerBeneficiaryListParams,
-): Promise<FieldWorkerBeneficiaryListResult> {
-  const response = await _get<
-    ApiResponse<FieldWorkerBeneficiary[], CursorPaginationMeta>
-  >('/enrollments', {
-    cursor: params.cursor,
-    enrolledByUserId: id,
-    limit: params.limit,
-  })
-
-  return { items: response.data.data, meta: response.data.meta }
 }

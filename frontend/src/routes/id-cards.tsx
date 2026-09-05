@@ -1,5 +1,5 @@
-import { IDCardGenerationView } from '@/features/id-cards/components'
+import { IdCardGenerationView } from '@/features/enrollments/components'
 
 export function IdCardsPage() {
-  return <IDCardGenerationView />
+  return <IdCardGenerationView />
 }

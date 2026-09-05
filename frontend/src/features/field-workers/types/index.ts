@@ -1,12 +1,8 @@
 export type {
   AssignableFieldWorker,
   CreateFieldWorkerPayload,
-  EnrollmentStatus,
   FieldWorker,
   FieldWorkerActivityEntry,
-  FieldWorkerBeneficiary,
-  FieldWorkerBeneficiaryListParams,
-  FieldWorkerBeneficiaryListResult,
   FieldWorkerDetail,
   FieldWorkerListParams,
   FieldWorkerListResult,

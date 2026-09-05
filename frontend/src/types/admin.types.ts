@@ -23,25 +23,6 @@ export interface FieldWorker {
   status: string
 }
 
-export interface Beneficiary {
-  id: string
-  enrollmentId: string
-  name: string
-  gender: string
-  community: string
-  communityId: string
-  lga: string
-  ward: string
-  facility: string
-  category: string
-  fieldWorker: string
-  fieldWorkerId: string
-  dateEnrolled: string
-  status: string
-  syncStatus: string
-  hasPrinted: boolean
-}
-
 export interface Facility {
   id: string
   code: string
