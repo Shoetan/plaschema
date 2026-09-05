@@ -14,6 +14,17 @@ export type RecordActivityInput = {
   occurredAt?: Date;
 };
 
+export type ActivityLogRecentFilters = {
+  wardId?: string;
+  lga?: string;
+  occurredFrom?: Date;
+  occurredTo?: Date;
+};
+
+export type ActivityLogEntryWithWard = ActivityLogEntry & {
+  ward: { id: string; name: string };
+};
+
 export interface ActivityLogRepository {
   record(input: RecordActivityInput): Promise<ActivityLogEntry>;
   findRecentByWard(wardId: string, limit: number): Promise<ActivityLogEntry[]>;
@@ -30,4 +41,8 @@ export interface ActivityLogRepository {
     enrollmentId: string,
     limit: number,
   ): Promise<ActivityLogEntry[]>;
+  findRecent(
+    filters: ActivityLogRecentFilters,
+    limit: number,
+  ): Promise<ActivityLogEntryWithWard[]>;
 }

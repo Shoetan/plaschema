@@ -5,6 +5,7 @@ import { ActivityLogModule } from '../modules/activity-log/activity-log.module';
 import { EnrollmentModule } from '../modules/enrollment/enrollment.module';
 import { HealthFacilityModule } from '../modules/health-facility/health-facility.module';
 import { CapitationModule } from '../modules/capitation/capitation.module';
+import { DashboardModule } from '../modules/dashboard/dashboard.module';
 import { FileJobModule } from '../modules/file-job/file-job.module';
 import { WardModule } from '../modules/ward/ward.module';
 import { AuthModule } from '../platform/auth/auth.module';
@@ -38,6 +39,7 @@ import { StorageModule } from '../platform/storage/storage.module';
     CapitationModule,
     EnrollmentModule,
     FileJobModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}

@@ -3,6 +3,8 @@ import type { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../platform/persistence/prisma.service';
 import type { ActivityLogEntry } from '../domain/activity-log';
 import type {
+  ActivityLogEntryWithWard,
+  ActivityLogRecentFilters,
   ActivityLogRepository,
   RecordActivityInput,
 } from '../application/activity-log.repository';
@@ -16,6 +18,10 @@ type ActivityLogRow = {
   enrollmentId: string | null;
   occurredAt: Date;
   actor: { id: string; name: string } | null;
+};
+
+type ActivityLogRowWithWard = ActivityLogRow & {
+  ward: { id: string; name: string };
 };
 
 @Injectable()
@@ -134,5 +140,41 @@ export class PrismaActivityLogRepository implements ActivityLogRepository {
     });
 
     return rows.map((row) => this.map(row));
+  }
+
+  async findRecent(
+    filters: ActivityLogRecentFilters,
+    limit: number,
+  ): Promise<ActivityLogEntryWithWard[]> {
+    const rows = await this.prisma.activityLog.findMany({
+      where: {
+        ...(filters.wardId ? { wardId: filters.wardId } : {}),
+        ...(filters.lga ? { ward: { lga: filters.lga } } : {}),
+        ...(filters.occurredFrom || filters.occurredTo
+          ? {
+              occurredAt: {
+                ...(filters.occurredFrom
+                  ? { gte: filters.occurredFrom }
+                  : {}),
+                ...(filters.occurredTo ? { lte: filters.occurredTo } : {}),
+              },
+            }
+          : {}),
+      },
+      orderBy: { occurredAt: 'desc' },
+      take: limit,
+      include: {
+        actor: { select: { id: true, name: true } },
+        ward: { select: { id: true, name: true } },
+      },
+    });
+
+    return rows.map((row) => {
+      const mapped = row as ActivityLogRowWithWard;
+      return {
+        ...this.map(mapped),
+        ward: mapped.ward,
+      };
+    });
   }
 }

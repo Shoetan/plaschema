@@ -1,6 +1,6 @@
 # PLASCHEMA Project Handoff
 
-Last updated: 4 September 2026
+Last updated: 5 September 2026
 Last verified code commit: `7d5456a`
 
 ## Purpose
@@ -26,7 +26,8 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Feature folders live under `frontend/src/features/`.
 - Thin route files live under `frontend/src/routes/`.
 - Admin designs and navigation are implemented.
-- Dashboard and most feature data remain mock-only; ward and health-facility admin screens are API-backed.
+- Dashboard and most feature data remain mock-only on the admin UI; ward and health-facility admin screens are API-backed.
+- Backend `GET /api/dashboard` (admin-only) returns a single overview payload for the dashboard screens: KPIs, enrollment trend, recent activity, category/status breakdowns, top wards (10), all LGAs with data, facility overview (top 5), field-worker performance (top 10), and recent enrollments (5). Filters: `lga`, `wardId`, `period` (`7d`|`30d`|`3m`|`6m`|`1y`, default `30d`), `trend` (`daily`|`weekly`|`monthly`, default `monthly`). No state filter.
 - Admin login uses `POST /auth/login`; saved sessions are validated with `GET /auth/me`.
 - The typed API layer is split into client, request, error and contract modules and is consumed through feature services and React Query hooks.
 - Authentication is admin-only. Zustand owns the access token, authenticated user and session status.
@@ -311,7 +312,8 @@ On 2 September 2026 after the PWA authentication integration:
 
 ## Known gaps
 
-- Remaining mock-only admin areas include the dashboard summary, general Reports and Settings screens.
+- Admin dashboard UI still uses mocks; wire it to `GET /api/dashboard` in a separate frontend task.
+- Remaining mock-only admin areas include general Reports and Settings screens.
 - Programme-wide facility KPI totals.
 - Programme-wide enrollment totals are unavailable from cursor metadata.
 - Admin enrollment editing, status changes and deletion are unavailable in the production API.
@@ -324,7 +326,7 @@ On 2 September 2026 after the PWA authentication integration:
 
 1. Test admin enrollment filtering, document links, ID-card PDFs and Excel downloads with a production admin account.
 2. Agree the enrollment API gaps in `docs/enrollment-backend-feedback.md` with the backend team.
-3. Integrate the remaining dashboard and general report contracts when their production endpoints are ready.
+3. Wire the admin dashboard UI to `GET /api/dashboard` (remove State filter; keep View All links to module pages).
 4. Complete real-device PWA browser testing.
 
 ## Handoff update checklist

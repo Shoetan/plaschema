@@ -16,5 +16,6 @@ Current modules:
 - `enrollment` — beneficiary enrollment (field worker + admin), offline-first idempotency, cursor list with ID-card filters (`printedStatus`, `printCount`, etc.), async ID card PDF generation (BullMQ, 9-up A4), Railway presigned file URLs, activity log writes on create/print/status change, admin/field-worker detail endpoint, admin bulk/single activate-deactivate
 - `capitation` — monthly capitation generation for all active facilities (rate × active enrollment count), append-only runs with latest-run listing, admin preview/generate/list endpoints
 - `activity-log` — ward-scoped activity/audit log (enrollment create/print initially)
+- `dashboard` — admin programme overview (`GET /dashboard`) with LGA/ward/period/trend filters and aggregate KPI/trend/breakdown/preview payload
 
 Wire new features through `src/composition/app.module.ts`.
