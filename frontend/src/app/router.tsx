@@ -30,6 +30,7 @@ export const router = createBrowserRouter([
       { path: 'capitation', handle: { title: 'Capitation' }, lazy: async () => ({ Component: (await import('@/routes/capitation')).CapitationPage }) },
       { path: 'id-cards', handle: { title: 'ID Cards' }, lazy: async () => ({ Component: (await import('@/routes/id-cards')).IdCardsPage }) },
       { path: 'reports', handle: { title: 'Reports' }, lazy: async () => ({ Component: (await import('@/routes/reports')).ReportsPage }) },
+      { path: 'files', handle: { title: 'Files' }, lazy: async () => ({ Component: (await import('@/routes/files')).FilesPage }) },
       { path: 'settings', handle: { title: 'Settings' }, lazy: async () => ({ Component: (await import('@/routes/settings')).SettingsPage }) },
     ],
   },

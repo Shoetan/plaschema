@@ -1,4 +1,4 @@
-import { RefreshCw, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/admin/status-badge'
 import { cardShadow, tdCell, thCell } from '@/components/admin/styles'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useEnrollments } from '@/features/enrollments/hooks'
 
 import { useWardDetail } from '../hooks'
 import type { WardActivityEntry, WardStatus } from '../types'
@@ -77,6 +78,12 @@ export function WardDetailView({ wardId }: WardDetailViewProps) {
   const [editOpen, setEditOpen] = useState(false)
   const [assignmentOpen, setAssignmentOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [beneficiaryCursors, setBeneficiaryCursors] = useState<Array<string | undefined>>([undefined])
+  const [beneficiaryPage, setBeneficiaryPage] = useState(0)
+  const beneficiaryQuery = useEnrollments(
+    { cursor: beneficiaryCursors[beneficiaryPage], limit: 25, wardId },
+    tab === 'Beneficiaries',
+  )
 
   if (detailQuery.isPending) return <DetailSkeleton />
 
@@ -97,10 +104,22 @@ export function WardDetailView({ wardId }: WardDetailViewProps) {
   const { ward, stats, enrollmentTrend, fieldWorkers, healthFacilities, activityLog } = detailQuery.data
   const enrollmentActivity = activityLog.filter((entry) => entry.category === 'enrollment')
   const maxTrend = Math.max(1, ...enrollmentTrend.map((point) => point.count))
+  const beneficiaries = beneficiaryQuery.data?.items ?? []
+  const beneficiaryMeta = beneficiaryQuery.data?.meta
 
   async function openAssignment() {
     await detailQuery.refetch()
     setAssignmentOpen(true)
+  }
+
+  function nextBeneficiaryPage() {
+    if (!beneficiaryMeta?.hasMore || !beneficiaryMeta.nextCursor) return
+    setBeneficiaryCursors((current) => {
+      const next = current.slice(0, beneficiaryPage + 1)
+      next[beneficiaryPage + 1] = beneficiaryMeta.nextCursor ?? undefined
+      return next
+    })
+    setBeneficiaryPage((current) => current + 1)
   }
 
   return (
@@ -135,10 +154,7 @@ export function WardDetailView({ wardId }: WardDetailViewProps) {
 
       <div className="overflow-x-auto border-b border-border">
         <div className="flex min-w-max items-center gap-1" role="tablist" aria-label="Ward details">
-          {tabs.map((item) => {
-            const disabled = item === 'Beneficiaries'
-            return <button aria-controls={`ward-panel-${tabSlug(item)}`} aria-selected={tab === item} className={`border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${tab === item ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'} disabled:cursor-not-allowed disabled:opacity-60`} disabled={disabled} id={`ward-tab-${tabSlug(item)}`} key={item} onClick={() => setTab(item)} role="tab" title={disabled ? 'Beneficiary data will be connected with its own endpoint.' : undefined}>{disabled ? 'Beneficiaries · Not connected' : item}</button>
-          })}
+          {tabs.map((item) => <button aria-controls={`ward-panel-${tabSlug(item)}`} aria-selected={tab === item} className={`border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${tab === item ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`} id={`ward-tab-${tabSlug(item)}`} key={item} onClick={() => setTab(item)} role="tab">{item}</button>)}
         </div>
       </div>
 
@@ -157,6 +173,11 @@ export function WardDetailView({ wardId }: WardDetailViewProps) {
             </div>
           </div>
         )}
+
+        {tab === 'Beneficiaries' && <div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}>
+          {beneficiaryQuery.isError && !beneficiaryQuery.data ? <div className="flex min-h-56 flex-col items-center justify-center gap-3 p-6 text-center" role="alert"><p className="font-semibold">Unable to load ward beneficiaries.</p><Button onClick={() => void beneficiaryQuery.refetch()} variant="outline"><RefreshCw aria-hidden="true" /> Retry</Button></div> : <div className="overflow-x-auto"><table className="w-full"><thead><tr>{['Beneficiary', 'Enrollment ID', 'Category', 'Facility', 'Enrolled', 'Status'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}</tr></thead><tbody>{beneficiaryQuery.isPending ? Array.from({ length: 5 }, (_, row) => <tr key={row}>{Array.from({ length: 6 }, (__, cell) => <td className={tdCell} key={cell}><Skeleton className="h-5 w-full" /></td>)}</tr>) : beneficiaries.map((beneficiary) => <tr className="cursor-pointer hover:bg-muted/40" key={beneficiary.id} onClick={() => navigate(`/admin/beneficiaries/${beneficiary.id}`)}><td className={`${tdCell} font-semibold`}>{beneficiary.beneficiaryName}</td><td className={`${tdCell} font-mono text-xs text-muted-foreground`}>{beneficiary.enrollmentId}</td><td className={`${tdCell} text-muted-foreground`}>{beneficiary.category}</td><td className={`${tdCell} text-muted-foreground`}>{beneficiary.healthFacility.name}</td><td className={`${tdCell} whitespace-nowrap text-muted-foreground`}>{formatDate(beneficiary.createdAt)}</td><td className={tdCell}><StatusBadge status={beneficiary.status[0].toUpperCase() + beneficiary.status.slice(1)} /></td></tr>)}{!beneficiaryQuery.isPending && beneficiaries.length === 0 && <tr><td className="px-6 py-12 text-center text-sm text-muted-foreground" colSpan={6}>No beneficiaries are enrolled in this ward.</td></tr>}</tbody></table></div>}
+          {!beneficiaryQuery.isError && <div className="flex items-center justify-between border-t border-border px-4 py-3"><p className="text-sm text-muted-foreground">Page {beneficiaryPage + 1}</p><div className="flex gap-2"><Button disabled={beneficiaryPage === 0 || beneficiaryQuery.isFetching} onClick={() => setBeneficiaryPage((current) => Math.max(0, current - 1))} variant="outline"><ChevronLeft aria-hidden="true" /> Previous</Button><Button disabled={!beneficiaryMeta?.hasMore || !beneficiaryMeta.nextCursor || beneficiaryQuery.isFetching} onClick={nextBeneficiaryPage} variant="outline">Next <ChevronRight aria-hidden="true" /></Button></div></div>}
+        </div>}
 
         {tab === 'Field Workers' && <div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}><div className="overflow-x-auto"><table className="w-full"><thead><tr>{['Field Worker', 'Phone', 'Enrolled', 'Last Enrollment', 'Last Sync', 'Status'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}</tr></thead><tbody>{fieldWorkers.map((worker) => <tr className="cursor-pointer hover:bg-muted/40" key={worker.id} onClick={() => navigate(`/admin/field-workers/${worker.id}`)}><td className={tdCell}><div className="flex items-center gap-2"><div aria-hidden="true" className="flex size-8 items-center justify-center rounded-full bg-accent text-xs font-semibold text-primary-foreground">{worker.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</div><span className="font-semibold">{worker.name}</span></div></td><td className={`${tdCell} text-muted-foreground`}>{worker.phone ?? 'Not provided'}</td><td className={`${tdCell} font-semibold`}>{worker.enrolled.toLocaleString()}</td><td className={`${tdCell} text-muted-foreground`}>{formatDate(worker.lastEnrollmentAt, true)}</td><td className={`${tdCell} text-muted-foreground`}>{formatDate(worker.lastSyncedAt, true)}</td><td className={tdCell}><StatusBadge status={statusLabel(worker.status)} /></td></tr>)}{fieldWorkers.length === 0 && <tr><td className="px-6 py-10 text-center text-sm text-muted-foreground" colSpan={6}>No field workers are assigned to this ward.</td></tr>}</tbody></table></div></div>}
 

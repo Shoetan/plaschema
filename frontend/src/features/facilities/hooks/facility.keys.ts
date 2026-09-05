@@ -1,4 +1,4 @@
-import type { FacilityBeneficiaryListParams, HealthFacilityListParams } from '../types'
+import type { HealthFacilityListParams } from '../types'
 
 export const facilityKeys = {
   all: ['health-facilities'] as const,
@@ -7,6 +7,4 @@ export const facilityKeys = {
     [...facilityKeys.lists(), params] as const,
   details: () => [...facilityKeys.all, 'detail'] as const,
   detail: (id: string) => [...facilityKeys.details(), id] as const,
-  beneficiaries: (id: string, params: FacilityBeneficiaryListParams) =>
-    [...facilityKeys.detail(id), 'beneficiaries', params] as const,
 }

@@ -1,7 +1,6 @@
 export {
   createFieldWorker,
   fetchAssignableFieldWorkers,
-  fetchFieldWorkerBeneficiaries,
   fetchFieldWorkerDetail,
   fetchFieldWorkers,
   resetFieldWorkerPassword,

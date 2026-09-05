@@ -4,6 +4,8 @@ import { recentActivity, enrollmentTrendData } from "@/mocks/admin-data";
 import { useAdminDataStore } from "@/stores/admin-data.store";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { cardShadow, btnSecondary, thCell, tdCell, tabGroup } from "@/components/admin/styles";
+import { useEnrollments } from "@/features/enrollments/hooks";
+import { formatEnrollmentDate, statusLabel } from "@/features/enrollments/utils";
 
 const selectCls = "border border-border rounded-[8px] px-3 py-2 text-sm font-medium text-foreground bg-card outline-none";
 
@@ -22,8 +24,8 @@ export function DashboardView() {
   const navigate = useNavigate();
   const communities = useAdminDataStore((store) => store.communities);
   const fieldWorkers = useAdminDataStore((store) => store.fieldWorkers);
-  const beneficiaries = useAdminDataStore((store) => store.beneficiaries);
   const facilities = useAdminDataStore((store) => store.facilities);
+  const recentEnrollmentsQuery = useEnrollments({ limit: 5 });
   const [trendPeriod, setTrendPeriod] = useState("Monthly");
   const [filterState, setFilterState] = useState("All States");
   const [filterLGA, setFilterLGA] = useState("All LGAs");
@@ -44,7 +46,7 @@ export function DashboardView() {
   }, {} as Record<string, number>);
   const lgaList = Object.entries(lgaData).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const maxLga = lgaList[0]?.[1] ?? 1;
-  const recentBeneficiaries = [...beneficiaries].slice(-5).reverse();
+  const recentBeneficiaries = recentEnrollmentsQuery.data?.items ?? [];
 
   return (
     <div
@@ -489,16 +491,19 @@ export function DashboardView() {
                   className="hover:bg-muted/40 cursor-pointer transition-colors"
                   onClick={() => navigate(`/admin/beneficiaries/${b.id}`)}
                 >
-                  <td className={`${tdCell} font-semibold`}>{b.name}</td>
+                  <td className={`${tdCell} font-semibold`}>{b.beneficiaryName}</td>
                   <td className={`${tdCell} text-muted-foreground font-mono text-[13px]`}>{b.enrollmentId}</td>
                   <td className={`${tdCell} text-muted-foreground`}>{b.category}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{b.lga}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{b.ward}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{b.facility}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{b.dateEnrolled}</td>
-                  <td className={tdCell}><StatusBadge status={b.status} /></td>
+                  <td className={`${tdCell} text-muted-foreground`}>{b.healthFacility.ward.lga}</td>
+                  <td className={`${tdCell} text-muted-foreground`}>{b.healthFacility.ward.name}</td>
+                  <td className={`${tdCell} text-muted-foreground`}>{b.healthFacility.name}</td>
+                  <td className={`${tdCell} text-muted-foreground`}>{formatEnrollmentDate(b.createdAt)}</td>
+                  <td className={tdCell}><StatusBadge status={statusLabel(b.status)} /></td>
                 </tr>
               ))}
+              {!recentEnrollmentsQuery.isPending && recentBeneficiaries.length === 0 && (
+                <tr><td className="px-6 py-10 text-center text-sm text-muted-foreground" colSpan={8}>No recent enrollments are available.</td></tr>
+              )}
             </tbody>
           </table>
         </div>

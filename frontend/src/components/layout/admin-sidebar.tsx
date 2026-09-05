@@ -2,11 +2,11 @@ import {
   Building2,
   CreditCard,
   FileText,
+  FolderOpen,
   HeartPulse,
   Home,
   LogOut,
   MapPin,
-  Settings,
   Users,
   X,
 } from 'lucide-react'
@@ -130,15 +130,15 @@ export function AdminSidebar({
           </div>
         </nav>
 
-        <nav aria-label="Preferences">
+        <nav aria-label="Generated files">
           <p className="px-3 pb-3 text-xs font-semibold text-muted-foreground">
-            PREFERENCE
+            FILES
           </p>
           <SidebarLink
-            icon={Settings}
-            label="Settings"
+            icon={FolderOpen}
+            label="Files"
             onSelect={onMobileClose}
-            path="/admin/settings"
+            path="/admin/files"
           />
         </nav>
       </div>
