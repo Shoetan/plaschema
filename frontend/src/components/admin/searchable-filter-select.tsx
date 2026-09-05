@@ -17,6 +17,9 @@ interface SearchableFilterSelectProps {
   options: SearchableFilterOption[]
   search: string
   loading?: boolean
+  hasMore?: boolean
+  loadingMore?: boolean
+  onLoadMore?: () => void
   onSearchChange: (value: string) => void
   onSelect: (option: SearchableFilterOption | null) => void
 }
@@ -30,6 +33,9 @@ export function SearchableFilterSelect({
   options,
   search,
   loading = false,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
   onSearchChange,
   onSelect,
 }: SearchableFilterSelectProps) {
@@ -97,6 +103,7 @@ export function SearchableFilterSelect({
                 </Popover.Close>
               ))}
               {!loading && options.length === 0 && <p className="px-3 py-6 text-center text-sm font-normal text-muted-foreground">{emptyText}</p>}
+              {hasMore && onLoadMore && <button className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50" disabled={loadingMore} onClick={onLoadMore} type="button">{loadingMore ? 'Loading…' : 'Load more'}</button>}
             </div>
           </Popover.Content>
         </Popover.Portal>
