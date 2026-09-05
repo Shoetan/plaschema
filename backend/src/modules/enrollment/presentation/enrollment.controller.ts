@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   Query,
   UploadedFile,
@@ -38,6 +39,7 @@ import { GetEnrollmentDetailUseCase } from '../application/get-enrollment-detail
 import { GetEnrollmentUseCase } from '../application/get-enrollment.use-case';
 import { ListEnrollmentsUseCase } from '../application/list-enrollments.use-case';
 import { PresignEnrollmentUploadUseCase } from '../application/presign-enrollment-upload.use-case';
+import { UpdateEnrollmentStatusUseCase } from '../application/update-enrollment-status.use-case';
 import {
   CreateEnrollmentDto,
   CreateEnrollmentResponseDto,
@@ -52,6 +54,9 @@ import {
   GenerateIdCardsRequestDto,
   GenerateIdCardsResponseDto,
   ListEnrollmentsQueryDto,
+  PatchEnrollmentStatusRequestDto,
+  UpdateEnrollmentStatusRequestDto,
+  UpdateEnrollmentStatusResponseDto,
 } from './enrollment.dto';
 
 @ApiTags('enrollments')
@@ -67,6 +72,7 @@ export class EnrollmentController {
     private readonly getEnrollmentDetail: GetEnrollmentDetailUseCase,
     private readonly generateIdCards: GenerateIdCardsUseCase,
     private readonly exportEnrollmentReport: ExportEnrollmentReportUseCase,
+    private readonly updateEnrollmentStatus: UpdateEnrollmentStatusUseCase,
   ) {}
 
   @Post('files/presign-upload')
@@ -171,6 +177,24 @@ export class EnrollmentController {
     return this.exportEnrollmentReport.execute(user, body);
   }
 
+  @Post('status')
+  @Roles('admin')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Bulk activate or deactivate enrollments (1–100 IDs). Returns updated + skipped (not_found / unchanged / invalid_transition).',
+  })
+  @ApiOkResponse({ type: UpdateEnrollmentStatusResponseDto })
+  updateStatusBulk(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: UpdateEnrollmentStatusRequestDto,
+  ) {
+    return this.updateEnrollmentStatus.execute(user, {
+      enrollmentIds: body.enrollmentIds,
+      status: body.status,
+    });
+  }
+
   @Post()
   @Roles('admin', 'field_worker')
   @ApiOperation({
@@ -269,6 +293,21 @@ export class EnrollmentController {
     @Param('id', UuidV7Pipe) id: string,
   ) {
     return this.getEnrollmentDetail.execute(user, id);
+  }
+
+  @Patch(':id')
+  @Roles('admin')
+  @ApiOperation({
+    summary:
+      'Activate or deactivate a single enrollment (active / disabled). Deceased cannot be changed here.',
+  })
+  @ApiOkResponse({ type: UpdateEnrollmentStatusResponseDto })
+  updateStatusOne(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', UuidV7Pipe) id: string,
+    @Body() body: PatchEnrollmentStatusRequestDto,
+  ) {
+    return this.updateEnrollmentStatus.executeOne(user, id, body.status);
   }
 
   @Get(':id')

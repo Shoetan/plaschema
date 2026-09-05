@@ -25,6 +25,7 @@ import {
 import { ListEnrollmentsUseCase } from './application/list-enrollments.use-case';
 import { PresignEnrollmentUploadUseCase } from './application/presign-enrollment-upload.use-case';
 import { ResolveEnrollmentListFiltersUseCase } from './application/resolve-enrollment-list-filters';
+import { UpdateEnrollmentStatusUseCase } from './application/update-enrollment-status.use-case';
 import {
   BullEnrollmentExportQueueAdapter,
   EnrollmentExportProcessor,
@@ -73,6 +74,7 @@ import { EnrollmentController } from './presentation/enrollment.controller';
     CheckEnrollmentDuplicateUseCase,
     GenerateIdCardsUseCase,
     ExportEnrollmentReportUseCase,
+    UpdateEnrollmentStatusUseCase,
     IdCardPdfRenderer,
     IdCardGenerationProcessor,
     EnrollmentReportXlsxRenderer,

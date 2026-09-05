@@ -291,8 +291,8 @@ model Enrollment {
   genotype      Genotype?
   idType        IdDocumentType
 
-  nextOfKinFullName      String
-  emergencyPhone         String
+  nextOfKinFullName      String?
+  emergencyPhone         String?
   nextOfKinRelationship  NextOfKinRelationship?
 
   stateOfResidence  String @default("Plateau")

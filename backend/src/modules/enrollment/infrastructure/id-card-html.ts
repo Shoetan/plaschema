@@ -5,7 +5,7 @@ import type { BloodGroup } from '../domain/enrollment';
 export type IdCardRenderInput = {
   enrollmentId: string;
   fullName: string;
-  emergencyPhone: string;
+  emergencyPhone: string | null;
   bloodGroup: BloodGroup | null;
   facilityName: string;
   passport: Buffer | null;
@@ -102,7 +102,7 @@ function prepareCards(cards: IdCardRenderInput[]): PreparedCard[] {
   return cards.map((card) => ({
     enrollmentId: card.enrollmentId,
     fullName: card.fullName.toUpperCase(),
-    emergencyPhone: card.emergencyPhone,
+    emergencyPhone: card.emergencyPhone?.trim() || '—',
     bloodGroupLabel: bloodGroupLabel(card.bloodGroup),
     facilityName: card.facilityName.toUpperCase(),
     passportDataUri: card.passport ? toDataUri(card.passport) : null,

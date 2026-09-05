@@ -38,8 +38,8 @@ export type CreateEnrollmentRecordInput = {
   bloodGroup: Enrollment['bloodGroup'];
   genotype: Enrollment['genotype'];
   idType: Enrollment['idType'];
-  nextOfKinFullName: string;
-  emergencyPhone: string;
+  nextOfKinFullName: string | null;
+  emergencyPhone: string | null;
   nextOfKinRelationship: Enrollment['nextOfKinRelationship'];
   stateOfResidence: string;
   lgaOfResidence: string;
@@ -71,10 +71,19 @@ export type IdCardEnrollmentData = {
   firstName: string;
   lastName: string;
   middleName: string | null;
-  emergencyPhone: string;
+  emergencyPhone: string | null;
   bloodGroup: Enrollment['bloodGroup'];
   passportObjectKey: string;
   facilityName: string;
+};
+
+export type EnrollmentStatusRow = {
+  id: string;
+  enrollmentId: string;
+  status: EnrollmentStatus;
+  wardId: string;
+  firstName: string;
+  lastName: string;
 };
 
 export type PaginatedEnrollments = CursorPage<EnrollmentListItem>;
@@ -90,6 +99,8 @@ export interface EnrollmentRepository {
     dateOfBirth: Date;
   }): Promise<Enrollment | null>;
   findManyByIds(ids: string[]): Promise<IdCardEnrollmentData[]>;
+  findManyStatusByIds(ids: string[]): Promise<EnrollmentStatusRow[]>;
+  updateStatus(ids: string[], status: EnrollmentStatus): Promise<number>;
   markPrinted(ids: string[], printedAt: Date): Promise<void>;
   list(query: ListEnrollmentsQuery): Promise<PaginatedEnrollments>;
   iterateForExport(

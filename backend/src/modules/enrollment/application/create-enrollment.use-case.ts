@@ -54,8 +54,8 @@ export type CreateEnrollmentInput = {
   bloodGroup?: Enrollment['bloodGroup'];
   genotype?: Enrollment['genotype'];
   idType: Enrollment['idType'];
-  nextOfKinFullName: string;
-  emergencyPhone: string;
+  nextOfKinFullName?: string | null;
+  emergencyPhone?: string | null;
   nextOfKinRelationship?: Enrollment['nextOfKinRelationship'];
   stateOfResidence?: string;
   lgaOfResidence: string;
@@ -223,8 +223,8 @@ export class CreateEnrollmentUseCase {
         bloodGroup: input.bloodGroup ?? null,
         genotype: input.genotype ?? null,
         idType: input.idType,
-        nextOfKinFullName: toTitleCase(input.nextOfKinFullName),
-        emergencyPhone: input.emergencyPhone.trim(),
+        nextOfKinFullName: optionalTrimmedTitle(input.nextOfKinFullName),
+        emergencyPhone: optionalTrimmed(input.emergencyPhone),
         nextOfKinRelationship: input.nextOfKinRelationship ?? null,
         stateOfResidence: normalizePlaceName(
           input.stateOfResidence ?? 'Plateau',
@@ -281,4 +281,14 @@ export class CreateEnrollmentUseCase {
 
 function collapseAddress(value: string): string {
   return value.trim().replace(/\s+/g, ' ');
+}
+
+function optionalTrimmed(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function optionalTrimmedTitle(value: string | null | undefined): string | null {
+  const trimmed = optionalTrimmed(value);
+  return trimmed ? toTitleCase(trimmed) : null;
 }
