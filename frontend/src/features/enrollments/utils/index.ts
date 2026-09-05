@@ -1,1 +1,1 @@
-export { downloadFromUrl, formatEnrollmentDate, PLATEAU_LGAS, readableValue, statusLabel } from './enrollment-format'
+export { availableEnrollmentStatusTargets, downloadFromUrl, formatEnrollmentDate, PLATEAU_LGAS, readableValue, statusLabel } from './enrollment-format'

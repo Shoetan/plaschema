@@ -1,4 +1,7 @@
 export { EnrollmentDetailView } from './enrollment-detail-view'
+export { EnrollmentRowActions } from './enrollment-row-actions'
+export { EnrollmentStatusDialog } from './enrollment-status-dialog'
+export type { EnrollmentStatusAction } from './enrollment-status-dialog'
 export { EnrollmentsView } from './enrollments-view'
 export { FilesView } from './files-view'
 export { IdCardGenerationView } from './id-card-generation-view'

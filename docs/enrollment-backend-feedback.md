@@ -14,11 +14,11 @@ The admin enrollment list, detail, ID-card generation, Excel export and generate
 
 ## Gaps to discuss
 
-### 1. Admins cannot change an enrollment
+### 1. Status changes are resolved; general editing and deletion remain unavailable
 
-There is no update, status-change or delete endpoint for enrollments. The admin UI therefore shows enrollment status as read-only and does not show the old mock Edit, Activate, Deactivate or Delete actions.
+Admins can now activate or deactivate one enrollment with `PATCH /api/enrollments/{id}` and up to 100 enrollments with `POST /api/enrollments/status`. The admin UI integrates both endpoints and reports partial bulk results.
 
-If admins should manage these later, the backend needs clear endpoints and rules for which fields and status changes are allowed.
+There is still no general record-editing or deletion endpoint. Those actions remain unavailable in the admin UI.
 
 ### 2. Export filters do not fully match list filters
 

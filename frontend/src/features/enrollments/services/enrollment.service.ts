@@ -1,6 +1,7 @@
-import { _get, _post, type ApiResponse, type CursorPaginationMeta } from '@/api'
+import { _get, _patch, _post, type ApiResponse, type CursorPaginationMeta } from '@/api'
 
 import type {
+  BulkEnrollmentStatusPayload,
   CreateFileJobResult,
   EnrollmentDetail,
   EnrollmentDetailApi,
@@ -8,11 +9,13 @@ import type {
   EnrollmentListParams,
   EnrollmentListResult,
   EnrollmentRecord,
+  EnrollmentStatusResult,
   ExportEnrollmentPayload,
   FileJob,
   FileJobDownload,
   FileJobListParams,
   FileJobListResult,
+  SingleEnrollmentStatusPayload,
 } from '../types'
 
 export async function fetchEnrollments(params: EnrollmentListParams): Promise<EnrollmentListResult> {
@@ -47,6 +50,22 @@ export async function fetchEnrollmentDetail(id: string): Promise<EnrollmentDetai
     overview: detailResponse.data.data.overview,
     activityLog: detailResponse.data.data.activityLog,
   }
+}
+
+export async function updateEnrollmentStatus({ id, status }: SingleEnrollmentStatusPayload): Promise<EnrollmentStatusResult> {
+  const response = await _patch<ApiResponse<EnrollmentStatusResult>, { status: SingleEnrollmentStatusPayload['status'] }>(
+    `/enrollments/${id}`,
+    { status },
+  )
+  return response.data.data
+}
+
+export async function updateEnrollmentStatuses(payload: BulkEnrollmentStatusPayload): Promise<EnrollmentStatusResult> {
+  const response = await _post<ApiResponse<EnrollmentStatusResult>, BulkEnrollmentStatusPayload>(
+    '/enrollments/status',
+    payload,
+  )
+  return response.data.data
 }
 
 export async function generateIdCards(enrollmentIds: string[]): Promise<CreateFileJobResult> {

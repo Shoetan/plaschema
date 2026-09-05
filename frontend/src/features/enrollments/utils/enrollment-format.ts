@@ -20,6 +20,13 @@ export function statusLabel(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
+export function availableEnrollmentStatusTargets(status: EnrollmentStatus): EnrollmentStatusTarget[] {
+  if (status === 'pending') return ['active', 'disabled']
+  if (status === 'active') return ['disabled']
+  if (status === 'disabled') return ['active']
+  return []
+}
+
 export function downloadFromUrl(url: string, filename: string): void {
   const anchor = document.createElement('a')
   anchor.href = url
@@ -30,3 +37,4 @@ export function downloadFromUrl(url: string, filename: string): void {
   anchor.click()
   anchor.remove()
 }
+import type { EnrollmentStatus, EnrollmentStatusTarget } from '../types'
