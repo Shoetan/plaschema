@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import { getApiErrorMessage } from '@/api'
 import { StatusBadge } from '@/components/admin/status-badge'
+import { SearchableFilterSelect } from '@/components/admin/searchable-filter-select'
 import { btnPrimary, btnSecondary, cardShadow, searchBar, tdCell, thCell } from '@/components/admin/styles'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -22,7 +23,6 @@ import { BENEFICIARY_CATEGORIES, formatEnrollmentDate, PLATEAU_LGAS, statusLabel
 import { EnrollmentRowActions } from './enrollment-row-actions'
 import { EnrollmentStatusDialog, type EnrollmentStatusAction } from './enrollment-status-dialog'
 import { JobProgressPanel } from './job-progress-panel'
-import { SearchableFilterSelect } from './searchable-filter-select'
 
 type StatusFilter = 'all' | EnrollmentStatus
 const MAX_STATUS_SELECTION = 100

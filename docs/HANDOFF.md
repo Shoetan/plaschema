@@ -26,8 +26,8 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Feature folders live under `frontend/src/features/`.
 - Thin route files live under `frontend/src/routes/`.
 - Admin designs and navigation are implemented.
-- Dashboard and most feature data remain mock-only on the admin UI; ward and health-facility admin screens are API-backed.
-- Backend `GET /api/dashboard` (admin-only) returns a single overview payload for the dashboard screens: KPIs, enrollment trend, recent activity, category/status breakdowns, top wards (10), all LGAs with data, facility overview (top 5), field-worker performance (top 10), and recent enrollments (5). Filters: `lga`, `wardId`, `period` (`7d`|`30d`|`3m`|`6m`|`1y`, default `30d`), `trend` (`daily`|`weekly`|`monthly`, default `monthly`). No state filter.
+- The admin dashboard uses `GET /api/dashboard` for its KPIs, enrollment trend, recent activity, category/status breakdowns, ward/LGA rankings, facility overview, field-worker performance and recent enrollments.
+- Dashboard filters are LGA, a searchable Ward, period (`7d`|`30d`|`3m`|`6m`|`1y`, default `30d`) and trend (`daily`|`weekly`|`monthly`, default `monthly`). Plateau is fixed rather than exposed as a State filter; selecting an LGA clears an incompatible Ward and selecting a Ward applies its LGA.
 - Admin login uses `POST /auth/login`; saved sessions are validated with `GET /auth/me`.
 - The typed API layer is split into client, request, error and contract modules and is consumed through feature services and React Query hooks.
 - Authentication is admin-only. Zustand owns the access token, authenticated user and session status.
@@ -64,7 +64,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Admin CBHI Enrolments now uses `GET /enrollments` with cursor pagination and production search, status, category, printed-state, LGA, ward, facility, field-worker, date and age filters.
 - Enrollment detail combines `GET /enrollments/:id` with `GET /enrollments/:id/detail` to show the complete beneficiary record, temporary document links and real activity history.
 - Enrollment activation and deactivation use `PATCH /enrollments/:id` for row/detail actions and `POST /enrollments/status` for batches of up to 100 unique IDs. Confirmations show partial-result counts for not-found, unchanged and invalid transitions; deceased records have no single-record action.
-- Ward, facility, field-worker and dashboard enrollment rows share the enrollment feature query and open the API-backed detail route.
+- Ward, facility, field-worker and dashboard enrollment rows open the API-backed enrollment detail route.
 - ID Cards queues one to nine records through `POST /enrollments/id-cards/generate`. Excel exports use `POST /enrollments/reports/export`, reuse the supported filters selected on the enrollment list and summarize their scope before submission. An unfiltered export requires an explicit all-enrollments confirmation, while unsupported search and printed-state filters are explained before export.
 - Enrollment Ward, Facility and Field Worker filters use single searchable selectors instead of separate search inputs and dropdowns. Changing the Ward clears the selected Facility to prevent incompatible filters.
 - Admin enrollment and ID-card category filters use the same fixed programme categories as the PWA: IDPs, Elderly 65+, and Indigents / Very Poor / Others.
@@ -216,6 +216,15 @@ At commit `a73ed09`:
 
 After later edits, rerun the relevant checks before updating this section.
 
+On 5 September 2026 after the admin dashboard integration:
+
+- Every dashboard section is backed by the single production `GET /api/dashboard` response; mock dashboard data, mock-store calculations and the separate recent-enrollments request were removed.
+- LGA, searchable Ward, rolling period and trend filters use the production query contract. The unsupported State filter was removed.
+- Initial loading, background refresh, retained-data errors, retry and per-section empty states are implemented, including safe zero-value chart calculations and nullable actor/activity dates.
+- The searchable entity selector and Plateau LGA list were promoted to shared admin utilities for enrollment and dashboard filters.
+- Admin lint, TypeScript and production build pass. Static checks confirm the dashboard contains no mock imports, raw API calls or `any`.
+- Authenticated production-data and manual visual testing were intentionally left to the user.
+
 On 5 September 2026 after the admin enrollment status integration:
 
 - Typed service and React Query mutation layers use the production single and bulk activation/deactivation endpoints and invalidate enrollment list/detail/activity data after successful changes.
@@ -336,7 +345,6 @@ On 2 September 2026 after the PWA authentication integration:
 
 ## Known gaps
 
-- Admin dashboard UI still uses mocks; wire it to `GET /api/dashboard` in a separate frontend task.
 - Remaining mock-only admin areas include general Reports and Settings screens.
 - Programme-wide facility KPI totals.
 - Programme-wide enrollment totals are unavailable from cursor metadata.
@@ -350,8 +358,7 @@ On 2 September 2026 after the PWA authentication integration:
 
 1. Test admin enrollment filtering, document links, ID-card PDFs and Excel downloads with a production admin account.
 2. Agree the remaining enrollment editing, deletion, export and reporting gaps in `docs/enrollment-backend-feedback.md` with the backend team.
-3. Wire the admin dashboard UI to `GET /api/dashboard` (remove State filter; keep View All links to module pages).
-4. Complete real-device PWA browser testing.
+3. Complete real-device PWA browser testing.
 
 ## Handoff update checklist
 
