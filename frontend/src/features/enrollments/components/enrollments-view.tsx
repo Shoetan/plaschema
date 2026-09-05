@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Download, IdCard, LoaderCircle, RefreshCw, SlidersHorizontal, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, IdCard, LoaderCircle, Power, PowerOff, RefreshCw, SlidersHorizontal, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -7,6 +7,7 @@ import { getApiErrorMessage } from '@/api'
 import { StatusBadge } from '@/components/admin/status-badge'
 import { btnPrimary, btnSecondary, cardShadow, searchBar, tdCell, thCell } from '@/components/admin/styles'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useHealthFacilities } from '@/features/facilities/hooks'
 import { useFieldWorkers } from '@/features/field-workers/hooks'
@@ -14,11 +15,14 @@ import { useWardOptions } from '@/features/wards/hooks'
 import type { WardListItem } from '@/features/wards/types'
 
 import { useExportEnrollments, useGenerateIdCards, useEnrollments } from '../hooks'
-import type { EnrollmentListItem, EnrollmentStatus, ExportEnrollmentPayload, PrintedStatus } from '../types'
+import type { EnrollmentListItem, EnrollmentStatus, EnrollmentStatusTarget, ExportEnrollmentPayload, PrintedStatus } from '../types'
 import { formatEnrollmentDate, PLATEAU_LGAS, statusLabel } from '../utils'
+import { EnrollmentRowActions } from './enrollment-row-actions'
+import { EnrollmentStatusDialog, type EnrollmentStatusAction } from './enrollment-status-dialog'
 import { JobProgressPanel } from './job-progress-panel'
 
 type StatusFilter = 'all' | EnrollmentStatus
+const MAX_STATUS_SELECTION = 100
 
 export function EnrollmentsView() {
   const navigate = useNavigate()
@@ -44,6 +48,7 @@ export function EnrollmentsView() {
   const [selected, setSelected] = useState<Map<string, EnrollmentListItem>>(new Map())
   const [exportOpen, setExportOpen] = useState(false)
   const [activeJobId, setActiveJobId] = useState<string | null>(null)
+  const [statusAction, setStatusAction] = useState<EnrollmentStatusAction | null>(null)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -89,6 +94,8 @@ export function EnrollmentsView() {
   const exportMutation = useExportEnrollments()
   const rows = query.data?.items ?? []
   const meta = query.data?.meta
+  const selectedOnPage = rows.filter((row) => selected.has(row.id))
+  const allOnPageSelected = rows.length > 0 && selectedOnPage.length === rows.length
 
   function resetPage() { setCursors([undefined]); setPageIndex(0) }
   function nextPage() {
@@ -100,10 +107,34 @@ export function EnrollmentsView() {
     setSelected((current) => {
       const next = new Map(current)
       if (next.has(row.id)) next.delete(row.id)
-      else if (next.size < 9) next.set(row.id, row)
-      else toast.error('You can generate up to 9 ID cards at a time.')
+      else if (next.size < MAX_STATUS_SELECTION) next.set(row.id, row)
+      else toast.error('You can update up to 100 enrollments at a time.')
       return next
     })
+  }
+  function toggleCurrentPage() {
+    setSelected((current) => {
+      const next = new Map(current)
+      if (allOnPageSelected) {
+        for (const row of rows) next.delete(row.id)
+        return next
+      }
+      const unselected = rows.filter((row) => !next.has(row.id))
+      const available = MAX_STATUS_SELECTION - next.size
+      for (const row of unselected.slice(0, available)) next.set(row.id, row)
+      if (unselected.length > available) toast.error('Only the first 100 selected enrollments were kept.')
+      return next
+    })
+  }
+  function requestBulkStatus(target: EnrollmentStatusTarget) {
+    setStatusAction({ bulk: true, enrollmentIds: [...selected.keys()], subject: `${selected.size} selected enrollments`, target })
+  }
+  function requestSingleStatus(row: EnrollmentListItem, target: EnrollmentStatusTarget) {
+    setStatusAction({ bulk: false, enrollmentIds: [row.id], subject: `${row.beneficiaryName} (${row.enrollmentId})`, target })
+  }
+  function completeStatusAction() {
+    if (statusAction?.bulk) setSelected(new Map())
+    else if (statusAction) setSelected((current) => { const next = new Map(current); next.delete(statusAction.enrollmentIds[0]); return next })
   }
   function clearFilters() {
     setSearch(''); setDebouncedSearch(''); setStatus('all'); setPrintedStatus('all'); setCategory(''); setLga('')
@@ -148,7 +179,7 @@ export function EnrollmentsView() {
 
       {activeJobId && <JobProgressPanel jobId={activeJobId} onClose={() => setActiveJobId(null)} />}
 
-      {selected.size > 0 && <div className="flex flex-wrap items-center gap-3 rounded-xl bg-foreground px-4 py-3 text-background"><IdCard className="size-5 text-primary" aria-hidden="true" /><p className="flex-1 text-sm font-semibold">{selected.size} of 9 beneficiaries selected</p><Button disabled={generateCards.isPending} onClick={() => void handleCards()} size="sm">{generateCards.isPending ? 'Queueing…' : 'Generate ID cards'}</Button><button className="text-xs text-muted-foreground hover:text-background" onClick={() => setSelected(new Map())} type="button">Clear selection</button></div>}
+      {selected.size > 0 && <div className="flex flex-wrap items-center gap-3 rounded-xl bg-foreground px-4 py-3 text-background"><IdCard className="size-5 text-primary" aria-hidden="true" /><div className="min-w-48 flex-1"><p className="text-sm font-semibold">{selected.size} of 100 enrollments selected</p>{selected.size > 9 && <p className="mt-0.5 text-xs text-muted-foreground">Status changes support this selection. ID cards are limited to 9 at a time.</p>}</div><Button onClick={() => requestBulkStatus('active')} size="sm"><Power aria-hidden="true" /> Activate selected</Button><Button onClick={() => requestBulkStatus('disabled')} size="sm" variant="destructive"><PowerOff aria-hidden="true" /> Deactivate selected</Button><Button disabled={generateCards.isPending || selected.size > 9} onClick={() => void handleCards()} size="sm" variant="secondary">{generateCards.isPending ? 'Queueing…' : 'Generate ID cards'}</Button><button className="text-xs text-muted-foreground hover:text-background" onClick={() => setSelected(new Map())} type="button">Clear selection</button></div>}
 
       <div className={`rounded-xl bg-card p-4 ${cardShadow}`}>
         <div className="flex flex-wrap items-center gap-3">
@@ -177,11 +208,12 @@ export function EnrollmentsView() {
       </div>
 
       <div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}>
-        {query.isError && !query.data ? <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-6 text-center" role="alert"><p className="font-semibold">Unable to load enrollments.</p><p className="text-sm text-muted-foreground">{getApiErrorMessage(query.error, 'Check your connection and try again.')}</p><Button onClick={() => void query.refetch()} variant="outline"><RefreshCw aria-hidden="true" /> Retry</Button></div> : <div className="overflow-x-auto"><table className="w-full"><thead><tr><th className={`${thCell} w-12`}>Select</th>{['Enrollment ID', 'Beneficiary', 'Category', 'Facility', 'Ward / LGA', 'Enrolled', 'Printed', 'Status'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}</tr></thead><tbody>{query.isPending ? Array.from({ length: 7 }, (_, row) => <tr key={row}>{Array.from({ length: 9 }, (__, cell) => <td className={tdCell} key={cell}><Skeleton className="h-5 w-full" /></td>)}</tr>) : rows.map((row) => <tr className="cursor-pointer hover:bg-muted/40" key={row.id} onClick={() => navigate(`/admin/beneficiaries/${row.id}`)}><td className={tdCell} onClick={(event) => event.stopPropagation()}><input aria-label={`Select ${row.beneficiaryName}`} checked={selected.has(row.id)} disabled={!selected.has(row.id) && selected.size >= 9} onChange={() => toggle(row)} type="checkbox" /></td><td className={`${tdCell} whitespace-nowrap font-mono text-xs text-muted-foreground`}>{row.enrollmentId}</td><td className={`${tdCell} font-semibold`}>{row.beneficiaryName}</td><td className={`${tdCell} text-muted-foreground`}>{row.category}</td><td className={`${tdCell} text-muted-foreground`}>{row.healthFacility.name}</td><td className={`${tdCell} text-muted-foreground`}>{row.healthFacility.ward.name}<br /><span className="text-xs">{row.healthFacility.ward.lga}</span></td><td className={`${tdCell} whitespace-nowrap text-muted-foreground`}>{formatEnrollmentDate(row.createdAt)}</td><td className={`${tdCell} whitespace-nowrap text-muted-foreground`}>{row.hasPrinted ? `${row.printCount} time${row.printCount === 1 ? '' : 's'}` : 'Not printed'}</td><td className={tdCell}><StatusBadge status={statusLabel(row.status)} /></td></tr>)}{!query.isPending && rows.length === 0 && <tr><td className="px-6 py-16 text-center" colSpan={9}><p className="font-semibold">No enrollments match these filters.</p><p className="mt-1 text-sm text-muted-foreground">Clear some filters and try again.</p></td></tr>}</tbody></table></div>}
+        {query.isError && !query.data ? <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-6 text-center" role="alert"><p className="font-semibold">Unable to load enrollments.</p><p className="text-sm text-muted-foreground">{getApiErrorMessage(query.error, 'Check your connection and try again.')}</p><Button onClick={() => void query.refetch()} variant="outline"><RefreshCw aria-hidden="true" /> Retry</Button></div> : <div className="overflow-x-auto"><table className="w-full"><thead><tr><th className={`${thCell} w-12`}><Checkbox aria-label="Select current page" checked={allOnPageSelected ? true : selectedOnPage.length > 0 ? 'indeterminate' : false} disabled={rows.length === 0} onCheckedChange={toggleCurrentPage} /></th>{['Enrollment ID', 'Beneficiary', 'Category', 'Facility', 'Ward / LGA', 'Enrolled', 'Printed', 'Status', 'Actions'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}</tr></thead><tbody>{query.isPending ? Array.from({ length: 7 }, (_, row) => <tr key={row}>{Array.from({ length: 10 }, (__, cell) => <td className={tdCell} key={cell}><Skeleton className="h-5 w-full" /></td>)}</tr>) : rows.map((row) => <tr className="cursor-pointer hover:bg-muted/40" key={row.id} onClick={() => navigate(`/admin/beneficiaries/${row.id}`)}><td className={tdCell} onClick={(event) => event.stopPropagation()}><Checkbox aria-label={`Select ${row.beneficiaryName}`} checked={selected.has(row.id)} disabled={!selected.has(row.id) && selected.size >= MAX_STATUS_SELECTION} onCheckedChange={() => toggle(row)} /></td><td className={`${tdCell} whitespace-nowrap font-mono text-xs text-muted-foreground`}>{row.enrollmentId}</td><td className={`${tdCell} font-semibold`}>{row.beneficiaryName}</td><td className={`${tdCell} text-muted-foreground`}>{row.category}</td><td className={`${tdCell} text-muted-foreground`}>{row.healthFacility.name}</td><td className={`${tdCell} text-muted-foreground`}>{row.healthFacility.ward.name}<br /><span className="text-xs">{row.healthFacility.ward.lga}</span></td><td className={`${tdCell} whitespace-nowrap text-muted-foreground`}>{formatEnrollmentDate(row.createdAt)}</td><td className={`${tdCell} whitespace-nowrap text-muted-foreground`}>{row.hasPrinted ? `${row.printCount} time${row.printCount === 1 ? '' : 's'}` : 'Not printed'}</td><td className={tdCell}><StatusBadge status={statusLabel(row.status)} /></td><td className={tdCell} onClick={(event) => event.stopPropagation()}><EnrollmentRowActions enrollment={row} onAction={(target) => requestSingleStatus(row, target)} /></td></tr>)}{!query.isPending && rows.length === 0 && <tr><td className="px-6 py-16 text-center" colSpan={10}><p className="font-semibold">No enrollments match these filters.</p><p className="mt-1 text-sm text-muted-foreground">Clear some filters and try again.</p></td></tr>}</tbody></table></div>}
         {!query.isError && <div className="flex items-center justify-between border-t border-border px-4 py-3"><p className="text-sm text-muted-foreground">Page {pageIndex + 1} · Showing {rows.length} records</p><div className="flex gap-2"><Button disabled={pageIndex === 0 || query.isFetching} onClick={() => setPageIndex((current) => Math.max(0, current - 1))} variant="outline"><ChevronLeft aria-hidden="true" /> Previous</Button><Button disabled={!meta?.hasMore || !meta.nextCursor || query.isFetching} onClick={nextPage} variant="outline">Next <ChevronRight aria-hidden="true" /></Button></div></div>}
       </div>
 
       {exportOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="export-title"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-semibold" id="export-title">Export enrollment report</h2><p className="mt-1 text-sm text-muted-foreground">The Excel report will be prepared in the background and appear under Files.</p></div><button aria-label="Close export dialog" onClick={() => setExportOpen(false)} type="button"><X className="size-5" /></button></div>{(debouncedSearch || printedStatus !== 'all') && <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-semibold">Some visible filters cannot be used for export.</p><p className="mt-1">{[debouncedSearch ? 'The broad search' : '', printedStatus !== 'all' ? 'the printed status' : ''].filter(Boolean).join(' and ')} will not be applied because the export API does not accept {debouncedSearch && printedStatus !== 'all' ? 'them' : 'that filter'}.</p></div>}<p className="mt-4 text-sm text-muted-foreground">Ward, facility, field worker, status, category, LGA, dates and age filters will be included when selected.</p><div className="mt-6 flex justify-end gap-2"><button className={btnSecondary} onClick={() => setExportOpen(false)} type="button">Cancel</button><button className={btnPrimary} disabled={exportMutation.isPending || !filtersValid} onClick={() => void handleExport()} type="button">{exportMutation.isPending ? 'Queueing…' : 'Create Excel file'}</button></div></div></div>}
+      <EnrollmentStatusDialog action={statusAction} onCompleted={completeStatusAction} onOpenChange={(open) => !open && setStatusAction(null)} />
     </div>
   )
 }

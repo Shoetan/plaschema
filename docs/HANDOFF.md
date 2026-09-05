@@ -63,10 +63,11 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Swagger documents a full-run `summary` on the capitation list, but the backend response interceptor currently appears to discard it. The frontend uses it when available and otherwise labels calculated cards as current-page totals. See `docs/capitation-backend-feedback.md`.
 - Admin CBHI Enrolments now uses `GET /enrollments` with cursor pagination and production search, status, category, printed-state, LGA, ward, facility, field-worker, date and age filters.
 - Enrollment detail combines `GET /enrollments/:id` with `GET /enrollments/:id/detail` to show the complete beneficiary record, temporary document links and real activity history.
+- Enrollment activation and deactivation use `PATCH /enrollments/:id` for row/detail actions and `POST /enrollments/status` for batches of up to 100 unique IDs. Confirmations show partial-result counts for not-found, unchanged and invalid transitions; deceased records have no single-record action.
 - Ward, facility, field-worker and dashboard enrollment rows share the enrollment feature query and open the API-backed detail route.
 - ID Cards queues one to nine records through `POST /enrollments/id-cards/generate`. Excel exports use `POST /enrollments/reports/export`; unsupported search and printed-state filters are explained before export.
 - Files replaces Settings in the sidebar and uses `/file-jobs`, `/file-jobs/:id` and `/file-jobs/:id/download` for progress and fresh download links. The Settings route remains available but unlisted.
-- Enrollment creation remains in the field-worker PWA. Admin enrollment status and records are read-only because production exposes no update, status-change or delete endpoint. See `docs/enrollment-backend-feedback.md`.
+- Enrollment creation remains in the field-worker PWA. Admin enrollment details remain read-only apart from activation/deactivation because production exposes no general update or delete endpoint. See `docs/enrollment-backend-feedback.md`.
 
 ### Field-worker PWA
 
@@ -189,7 +190,7 @@ Both frontend development servers use Vite's `--strictPort` option and exit inst
 - Keep the capitation rate owned by backend configuration. The admin may select the period and preview the calculation but does not override the rate.
 - Allow repeated capitation generation for a period with a warning; the newest run is the one displayed by the backend.
 - Keep admin enrollment creation in the PWA workflow; the admin app reviews, filters, prints and exports server records.
-- Keep enrollment selection across result pages up to the backend limit of nine ID cards per job.
+- Keep enrollment selection across result pages up to 100 records for status changes. The same selection may generate ID cards only while it contains one to nine records.
 - Always request a fresh presigned download URL for a completed file job rather than storing temporary Railway links.
 
 ## Structure rules
@@ -212,6 +213,14 @@ At commit `a73ed09`:
 - Backend had no working-tree changes.
 
 After later edits, rerun the relevant checks before updating this section.
+
+On 5 September 2026 after the admin enrollment status integration:
+
+- Typed service and React Query mutation layers use the production single and bulk activation/deactivation endpoints and invalidate enrollment list/detail/activity data after successful changes.
+- The enrollment table supports selecting the current page and retaining up to 100 selections across cursor pages. Bulk Activate/Deactivate use that selection, while ID-card generation remains limited to one through nine.
+- Pending enrollments may be activated or deactivated; active enrollments may be deactivated; disabled enrollments may be activated; deceased enrollments expose no single-record status action.
+- Row and detail actions require confirmation. Bulk partial results report updated and skipped counts grouped as not found, unchanged or unable to change.
+- Admin lint, TypeScript and production build pass. Local production-preview checks return HTTP 200 for the enrollment list and nested detail routes. No backend or PWA files were changed; authenticated API smoke testing was unavailable without admin credentials.
 
 On 5 September 2026 after the confirmed PWA enrollment feedback:
 
@@ -329,7 +338,7 @@ On 2 September 2026 after the PWA authentication integration:
 - Remaining mock-only admin areas include general Reports and Settings screens.
 - Programme-wide facility KPI totals.
 - Programme-wide enrollment totals are unavailable from cursor metadata.
-- Admin enrollment editing, status changes and deletion are unavailable in the production API.
+- General admin enrollment editing and deletion are unavailable in the production API; activation and deactivation are integrated.
 - Enrollment export cannot apply broad search or printed-state filters, and failed report jobs cannot be retried directly.
 - Refresh-token support and automatic session renewal.
 - Full real-device browser testing.
@@ -338,7 +347,7 @@ On 2 September 2026 after the PWA authentication integration:
 ## Suggested next work
 
 1. Test admin enrollment filtering, document links, ID-card PDFs and Excel downloads with a production admin account.
-2. Agree the enrollment API gaps in `docs/enrollment-backend-feedback.md` with the backend team.
+2. Agree the remaining enrollment editing, deletion, export and reporting gaps in `docs/enrollment-backend-feedback.md` with the backend team.
 3. Wire the admin dashboard UI to `GET /api/dashboard` (remove State filter; keep View All links to module pages).
 4. Complete real-device PWA browser testing.
 

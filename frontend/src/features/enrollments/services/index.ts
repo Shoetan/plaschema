@@ -6,4 +6,6 @@ export {
   fetchFileJobDownload,
   fetchFileJobs,
   generateIdCards,
+  updateEnrollmentStatus,
+  updateEnrollmentStatuses,
 } from './enrollment.service'
