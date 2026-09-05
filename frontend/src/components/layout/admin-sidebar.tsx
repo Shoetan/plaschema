@@ -1,7 +1,6 @@
 import {
   Building2,
   CreditCard,
-  FileText,
   FolderOpen,
   HeartPulse,
   Home,
@@ -27,7 +26,6 @@ const mainItems = [
   { path: '/admin/wards', label: 'Wards', icon: MapPin },
   { path: '/admin/beneficiaries', label: 'CBHI Enrolments', icon: Users },
   { path: '/admin/id-cards', label: 'ID Cards', icon: CreditCard },
-  { path: '/admin/reports', label: 'Reports', icon: FileText },
 ]
 
 const administrationItems = [

@@ -10,16 +10,19 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useHealthFacilities } from '@/features/facilities/hooks'
+import type { HealthFacilityListItem } from '@/features/facilities/types'
 import { useFieldWorkers } from '@/features/field-workers/hooks'
+import type { FieldWorker } from '@/features/field-workers/types'
 import { useWardOptions } from '@/features/wards/hooks'
 import type { WardListItem } from '@/features/wards/types'
 
 import { useExportEnrollments, useGenerateIdCards, useEnrollments } from '../hooks'
 import type { EnrollmentListItem, EnrollmentStatus, EnrollmentStatusTarget, ExportEnrollmentPayload, PrintedStatus } from '../types'
-import { formatEnrollmentDate, PLATEAU_LGAS, statusLabel } from '../utils'
+import { BENEFICIARY_CATEGORIES, formatEnrollmentDate, PLATEAU_LGAS, statusLabel } from '../utils'
 import { EnrollmentRowActions } from './enrollment-row-actions'
 import { EnrollmentStatusDialog, type EnrollmentStatusAction } from './enrollment-status-dialog'
 import { JobProgressPanel } from './job-progress-panel'
+import { SearchableFilterSelect } from './searchable-filter-select'
 
 type StatusFilter = 'all' | EnrollmentStatus
 const MAX_STATUS_SELECTION = 100
@@ -35,9 +38,9 @@ export function EnrollmentsView() {
   const [wardSearch, setWardSearch] = useState('')
   const [selectedWard, setSelectedWard] = useState<WardListItem | null>(null)
   const [facilitySearch, setFacilitySearch] = useState('')
-  const [facilityId, setFacilityId] = useState('')
+  const [selectedFacility, setSelectedFacility] = useState<HealthFacilityListItem | null>(null)
   const [workerSearch, setWorkerSearch] = useState('')
-  const [workerId, setWorkerId] = useState('')
+  const [selectedWorker, setSelectedWorker] = useState<FieldWorker | null>(null)
   const [createdFrom, setCreatedFrom] = useState('')
   const [createdTo, setCreatedTo] = useState('')
   const [ageMin, setAgeMin] = useState('')
@@ -82,8 +85,8 @@ export function EnrollmentsView() {
     category: category.trim() || undefined,
     lga: lga || undefined,
     wardId: selectedWard?.id,
-    healthFacilityId: facilityId || undefined,
-    enrolledByUserId: workerId || undefined,
+    healthFacilityId: selectedFacility?.id,
+    enrolledByUserId: selectedWorker?.id,
     createdFrom: createdFrom || undefined,
     createdTo: createdTo || undefined,
     ageMin: filtersValid ? ageMinNumber : undefined,
@@ -138,7 +141,7 @@ export function EnrollmentsView() {
   }
   function clearFilters() {
     setSearch(''); setDebouncedSearch(''); setStatus('all'); setPrintedStatus('all'); setCategory(''); setLga('')
-    setWardSearch(''); setSelectedWard(null); setFacilitySearch(''); setFacilityId(''); setWorkerSearch(''); setWorkerId('')
+    setWardSearch(''); setSelectedWard(null); setFacilitySearch(''); setSelectedFacility(null); setWorkerSearch(''); setSelectedWorker(null)
     setCreatedFrom(''); setCreatedTo(''); setAgeMin(''); setAgeMax(''); resetPage()
   }
   async function handleCards() {
@@ -153,12 +156,24 @@ export function EnrollmentsView() {
   }
   function exportPayload(): ExportEnrollmentPayload {
     return {
-      format: 'xlsx', wardId: selectedWard?.id, healthFacilityId: facilityId || undefined,
-      enrolledByUserId: workerId || undefined, status: status === 'all' ? undefined : status,
+      format: 'xlsx', wardId: selectedWard?.id, healthFacilityId: selectedFacility?.id,
+      enrolledByUserId: selectedWorker?.id, status: status === 'all' ? undefined : status,
       category: category.trim() || undefined, lga: lga || undefined, createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined, ageMin: filtersValid ? ageMinNumber : undefined, ageMax: filtersValid ? ageMaxNumber : undefined,
     }
   }
+  const exportFilterSummary = [
+    status !== 'all' ? { label: 'Status', value: statusLabel(status) } : null,
+    category.trim() ? { label: 'Category', value: category.trim() } : null,
+    lga ? { label: 'LGA', value: lga } : null,
+    selectedWard ? { label: 'Ward', value: `${selectedWard.name} — ${selectedWard.lga}` } : null,
+    selectedFacility ? { label: 'Facility', value: selectedFacility.name } : null,
+    selectedWorker ? { label: 'Field worker', value: selectedWorker.name } : null,
+    createdFrom ? { label: 'Created from', value: createdFrom } : null,
+    createdTo ? { label: 'Created to', value: createdTo } : null,
+    ageMinNumber !== undefined ? { label: 'Minimum age', value: String(ageMinNumber) } : null,
+    ageMaxNumber !== undefined ? { label: 'Maximum age', value: String(ageMaxNumber) } : null,
+  ].filter((item): item is { label: string; value: string } => item !== null)
   async function handleExport() {
     try {
       const result = await exportMutation.mutateAsync(exportPayload())
@@ -191,14 +206,11 @@ export function EnrollmentsView() {
         </div>
 
         {advancedOpen && <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2 xl:grid-cols-4">
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground">Category<input className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground" maxLength={120} onBlur={resetPage} onChange={(event) => setCategory(event.target.value)} placeholder="Exact category" value={category} /></label>
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground">Category<select className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground" onChange={(event) => { setCategory(event.target.value); resetPage() }} value={category}><option value="">All categories</option>{BENEFICIARY_CATEGORIES.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
           <label className="grid gap-1 text-xs font-medium text-muted-foreground">LGA<select className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground" onChange={(event) => { setLga(event.target.value); resetPage() }} value={lga}><option value="">All LGAs</option>{PLATEAU_LGAS.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground">Search ward<input className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground" onChange={(event) => setWardSearch(event.target.value)} placeholder="Type a ward name" value={wardSearch} /></label>
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground">Ward<select className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground" onChange={(event) => { setSelectedWard(wards.find((item) => item.id === event.target.value) ?? null); setFacilityId(''); resetPage() }} value={selectedWard?.id ?? ''}><option value="">All wards</option>{wards.map((item) => <option key={item.id} value={item.id}>{item.name} — {item.lga}</option>)}</select></label>
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground">Search facilities<input className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground" onChange={(event) => setFacilitySearch(event.target.value)} placeholder="Type a facility name" value={facilitySearch} /></label>
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground">Facility<select className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground" onChange={(event) => { setFacilityId(event.target.value); resetPage() }} value={facilityId}><option value="">All facilities</option>{facilitiesQuery.data?.items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground">Search field workers<input className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground" onChange={(event) => setWorkerSearch(event.target.value)} placeholder="Type a worker name" value={workerSearch} /></label>
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground">Field worker<select className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground" onChange={(event) => { setWorkerId(event.target.value); resetPage() }} value={workerId}><option value="">All field workers</option>{workersQuery.data?.items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <SearchableFilterSelect allLabel="All wards" emptyText="No wards found." label="Ward" loading={wardsQuery.isFetching} onSearchChange={setWardSearch} onSelect={(option) => { const ward = option ? wards.find((item) => item.id === option.id) ?? null : null; setSelectedWard(ward); setSelectedFacility(null); resetPage() }} options={wards.map((item) => ({ id: item.id, label: item.name, description: item.lga }))} search={wardSearch} searchPlaceholder="Search wards…" value={selectedWard ? { id: selectedWard.id, label: selectedWard.name, description: selectedWard.lga } : null} />
+          <SearchableFilterSelect allLabel="All facilities" emptyText="No facilities found." label="Facility" loading={facilitiesQuery.isFetching} onSearchChange={setFacilitySearch} onSelect={(option) => { setSelectedFacility(option ? facilitiesQuery.data?.items.find((item) => item.id === option.id) ?? null : null); resetPage() }} options={(facilitiesQuery.data?.items ?? []).map((item) => ({ id: item.id, label: item.name, description: `${item.ward.name} — ${item.ward.lga}` }))} search={facilitySearch} searchPlaceholder="Search facilities…" value={selectedFacility ? { id: selectedFacility.id, label: selectedFacility.name, description: selectedFacility.ward.name } : null} />
+          <SearchableFilterSelect allLabel="All field workers" emptyText="No field workers found." label="Field worker" loading={workersQuery.isFetching} onSearchChange={setWorkerSearch} onSelect={(option) => { setSelectedWorker(option ? workersQuery.data?.items.find((item) => item.id === option.id) ?? null : null); resetPage() }} options={(workersQuery.data?.items ?? []).map((item) => ({ id: item.id, label: item.name, description: item.email }))} search={workerSearch} searchPlaceholder="Search field workers…" value={selectedWorker ? { id: selectedWorker.id, label: selectedWorker.name, description: selectedWorker.email } : null} />
           <label className="grid gap-1 text-xs font-medium text-muted-foreground">Created from<input className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground" onChange={(event) => { setCreatedFrom(event.target.value); resetPage() }} type="date" value={createdFrom} /></label>
           <label className="grid gap-1 text-xs font-medium text-muted-foreground">Created to<input className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground" onChange={(event) => { setCreatedTo(event.target.value); resetPage() }} type="date" value={createdTo} /></label>
           <label className="grid gap-1 text-xs font-medium text-muted-foreground">Minimum age<input className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground" max="120" min="0" onChange={(event) => { setAgeMin(event.target.value); resetPage() }} type="number" value={ageMin} /></label>
@@ -212,7 +224,7 @@ export function EnrollmentsView() {
         {!query.isError && <div className="flex items-center justify-between border-t border-border px-4 py-3"><p className="text-sm text-muted-foreground">Page {pageIndex + 1} · Showing {rows.length} records</p><div className="flex gap-2"><Button disabled={pageIndex === 0 || query.isFetching} onClick={() => setPageIndex((current) => Math.max(0, current - 1))} variant="outline"><ChevronLeft aria-hidden="true" /> Previous</Button><Button disabled={!meta?.hasMore || !meta.nextCursor || query.isFetching} onClick={nextPage} variant="outline">Next <ChevronRight aria-hidden="true" /></Button></div></div>}
       </div>
 
-      {exportOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="export-title"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-semibold" id="export-title">Export enrollment report</h2><p className="mt-1 text-sm text-muted-foreground">The Excel report will be prepared in the background and appear under Files.</p></div><button aria-label="Close export dialog" onClick={() => setExportOpen(false)} type="button"><X className="size-5" /></button></div>{(debouncedSearch || printedStatus !== 'all') && <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-semibold">Some visible filters cannot be used for export.</p><p className="mt-1">{[debouncedSearch ? 'The broad search' : '', printedStatus !== 'all' ? 'the printed status' : ''].filter(Boolean).join(' and ')} will not be applied because the export API does not accept {debouncedSearch && printedStatus !== 'all' ? 'them' : 'that filter'}.</p></div>}<p className="mt-4 text-sm text-muted-foreground">Ward, facility, field worker, status, category, LGA, dates and age filters will be included when selected.</p><div className="mt-6 flex justify-end gap-2"><button className={btnSecondary} onClick={() => setExportOpen(false)} type="button">Cancel</button><button className={btnPrimary} disabled={exportMutation.isPending || !filtersValid} onClick={() => void handleExport()} type="button">{exportMutation.isPending ? 'Queueing…' : 'Create Excel file'}</button></div></div></div>}
+      {exportOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-card p-6 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="export-title"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-semibold" id="export-title">Export enrollment report</h2><p className="mt-1 text-sm text-muted-foreground">The Excel report will be prepared in the background and appear under Files.</p></div><button aria-label="Close export dialog" onClick={() => setExportOpen(false)} type="button"><X className="size-5" /></button></div>{exportFilterSummary.length > 0 ? <div className="mt-4 rounded-xl border border-border p-4"><p className="text-sm font-semibold">Filters included in this export</p><dl className="mt-3 grid gap-2">{exportFilterSummary.map((item) => <div className="flex justify-between gap-4 text-sm" key={item.label}><dt className="text-muted-foreground">{item.label}</dt><dd className="text-right font-medium">{item.value}</dd></div>)}</dl></div> : <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-semibold">This will export all enrollments.</p><p className="mt-1">No supported report filter is selected. Confirm only if you want the complete enrollment report.</p></div>}{(debouncedSearch || printedStatus !== 'all') && <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-semibold">Some visible filters cannot be used for export.</p><p className="mt-1">{[debouncedSearch ? 'The broad search' : '', printedStatus !== 'all' ? 'the printed status' : ''].filter(Boolean).join(' and ')} will not be applied because the export API does not accept {debouncedSearch && printedStatus !== 'all' ? 'them' : 'that filter'}.</p></div>}<div className="mt-6 flex justify-end gap-2"><button className={btnSecondary} onClick={() => setExportOpen(false)} type="button">Cancel</button><button className={btnPrimary} disabled={exportMutation.isPending || !filtersValid} onClick={() => void handleExport()} type="button">{exportMutation.isPending ? 'Queueing…' : exportFilterSummary.length === 0 ? 'Export all enrollments' : 'Create filtered Excel file'}</button></div></div></div>}
       <EnrollmentStatusDialog action={statusAction} onCompleted={completeStatusAction} onOpenChange={(open) => !open && setStatusAction(null)} />
     </div>
   )

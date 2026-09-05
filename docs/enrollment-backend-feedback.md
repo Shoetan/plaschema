@@ -24,7 +24,7 @@ There is still no general record-editing or deletion endpoint. Those actions rem
 
 The enrollment list supports broad search, beneficiary name, enrollment ID and printed status. The report export endpoint does not accept those filters.
 
-The frontend warns the admin and exports using only the supported ward, facility, field worker, status, category, LGA, date and age filters. Supporting the same filters on both endpoints would make the spreadsheet match the visible list.
+The frontend warns the admin and exports using only the supported ward, facility, field worker, status, category, LGA, date and age filters. The confirmation dialog lists the exact supported filters being submitted; if none are selected, it explicitly confirms that all enrollments will be exported. Supporting the same filters on both endpoints would make the spreadsheet match the visible list completely.
 
 ### 3. There is no overall enrollment total
 
@@ -34,9 +34,9 @@ An overall total or summary endpoint would be needed for programme-wide enrollme
 
 ### 4. Categories have no lookup endpoint
 
-The API accepts an exact category string but does not provide a list of allowed or existing categories. The admin currently enters the category as text so the UI does not hide valid backend values.
+The API accepts an exact category string but does not provide a list of allowed or existing categories. The admin now uses the same three fixed programme categories as the PWA and dashboard: IDPs, Elderly 65+, and Indigents / Very Poor / Others.
 
-A category lookup endpoint or fixed documented enum would allow a safer dropdown.
+A category lookup endpoint or fixed documented enum would keep this frontend list authoritative if programme categories change later.
 
 ### 5. Failed report jobs cannot be repeated from Files
 
