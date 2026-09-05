@@ -3,8 +3,8 @@ import { version as uuidVersion } from 'uuid'
 
 import { offlineDb } from '@/lib/offline-db'
 
-import type { EnrollmentFormValues } from '../types'
-import { EMPTY_ENROLLMENT_FORM, getEnrollmentHomeSummary, isValidNin, isValidPhoneNumber, normalizeNin, normalizePhoneNumber, toCreateEnrollmentPayload } from '../utils'
+import type { EnrollmentFormValues, ReferenceFacility, ReferenceWard } from '../types'
+import { EMPTY_ENROLLMENT_FORM, getEnrollmentHomeSummary, getResidenceLgas, isValidNin, isValidPhoneNumber, normalizeNin, normalizePhoneNumber, resolveHealthFacilityId, resolveWardId, toCreateEnrollmentPayload } from '../utils'
 import {
   createEnrollmentDraft,
   queueEnrollment,
@@ -23,10 +23,9 @@ function completeForm(): EnrollmentFormValues {
     category: 'IDPs', passportFileId: 'passport-file', passportName: 'passport.jpg',
     idDocumentFileId: 'id-file', idDocumentName: 'id.pdf', title: 'mrs', firstName: 'Amina',
     lastName: 'Yusuf', gender: 'female', dateOfBirth: '1990-05-04', maritalStatus: 'married',
-    phone: '+2348012345678', lgaOfResidence: 'Jos North', residentialAddress: '12 Test Road',
+    phone: '+2348012345678', nin: '1234567890', lgaOfResidence: 'Jos North', residentialAddress: '12 Test Road',
     wardId: '01900000-0000-7000-8000-000000000010', healthFacilityId: '01900000-0000-7000-8000-000000000020',
-    idType: 'national_id', nextOfKinFullName: 'Test Person', emergencyPhone: '+2348098765432',
-    nextOfKinRelationship: 'sibling',
+    idType: 'national_id', nextOfKinFullName: 'Test Person', nextOfKinRelationship: 'sibling',
   }
 }
 
@@ -115,15 +114,30 @@ describe('offline enrollment storage', () => {
   it('maps optional empty fields out of the production create payload', () => {
     const payload = toCreateEnrollmentPayload({
       localId: 'local', ownerUserId: owner, idempotencyId: '01900000-0000-7000-8000-000000000099',
-      capturedAt: '2026-09-02T12:00:00.000Z', form: completeForm(), wardName: 'Ward', facilityName: 'Facility',
+      capturedAt: '2026-09-02T12:00:00.000Z', form: { ...completeForm(), nextOfKinFullName: '', nextOfKinRelationship: '' }, wardName: 'Ward', facilityName: 'Facility',
       syncStatus: 'pending', uploadStage: 'queued', passportObjectKey: 'passport-key', idDocumentObjectKey: 'id-key', attemptCount: 0,
     })
     expect(payload).not.toHaveProperty('email')
     expect(payload).not.toHaveProperty('bloodGroup')
     expect(payload.category).toBe('IDPs')
     expect(payload.phone).toBe('08012345678')
-    expect(payload.emergencyPhone).toBe('08098765432')
+    expect(payload).not.toHaveProperty('nextOfKinFullName')
+    expect(payload).not.toHaveProperty('nextOfKinRelationship')
+    expect(payload).not.toHaveProperty('emergencyPhone')
     expect(payload.stateOfResidence).toBe('PLATEAU')
+  })
+
+  it('keeps supplied next-of-kin values optional and ignores a legacy emergency phone', () => {
+    const legacyForm = { ...completeForm(), emergencyPhone: '08098765432' }
+    const payload = toCreateEnrollmentPayload({
+      localId: 'local', ownerUserId: owner, idempotencyId: '01900000-0000-7000-8000-000000000099',
+      capturedAt: '2026-09-02T12:00:00.000Z', form: legacyForm, wardName: 'Ward', facilityName: 'Facility',
+      syncStatus: 'pending', uploadStage: 'queued', passportObjectKey: 'passport-key', idDocumentObjectKey: 'id-key', attemptCount: 0,
+    })
+
+    expect(payload.nextOfKinFullName).toBe('Test Person')
+    expect(payload.nextOfKinRelationship).toBe('sibling')
+    expect(payload).not.toHaveProperty('emergencyPhone')
   })
 
   it('rejects invalid phone and NIN values in older queued records', () => {
@@ -134,6 +148,7 @@ describe('offline enrollment storage', () => {
       passportObjectKey: 'passport-key', idDocumentObjectKey: 'id-key', attemptCount: 0,
     }
     expect(() => toCreateEnrollmentPayload({ ...base, form: { ...completeForm(), phone: '0801234' } })).toThrow('exactly 11 digits')
+    expect(() => toCreateEnrollmentPayload({ ...base, form: { ...completeForm(), nin: '' } })).toThrow('exactly 10 digits')
     expect(() => toCreateEnrollmentPayload({ ...base, form: { ...completeForm(), nin: '12345678901' } })).toThrow('exactly 10 digits')
   })
 
@@ -145,12 +160,42 @@ describe('offline enrollment storage', () => {
     expect(isValidPhoneNumber('0801234')).toBe(false)
   })
 
-  it('keeps NIN optional but requires exactly 10 digits when supplied', () => {
+  it('requires NIN to contain exactly 10 digits', () => {
     expect(normalizeNin('12 34-ab56-7890')).toBe('1234567890')
     expect(normalizeNin('123456789012')).toBe('1234567890')
-    expect(isValidNin('')).toBe(true)
+    expect(isValidNin('')).toBe(false)
     expect(isValidNin('1234567890')).toBe(true)
     expect(isValidNin('123456789')).toBe(false)
+  })
+
+  it('automatically chooses only an unambiguous active facility for a ward', () => {
+    const wardId = 'ward'
+    const facility = (id: string, status: 'active' | 'inactive' = 'active'): ReferenceFacility => ({
+      key: id, ownerUserId: owner, id, name: id, lga: 'Jos North', type: 'PHC', level: 'primary', status,
+      wardId, ward: { id: wardId, name: 'Ward', lga: 'Jos North' }, createdAt: '', updatedAt: '',
+    })
+    const first = facility('first')
+    const second = facility('second')
+
+    expect(resolveHealthFacilityId(wardId, '', [first])).toBe('first')
+    expect(resolveHealthFacilityId(wardId, '', [first, second])).toBe('')
+    expect(resolveHealthFacilityId(wardId, 'second', [first, second])).toBe('second')
+    expect(resolveHealthFacilityId(wardId, 'first', [facility('first', 'inactive')])).toBe('')
+  })
+
+  it('derives LGAs from active accessible wards and selects only an unambiguous ward', () => {
+    const ward = (id: string, lga: string, status: 'active' | 'inactive' = 'active'): ReferenceWard => ({
+      key: id, ownerUserId: owner, id, name: id, state: 'Plateau', lga, status, createdAt: '', updatedAt: '',
+    })
+    const first = ward('first', 'Jos North')
+    const second = ward('second', 'Jos North')
+    const third = ward('third', 'Riyom')
+
+    expect(getResidenceLgas([third, first, second, ward('hidden', 'Bassa', 'inactive')])).toEqual(['Jos North', 'Riyom'])
+    expect(resolveWardId('Riyom', '', [first, second, third])).toBe('third')
+    expect(resolveWardId('Jos North', '', [first, second, third])).toBe('')
+    expect(resolveWardId('Jos North', 'second', [first, second, third])).toBe('second')
+    expect(resolveWardId('Bassa', 'first', [first, second, third])).toBe('')
   })
 
   it('combines server statistics with unsent device records without counting synced rows twice', async () => {
