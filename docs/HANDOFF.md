@@ -87,7 +87,10 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Server-accepted records remain locally only while the final `POST /auth/sync` report is owed. After that report succeeds, their records and file blobs are removed from the device.
 - Home Pending is device-local. Today and Total combine own `/users/:id/detail` statistics with unsent device records without double-counting retained synced rows; dates use the Africa/Lagos calendar day.
 - People and Sync display only records created on the current device. The PWA does not use `GET /enrollments` as a server-backed beneficiary list.
-- Enrollment State of Residence is fixed to `PLATEAU`. Beneficiary and emergency phones are required 11-digit local numbers; NIN is optional but must contain exactly 10 digits when supplied.
+- Enrollment State of Residence is fixed to `PLATEAU`. Beneficiary phone is required at exactly 11 digits; NIN is required and must contain exactly 10 digits.
+- The Residence step orders geography as State, LGA and Ward. Its offline LGA selector is derived from the worker's accessible active wards, and selecting an LGA filters the ward selector. A sole matching ward is selected automatically.
+- Selecting a ward automatically selects its health facility only when exactly one active facility is available. Multiple facilities require an explicit worker choice, while no active facility blocks the facility step with guidance.
+- Next-of-kin name and relationship remain visible but optional. Emergency phone is no longer collected or submitted by the PWA, including from legacy device records.
 - Profile ward access shows unrestricted workers as **All wards**, one assigned ward directly, and multiple assigned wards in an expandable list. An unrestricted worker still selects one specific ward for each enrollment.
 - Logout is immediate; no refresh-token or server logout endpoint exists.
 
@@ -209,6 +212,16 @@ At commit `a73ed09`:
 - Backend had no working-tree changes.
 
 After later edits, rerun the relevant checks before updating this section.
+
+On 5 September 2026 after the confirmed PWA enrollment feedback:
+
+- NIN is mandatory in both step validation and final offline payload validation. It accepts digits only and must contain exactly 10 digits; beneficiary phone remains mandatory at exactly 11 digits.
+- Ward selection automatically chooses a health facility only when there is one active match. Valid saved choices survive reference refreshes, while missing or inactive choices are cleared.
+- The enrollment route disables the app shell's outer scrolling and keeps one overscroll-contained fields area between the fixed-in-flow enrollment header and action bar. Other PWA routes retain normal page scrolling.
+- Residence geography now follows State → LGA → Ward. LGA choices come from active wards already filtered to the worker's access, wards are filtered by LGA, and a sole matching ward is selected automatically before facility resolution.
+- Next-of-kin name and relationship are optional and omitted from the API payload when blank. Emergency phone was removed from enrollment, review and local detail UI and is not submitted from new or legacy stored records.
+- PWA lint and production build pass. All 35 PWA tests pass, including required NIN, geography selection, optional next-of-kin, facility-selection and layout regression coverage.
+- The unclear date-of-birth visual feedback remains deferred until its product requirement is confirmed.
 
 On 4 September 2026 after the admin capitation integration:
 

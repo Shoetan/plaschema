@@ -34,7 +34,6 @@ export interface EnrollmentFormValues {
   healthFacilityId: string
   idType: IdDocumentType | ''
   nextOfKinFullName: string
-  emergencyPhone: string
   nextOfKinRelationship: NextOfKinRelationship | ''
 }
 
@@ -150,8 +149,7 @@ export interface CreateEnrollmentPayload {
   bloodGroup?: BloodGroup
   genotype?: Genotype
   idType: IdDocumentType
-  nextOfKinFullName: string
-  emergencyPhone: string
+  nextOfKinFullName?: string
   nextOfKinRelationship?: NextOfKinRelationship
   stateOfResidence: 'PLATEAU'
   lgaOfResidence: string

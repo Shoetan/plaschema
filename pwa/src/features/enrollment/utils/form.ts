@@ -1,4 +1,4 @@
-import type { CreateEnrollmentPayload, EnrollmentFormValues, FieldWorkerDetailStats, LocalEnrollmentRecord } from '../types'
+import type { CreateEnrollmentPayload, EnrollmentFormValues, FieldWorkerDetailStats, LocalEnrollmentRecord, ReferenceFacility, ReferenceWard } from '../types'
 
 export const BENEFICIARY_CATEGORIES = ['IDPs', 'Elderly 65+', 'Indigents / Very Poor / Others'] as const
 export const PLATEAU_STATE = 'PLATEAU' as const
@@ -21,7 +21,24 @@ export function normalizeNin(value: string) {
 }
 
 export function isValidNin(value: string) {
-  return value === '' || /^\d{10}$/.test(value)
+  return /^\d{10}$/.test(value)
+}
+
+export function resolveHealthFacilityId(wardId: string, currentFacilityId: string, facilities: ReferenceFacility[]) {
+  const activeFacilities = facilities.filter((facility) => facility.status === 'active' && facility.wardId === wardId)
+  if (activeFacilities.some((facility) => facility.id === currentFacilityId)) return currentFacilityId
+  return activeFacilities.length === 1 ? activeFacilities[0].id : ''
+}
+
+export function getResidenceLgas(wards: ReferenceWard[]) {
+  return [...new Set(wards.filter((ward) => ward.status === 'active').map((ward) => ward.lga))]
+    .sort((a, b) => a.localeCompare(b))
+}
+
+export function resolveWardId(lga: string, currentWardId: string, wards: ReferenceWard[]) {
+  const availableWards = wards.filter((ward) => ward.status === 'active' && ward.lga === lga)
+  if (availableWards.some((ward) => ward.id === currentWardId)) return currentWardId
+  return availableWards.length === 1 ? availableWards[0].id : ''
 }
 
 export function normalizeEnrollmentForm(form: EnrollmentFormValues): EnrollmentFormValues {
@@ -29,7 +46,6 @@ export function normalizeEnrollmentForm(form: EnrollmentFormValues): EnrollmentF
     ...form,
     stateOfResidence: PLATEAU_STATE,
     phone: normalizePhoneNumber(form.phone),
-    emergencyPhone: normalizePhoneNumber(form.emergencyPhone),
     nin: normalizeNin(form.nin),
   }
 }
@@ -39,7 +55,7 @@ export const EMPTY_ENROLLMENT_FORM: EnrollmentFormValues = {
   title: '', firstName: '', middleName: '', lastName: '', gender: '', dateOfBirth: '', maritalStatus: '',
   phone: '', email: '', nin: '', bloodGroup: '', genotype: '', stateOfResidence: PLATEAU_STATE,
   lgaOfResidence: '', residentialAddress: '', wardId: '', healthFacilityId: '', idType: '',
-  nextOfKinFullName: '', emergencyPhone: '', nextOfKinRelationship: '',
+  nextOfKinFullName: '', nextOfKinRelationship: '',
 }
 
 export function hasDraftProgress(form: EnrollmentFormValues) {
@@ -49,13 +65,12 @@ export function hasDraftProgress(form: EnrollmentFormValues) {
 export function toCreateEnrollmentPayload(record: LocalEnrollmentRecord): CreateEnrollmentPayload {
   const form = { ...record.form, stateOfResidence: PLATEAU_STATE }
   const phone = canonicalPhoneNumber(form.phone)
-  const emergencyPhone = canonicalPhoneNumber(form.emergencyPhone)
   const nin = form.nin.replace(/\D/g, '')
   if (!record.passportObjectKey || !record.idDocumentObjectKey || !form.category || !form.title || !form.gender || !form.maritalStatus || !form.idType) {
     throw new Error('Enrollment is missing required information.')
   }
-  if (!isValidPhoneNumber(phone) || !isValidPhoneNumber(emergencyPhone)) throw new Error('Phone numbers must contain exactly 11 digits.')
-  if (!isValidNin(nin)) throw new Error('NIN must contain exactly 10 digits when provided.')
+  if (!isValidPhoneNumber(phone)) throw new Error('Phone number must contain exactly 11 digits.')
+  if (!isValidNin(nin)) throw new Error('NIN must contain exactly 10 digits.')
   return {
     idempotencyId: record.idempotencyId,
     capturedAt: record.capturedAt,
@@ -70,13 +85,12 @@ export function toCreateEnrollmentPayload(record: LocalEnrollmentRecord): Create
     dateOfBirth: form.dateOfBirth,
     phone,
     ...(form.email.trim() ? { email: form.email.trim() } : {}),
-    ...(nin ? { nin } : {}),
+    nin,
     maritalStatus: form.maritalStatus,
     ...(form.bloodGroup ? { bloodGroup: form.bloodGroup } : {}),
     ...(form.genotype ? { genotype: form.genotype } : {}),
     idType: form.idType,
-    nextOfKinFullName: form.nextOfKinFullName.trim(),
-    emergencyPhone,
+    ...(form.nextOfKinFullName.trim() ? { nextOfKinFullName: form.nextOfKinFullName.trim() } : {}),
     ...(form.nextOfKinRelationship ? { nextOfKinRelationship: form.nextOfKinRelationship } : {}),
     stateOfResidence: PLATEAU_STATE,
     lgaOfResidence: form.lgaOfResidence.trim(),
