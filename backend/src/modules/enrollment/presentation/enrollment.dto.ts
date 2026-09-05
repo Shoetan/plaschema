@@ -163,17 +163,17 @@ export class CreateEnrollmentDto {
   @IsEnum(ID_DOCUMENT_TYPES)
   idType!: IdDocumentType;
 
-  @ApiProperty({ example: 'John Obi' })
+  @ApiPropertyOptional({ example: 'John Obi' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(160)
-  nextOfKinFullName!: string;
+  nextOfKinFullName?: string;
 
-  @ApiProperty({ example: '+2348098765432' })
+  @ApiPropertyOptional({ example: '+2348098765432' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(30)
-  emergencyPhone!: string;
+  emergencyPhone?: string;
 
   @ApiPropertyOptional({ enum: NEXT_OF_KIN_RELATIONSHIPS })
   @IsOptional()
@@ -645,13 +645,13 @@ export class EnrollmentResponseDto {
   @ApiProperty({ enum: ID_DOCUMENT_TYPES })
   idType!: IdDocumentType;
 
-  @ApiProperty()
-  nextOfKinFullName!: string;
+  @ApiPropertyOptional({ nullable: true })
+  nextOfKinFullName!: string | null;
 
-  @ApiProperty()
-  emergencyPhone!: string;
+  @ApiPropertyOptional({ nullable: true })
+  emergencyPhone!: string | null;
 
-  @ApiPropertyOptional({ enum: NEXT_OF_KIN_RELATIONSHIPS })
+  @ApiPropertyOptional({ enum: NEXT_OF_KIN_RELATIONSHIPS, nullable: true })
   nextOfKinRelationship!: NextOfKinRelationship | null;
 
   @ApiProperty()
@@ -716,6 +716,62 @@ export class GenerateIdCardsRequestDto {
   @ArrayMaxSize(9)
   @IsUUID('7', { each: true })
   enrollmentIds!: string[];
+}
+
+export class UpdateEnrollmentStatusRequestDto {
+  @ApiProperty({
+    type: [String],
+    format: 'uuid',
+    description: 'Enrollment UUIDs to activate or deactivate (1–100)',
+    minItems: 1,
+    maxItems: 100,
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @IsUUID('7', { each: true })
+  enrollmentIds!: string[];
+
+  @ApiProperty({
+    enum: ['active', 'disabled'],
+    description: 'Target status. Use active to activate, disabled to deactivate.',
+  })
+  @IsIn(['active', 'disabled'])
+  status!: 'active' | 'disabled';
+}
+
+export class PatchEnrollmentStatusRequestDto {
+  @ApiProperty({
+    enum: ['active', 'disabled'],
+    description: 'Target status. Use active to activate, disabled to deactivate.',
+  })
+  @IsIn(['active', 'disabled'])
+  status!: 'active' | 'disabled';
+}
+
+export class EnrollmentStatusSkipDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ enum: ['not_found', 'unchanged', 'invalid_transition'] })
+  reason!: 'not_found' | 'unchanged' | 'invalid_transition';
+
+  @ApiPropertyOptional({ enum: ENROLLMENT_STATUSES })
+  currentStatus?: EnrollmentStatus;
+}
+
+export class UpdateEnrollmentStatusResponseDto {
+  @ApiProperty({ enum: ['active', 'disabled'] })
+  status!: 'active' | 'disabled';
+
+  @ApiProperty({ example: 2 })
+  updated!: number;
+
+  @ApiProperty({ type: [String], format: 'uuid' })
+  updatedIds!: string[];
+
+  @ApiProperty({ type: EnrollmentStatusSkipDto, isArray: true })
+  skipped!: EnrollmentStatusSkipDto[];
 }
 
 export class GenerateIdCardsResponseDto {

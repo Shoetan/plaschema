@@ -76,9 +76,13 @@ const EXPORT_COLUMNS: Array<{
   {
     header: 'Next of Kin Full Name',
     width: 22,
-    value: (row) => row.nextOfKinFullName,
+    value: (row) => row.nextOfKinFullName ?? '',
   },
-  { header: 'Emergency Phone', width: 18, value: (row) => row.emergencyPhone },
+  {
+    header: 'Emergency Phone',
+    width: 18,
+    value: (row) => row.emergencyPhone ?? '',
+  },
   {
     header: 'Next of Kin Relationship',
     width: 20,

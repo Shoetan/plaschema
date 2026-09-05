@@ -5,6 +5,7 @@ import { PrismaService } from '../../../platform/persistence/prisma.service';
 import type {
   Enrollment,
   EnrollmentListItem,
+  EnrollmentStatus,
 } from '../domain/enrollment';
 import {
   enrollmentBeneficiaryName,
@@ -14,6 +15,7 @@ import { formatIsoDateOnly } from '../domain/enrollment-identity';
 import type {
   CreateEnrollmentRecordInput,
   EnrollmentRepository,
+  EnrollmentStatusRow,
   IdCardEnrollmentData,
   ListEnrollmentsQuery,
   PaginatedEnrollments,
@@ -45,8 +47,8 @@ type EnrollmentRow = {
   bloodGroup: Enrollment['bloodGroup'];
   genotype: Enrollment['genotype'];
   idType: Enrollment['idType'];
-  nextOfKinFullName: string;
-  emergencyPhone: string;
+  nextOfKinFullName: string | null;
+  emergencyPhone: string | null;
   nextOfKinRelationship: Enrollment['nextOfKinRelationship'];
   stateOfResidence: string;
   lgaOfResidence: string;
@@ -232,6 +234,52 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
         },
       ];
     });
+  }
+
+  async findManyStatusByIds(ids: string[]): Promise<EnrollmentStatusRow[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const rows = await this.prisma.enrollment.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        enrollmentId: true,
+        status: true,
+        wardId: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return ids.flatMap((id) => {
+      const row = byId.get(id);
+      return row
+        ? [
+            {
+              id: row.id,
+              enrollmentId: row.enrollmentId,
+              status: row.status,
+              wardId: row.wardId,
+              firstName: row.firstName,
+              lastName: row.lastName,
+            },
+          ]
+        : [];
+    });
+  }
+
+  async updateStatus(ids: string[], status: EnrollmentStatus): Promise<number> {
+    if (ids.length === 0) {
+      return 0;
+    }
+    const result = await this.prisma.enrollment.updateMany({
+      where: { id: { in: ids } },
+      data: { status },
+    });
+    return result.count;
   }
 
   async markPrinted(ids: string[], printedAt: Date): Promise<void> {

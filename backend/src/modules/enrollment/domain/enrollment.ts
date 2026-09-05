@@ -97,8 +97,8 @@ export type Enrollment = {
   bloodGroup: BloodGroup | null;
   genotype: Genotype | null;
   idType: IdDocumentType;
-  nextOfKinFullName: string;
-  emergencyPhone: string;
+  nextOfKinFullName: string | null;
+  emergencyPhone: string | null;
   nextOfKinRelationship: NextOfKinRelationship | null;
   stateOfResidence: string;
   lgaOfResidence: string;
