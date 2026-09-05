@@ -65,7 +65,9 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Enrollment detail combines `GET /enrollments/:id` with `GET /enrollments/:id/detail` to show the complete beneficiary record, temporary document links and real activity history.
 - Enrollment activation and deactivation use `PATCH /enrollments/:id` for row/detail actions and `POST /enrollments/status` for batches of up to 100 unique IDs. Confirmations show partial-result counts for not-found, unchanged and invalid transitions; deceased records have no single-record action.
 - Ward, facility, field-worker and dashboard enrollment rows share the enrollment feature query and open the API-backed detail route.
-- ID Cards queues one to nine records through `POST /enrollments/id-cards/generate`. Excel exports use `POST /enrollments/reports/export`; unsupported search and printed-state filters are explained before export.
+- ID Cards queues one to nine records through `POST /enrollments/id-cards/generate`. Excel exports use `POST /enrollments/reports/export`, reuse the supported filters selected on the enrollment list and summarize their scope before submission. An unfiltered export requires an explicit all-enrollments confirmation, while unsupported search and printed-state filters are explained before export.
+- Enrollment Ward, Facility and Field Worker filters use single searchable selectors instead of separate search inputs and dropdowns. Changing the Ward clears the selected Facility to prevent incompatible filters.
+- Admin enrollment and ID-card category filters use the same fixed programme categories as the PWA: IDPs, Elderly 65+, and Indigents / Very Poor / Others.
 - Files replaces Settings in the sidebar and uses `/file-jobs`, `/file-jobs/:id` and `/file-jobs/:id/download` for progress and fresh download links. The Settings route remains available but unlisted.
 - Enrollment creation remains in the field-worker PWA. Admin enrollment details remain read-only apart from activation/deactivation because production exposes no general update or delete endpoint. See `docs/enrollment-backend-feedback.md`.
 

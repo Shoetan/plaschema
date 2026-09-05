@@ -1,5 +1,11 @@
 export const PLATEAU_LGAS = ['Barkin Ladi', 'Bassa', 'Bokkos', 'Jos East', 'Jos North', 'Jos South', 'Kanam', 'Kanke', 'Langtang North', 'Langtang South', 'Mangu', 'Mikang', 'Pankshin', "Qua'an Pan", 'Riyom', 'Shendam', 'Wase']
 
+export const BENEFICIARY_CATEGORIES = [
+  'IDPs',
+  'Elderly 65+',
+  'Indigents / Very Poor / Others',
+] as const
+
 export function formatEnrollmentDate(value: string | null, includeTime = false): string {
   if (!value) return 'Not available'
   const date = new Date(value)
