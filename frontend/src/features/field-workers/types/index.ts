@@ -6,6 +6,7 @@ export type {
   FieldWorkerDetail,
   FieldWorkerListParams,
   FieldWorkerListResult,
+  FieldWorkerListSummary,
   FieldWorkerOverview,
   FieldWorkerStats,
   FieldWorkerStatus,

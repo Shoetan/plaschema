@@ -59,8 +59,11 @@ export function FacilitiesView() {
   })
   const facilities = query.data?.items ?? []
   const meta = query.data?.meta
-  const activeCount = facilities.filter((facility) => facility.status === 'active').length
-  const beneficiaryCount = facilities.reduce((total, facility) => total + facility.beneficiaries, 0)
+  const totalCount = meta?.total ?? facilities.length
+  const activeCount = query.data?.summary?.active
+    ?? facilities.filter((facility) => facility.status === 'active').length
+  const beneficiaryCount = query.data?.summary?.totalBeneficiaries
+    ?? facilities.reduce((total, facility) => total + facility.beneficiaries, 0)
 
   function resetPage() { setCursors([undefined]); setPageIndex(0) }
   function nextPage() {
@@ -75,7 +78,7 @@ export function FacilitiesView() {
       <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-semibold tracking-[-0.48px]">Facilities</h1><p className="mt-0.5 text-sm text-muted-foreground">Manage healthcare facilities participating in the programme.</p></div><div className="flex gap-2"><button className={btnSecondary} onClick={() => setModal('upload')} type="button"><Upload aria-hidden="true" className="size-4" /> Upload Facilities</button><button className={btnPrimary} onClick={() => setModal('create')} type="button"><Plus aria-hidden="true" className="size-4" /> Add Facility</button></div></div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {[{ label: 'Facilities · Current page', value: facilities.length }, { label: 'Active · Current page', value: activeCount }, { label: 'Beneficiaries · Current page', value: beneficiaryCount.toLocaleString() }].map((item) => <div className={`flex flex-col gap-1 rounded-xl bg-card p-5 ${cardShadow}`} key={item.label}><p className="text-xs font-medium text-muted-foreground">{item.label}</p>{query.isPending ? <Skeleton className="mt-1 h-8 w-24" /> : <p className="text-[28px] font-semibold tracking-[-0.56px]">{item.value}</p>}</div>)}
+        {[{ label: 'Facilities', value: totalCount.toLocaleString() }, { label: 'Active', value: activeCount.toLocaleString() }, { label: 'Beneficiaries', value: beneficiaryCount.toLocaleString() }].map((item) => <div className={`flex flex-col gap-1 rounded-xl bg-card p-5 ${cardShadow}`} key={item.label}><p className="text-xs font-medium text-muted-foreground">{item.label}</p>{query.isPending ? <Skeleton className="mt-1 h-8 w-24" /> : <p className="text-[28px] font-semibold tracking-[-0.56px]">{item.value}</p>}</div>)}
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -83,7 +86,7 @@ export function FacilitiesView() {
         <label className="grid gap-1 text-xs font-medium text-muted-foreground">LGA<select aria-label="Filter by LGA" className="h-10 rounded-lg border border-border bg-card px-3 text-sm font-normal text-foreground" onChange={(event) => { const nextLga = event.target.value; setLga(nextLga); if (selectedWard && selectedWard.lga !== nextLga) setSelectedWard(null); resetPage() }} value={lga}><option value="">All LGAs</option>{PLATEAU_LGAS.map((item) => <option key={item}>{item}</option>)}</select></label>
         <div className="w-full sm:w-64"><SearchableFilterSelect allLabel="All wards" emptyText="No wards found." hasMore={Boolean(wardsQuery.hasNextPage)} label="Ward" loading={wardsQuery.isFetching && !wardsQuery.isFetchingNextPage} loadingMore={wardsQuery.isFetchingNextPage} onLoadMore={() => void wardsQuery.fetchNextPage()} onSearchChange={setWardSearch} onSelect={(option) => { const ward = option ? wards.find((item) => item.id === option.id) ?? null : null; setSelectedWard(ward); if (ward) setLga(ward.lga); resetPage() }} options={wards.map((ward) => ({ id: ward.id, label: ward.name, description: ward.lga }))} search={wardSearch} searchPlaceholder="Search wards…" value={selectedWard ? { id: selectedWard.id, label: selectedWard.name, description: selectedWard.lga } : null} /></div>
         <div className={tabGroup}>{(['all', 'active', 'inactive'] as const).map((item) => <button aria-pressed={status === item} className={`h-10 rounded-full px-4 text-xs font-semibold capitalize ${status === item ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted'}`} key={item} onClick={() => { setStatus(item); resetPage() }} type="button">{item}</button>)}</div>
-        <span className="ml-auto text-sm text-muted-foreground">{query.isPending ? 'Loading facilities…' : `Showing ${facilities.length} facilities`}</span>
+        <span className="ml-auto text-sm text-muted-foreground">{query.isPending ? 'Loading facilities…' : `Showing ${facilities.length} of ${totalCount.toLocaleString()} facilities`}</span>
       </div>
 
       <div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}>

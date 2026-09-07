@@ -19,6 +19,7 @@ export type {
   HealthFacilityListItemApi,
   HealthFacilityListParams,
   HealthFacilityListResult,
+  HealthFacilityListSummary,
   HealthFacilityRecord,
   HealthFacilityStatus,
   HealthFacilityWard,
