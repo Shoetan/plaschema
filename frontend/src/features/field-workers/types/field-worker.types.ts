@@ -33,6 +33,12 @@ export interface FieldWorkerListParams {
 export interface FieldWorkerListResult {
   items: FieldWorker[]
   meta: CursorPaginationMeta
+  summary?: FieldWorkerListSummary
+}
+
+export interface FieldWorkerListSummary {
+  active: number
+  totalBeneficiariesEnrolled: number
 }
 
 export interface FieldWorkerOverview {

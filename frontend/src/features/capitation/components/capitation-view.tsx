@@ -46,10 +46,11 @@ export function CapitationView() {
   const records = query.data?.items ?? []
   const meta = query.data?.meta
   const summary = query.data?.summary
+  const filteredSummary = query.data?.filteredSummary
   const hasRun = Boolean(summary || records.length)
-  const totalsAreRunWide = Boolean(summary)
-  const totals = summary ?? {
-    totalFacilities: records.length,
+  const totalCount = meta?.total ?? records.length
+  const totals = filteredSummary ?? summary ?? {
+    totalFacilities: totalCount,
     totalBeneficiaries: records.reduce((total, record) => total + record.beneficiaryCount, 0),
     totalCapitation: records.reduce((total, record) => total + record.amount, 0),
   }
@@ -83,10 +84,9 @@ export function CapitationView() {
     <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-2xl font-semibold tracking-[-0.48px]">Capitation</h1><p className="mt-0.5 text-sm text-muted-foreground">Calculate and review monthly capitation for active healthcare facilities.</p></div><Button className={btnPrimary} onClick={() => setShowGenerate(true)}><Plus aria-hidden="true" /> {hasRun ? 'Regenerate capitation' : 'Generate capitation'}</Button></div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{[[`Facilities · ${totalsAreRunWide ? 'Run total' : 'Current page'}`, totals.totalFacilities.toLocaleString()], [`Beneficiaries · ${totalsAreRunWide ? 'Run total' : 'Current page'}`, totals.totalBeneficiaries.toLocaleString()], ['Capitation rate', displayedRate === undefined ? '—' : formatNaira(displayedRate)], [`Capitation · ${totalsAreRunWide ? 'Run total' : 'Current page'}`, formatNaira(totals.totalCapitation)]].map(([label, value]) => <div className={`rounded-xl bg-card p-5 ${cardShadow}`} key={label}><p className="text-xs font-medium text-muted-foreground">{label}</p>{query.isPending ? <Skeleton className="mt-2 h-7 w-28" /> : <p className="mt-1 text-xl font-semibold">{value}</p>}</div>)}</div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{[['Facilities', totals.totalFacilities.toLocaleString()], ['Beneficiaries', totals.totalBeneficiaries.toLocaleString()], ['Capitation rate', displayedRate === undefined ? '—' : formatNaira(displayedRate)], ['Capitation', formatNaira(totals.totalCapitation)]].map(([label, value]) => <div className={`rounded-xl bg-card p-5 ${cardShadow}`} key={label}><p className="text-xs font-medium text-muted-foreground">{label}</p>{query.isPending ? <Skeleton className="mt-2 h-7 w-28" /> : <p className="mt-1 text-xl font-semibold">{value}</p>}</div>)}</div>
 
       {summary && <p className="-mt-3 text-xs text-muted-foreground">Latest run generated {formatLagosDate(summary.generatedAt)}</p>}
-      {records.length > 0 && summary === undefined && <p className="-mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">Full run totals were not included by the API, so the cards show totals for this page only.</p>}
       {query.isError && query.data && <p className="-mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">The latest capitation update failed. The previous results remain visible. <button className="font-semibold underline" onClick={() => void query.refetch()} type="button">Retry</button></p>}
 
       <div className="flex flex-wrap items-end gap-3">
@@ -95,7 +95,7 @@ export function CapitationView() {
         <div className={searchBar} style={{ flex: '1 1 240px', maxWidth: '300px' }}><Search aria-hidden="true" className="size-4" /><input aria-label="Search capitation facilities" className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" maxLength={120} onChange={(event) => setSearch(event.target.value)} placeholder="Search facility or LGA..." value={search} /></div>
         <select aria-label="Filter capitation by LGA" className="h-10 rounded-full border border-border bg-card px-3 text-sm" onChange={(event) => { setLga(event.target.value); resetPage() }} value={lga}><option value="">All LGAs</option>{PLATEAU_LGAS.map((item) => <option key={item}>{item}</option>)}</select>
         {query.isFetching && <LoaderCircle aria-label="Updating capitation" className="size-4 animate-spin text-muted-foreground" />}
-        <span className="ml-auto text-sm text-muted-foreground">{query.isPending ? 'Loading records…' : `${records.length} facilities on this page`}</span>
+        <span className="ml-auto text-sm text-muted-foreground">{query.isPending ? 'Loading records…' : `Showing ${records.length} of ${totalCount.toLocaleString()} facilities`}</span>
       </div>
 
       <div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}>

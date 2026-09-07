@@ -3,6 +3,7 @@ import { _get, _post, type ApiResponse, type CursorPaginationMeta } from '@/api'
 import type {
   CapitationListParams,
   CapitationListResult,
+  CapitationFilteredSummary,
   CapitationPreview,
   CapitationRecord,
   CapitationSummary,
@@ -12,6 +13,7 @@ import type {
 
 type CapitationListResponse = ApiResponse<CapitationRecord[], CursorPaginationMeta> & {
   summary?: CapitationSummary | null
+  filteredSummary?: CapitationFilteredSummary | null
 }
 
 export async function fetchCapitations(
@@ -31,6 +33,7 @@ export async function fetchCapitations(
     items: response.data.data,
     meta: response.data.meta,
     summary: response.data.summary,
+    filteredSummary: response.data.filteredSummary,
   }
 }
 

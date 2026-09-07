@@ -16,6 +16,7 @@ import type {
   HealthFacilityListItemApi,
   HealthFacilityListParams,
   HealthFacilityListResult,
+  HealthFacilityListSummary,
   HealthFacilityRecord,
   UpdateHealthFacilityVariables,
 } from '../types'
@@ -25,12 +26,17 @@ import {
   mapHealthFacilityListItem,
 } from '../utils/map-facility'
 
+type HealthFacilityListResponse = ApiResponse<
+  HealthFacilityListItemApi[],
+  CursorPaginationMeta
+> & {
+  summary?: HealthFacilityListSummary
+}
+
 export async function fetchHealthFacilities(
   params: HealthFacilityListParams,
 ): Promise<HealthFacilityListResult> {
-  const response = await _get<
-    ApiResponse<HealthFacilityListItemApi[], CursorPaginationMeta>
-  >('/health-facilities', {
+  const response = await _get<HealthFacilityListResponse>('/health-facilities', {
     cursor: params.cursor,
     limit: params.limit,
     wardId: params.wardId,
@@ -43,6 +49,7 @@ export async function fetchHealthFacilities(
   return {
     items: response.data.data.map(mapHealthFacilityListItem),
     meta: response.data.meta,
+    summary: response.data.summary,
   }
 }
 

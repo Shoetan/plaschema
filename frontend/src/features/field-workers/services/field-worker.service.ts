@@ -12,19 +12,25 @@ import type {
   FieldWorkerDetail,
   FieldWorkerListParams,
   FieldWorkerListResult,
+  FieldWorkerListSummary,
   FieldWorkerUserRecord,
   ResetFieldWorkerPasswordResult,
   ResetFieldWorkerPasswordVariables,
   UpdateFieldWorkerVariables,
 } from '../types'
 
+type FieldWorkerListResponse = ApiResponse<
+  FieldWorker[],
+  CursorPaginationMeta
+> & {
+  summary?: FieldWorkerListSummary
+}
+
 /** GET /users?role=field_worker */
 export async function fetchFieldWorkers(
   params: FieldWorkerListParams,
 ): Promise<FieldWorkerListResult> {
-  const response = await _get<
-    ApiResponse<FieldWorker[], CursorPaginationMeta>
-  >('/users', {
+  const response = await _get<FieldWorkerListResponse>('/users', {
     cursor: params.cursor,
     limit: params.limit,
     role: 'field_worker',
@@ -32,7 +38,11 @@ export async function fetchFieldWorkers(
     status: params.status,
   })
 
-  return { items: response.data.data, meta: response.data.meta }
+  return {
+    items: response.data.data,
+    meta: response.data.meta,
+    summary: response.data.summary,
+  }
 }
 
 /** GET /users?role=field_worker (ward assignment picker) */

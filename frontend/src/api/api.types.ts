@@ -25,6 +25,7 @@ export interface CursorPaginationMeta {
   nextCursor: string | null
   hasMore: boolean
   limit: number
+  total: number
 }
 
 export interface ApiErrorBody {
