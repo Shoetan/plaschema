@@ -74,7 +74,7 @@ export function FacilitiesView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6">
+    <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-semibold tracking-[-0.48px]">Facilities</h1><p className="mt-0.5 text-sm text-muted-foreground">Manage healthcare facilities participating in the programme.</p></div><div className="flex gap-2"><button className={btnSecondary} onClick={() => setModal('upload')} type="button"><Upload aria-hidden="true" className="size-4" /> Upload Facilities</button><button className={btnPrimary} onClick={() => setModal('create')} type="button"><Plus aria-hidden="true" className="size-4" /> Add Facility</button></div></div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

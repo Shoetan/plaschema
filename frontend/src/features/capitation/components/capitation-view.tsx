@@ -81,7 +81,7 @@ export function CapitationView() {
   const periodLabel = `${CAPITATION_MONTHS[month - 1]} ${year}`
 
   return (
-    <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6">
+    <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-2xl font-semibold tracking-[-0.48px]">Capitation</h1><p className="mt-0.5 text-sm text-muted-foreground">Calculate and review monthly capitation for active healthcare facilities.</p></div><Button className={btnPrimary} onClick={() => setShowGenerate(true)}><Plus aria-hidden="true" /> {hasRun ? 'Regenerate capitation' : 'Generate capitation'}</Button></div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{[['Facilities', totals.totalFacilities.toLocaleString()], ['Beneficiaries', totals.totalBeneficiaries.toLocaleString()], ['Capitation rate', displayedRate === undefined ? '—' : formatNaira(displayedRate)], ['Capitation', formatNaira(totals.totalCapitation)]].map(([label, value]) => <div className={`rounded-xl bg-card p-5 ${cardShadow}`} key={label}><p className="text-xs font-medium text-muted-foreground">{label}</p>{query.isPending ? <Skeleton className="mt-2 h-7 w-28" /> : <p className="mt-1 text-xl font-semibold">{value}</p>}</div>)}</div>

@@ -67,7 +67,7 @@ export function WardsView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6">
+    <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-[-0.48px] text-foreground">Wards</h1>
         <div className="flex gap-2">

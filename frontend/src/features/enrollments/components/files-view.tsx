@@ -51,7 +51,7 @@ export function FilesView() {
     }
   }
 
-  return <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6">
+  return <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold tracking-tight">Files</h1><p className="mt-1 text-sm text-muted-foreground">Track and download generated ID-card PDFs and enrollment reports.</p></div><div className="flex gap-2"><Button onClick={() => navigate('/admin/beneficiaries')} variant="outline">CBHI Enrolments</Button><Button onClick={() => navigate('/admin/id-cards')}>Generate ID cards</Button></div></div>
     <div className="flex flex-wrap items-center gap-3"><div className={tabGroup}>{(['all', 'queued', 'processing', 'completed', 'failed'] as const).map((item) => <button aria-pressed={status === item} className={`h-10 rounded-full px-4 text-xs font-semibold capitalize ${status === item ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted'}`} key={item} onClick={() => { setStatus(item); resetPage() }} type="button">{item}</button>)}</div>{query.isFetching && <span className="flex items-center gap-2 text-xs text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Refreshing jobs</span>}</div>
     <div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}>

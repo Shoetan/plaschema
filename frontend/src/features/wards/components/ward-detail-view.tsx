@@ -123,7 +123,7 @@ export function WardDetailView({ wardId }: WardDetailViewProps) {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6">
+    <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <button className="hover:text-foreground" onClick={() => navigate('/admin/wards')}>Wards</button><span>/</span><span className="font-medium text-foreground">{ward.name}</span>
       </div>

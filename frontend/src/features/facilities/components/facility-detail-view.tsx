@@ -70,7 +70,7 @@ export function FacilityDetailView({ facilityId }: FacilityDetailViewProps) {
     setBeneficiaryPage((current) => current + 1)
   }
 
-  return <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6">
+  return <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
     <div className="flex items-center gap-2 text-sm text-muted-foreground"><Link className="hover:text-foreground" to="/admin/facilities">Facilities</Link><span>/</span><span className="text-foreground">{facility.name}</span></div>
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div className="flex flex-wrap items-center gap-3"><h1 className="text-2xl font-semibold tracking-[-0.48px]">{facility.name}</h1><StatusBadge status={statusLabel(facility.status)} /></div><p className="mt-1 text-sm text-muted-foreground">{facility.ward.name} · {facility.lga} LGA</p></div><div className="flex flex-wrap gap-2"><Button onClick={() => setEditOpen(true)} variant="outline">Edit Facility</Button><Button disabled={updateMutation.isPending} onClick={toggleStatus} variant="outline">{updateMutation.isPending ? <><LoaderCircle aria-hidden="true" className="animate-spin" /> Updating…</> : nextStatus === 'inactive' ? 'Deactivate' : 'Activate'}</Button><Button onClick={() => setDeleteOpen(true)} variant="destructive"><Trash2 aria-hidden="true" /> Delete</Button></div></div>
 
