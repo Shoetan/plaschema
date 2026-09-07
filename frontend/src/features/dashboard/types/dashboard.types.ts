@@ -48,6 +48,16 @@ export interface DashboardStatusSlice {
   percent: number
 }
 
+export interface DashboardStatusBreakdown {
+  active: DashboardStatusSlice
+  inactive: DashboardStatusSlice
+}
+
+export interface DashboardCategoryCount {
+  category: string
+  count: number
+}
+
 export interface DashboardFacilityItem {
   id: string
   name: string
@@ -100,11 +110,8 @@ export interface DashboardOverview {
     points: DashboardTrendPoint[]
   }
   recentActivity: DashboardActivityItem[]
-  enrollmentByCategory: Array<{ category: string; count: number }>
-  enrollmentByStatus: {
-    active: DashboardStatusSlice
-    inactive: DashboardStatusSlice
-  }
+  enrollmentByCategory: DashboardCategoryCount[]
+  enrollmentByStatus: DashboardStatusBreakdown
   enrollmentByWard: Array<{ wardId: string; name: string; count: number }>
   enrollmentByLga: Array<{ lga: string; count: number }>
   facilityOverview: {
