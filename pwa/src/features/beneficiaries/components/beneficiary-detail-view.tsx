@@ -25,7 +25,7 @@ export function BeneficiaryDetailView({ beneficiaryId }: { beneficiaryId: string
   const duplicate = duplicateReference(record.errorDetails)
   const sections = [
     { title: 'Personal details', icon: UserRound, rows: [['Full name', `${form.title} ${form.firstName} ${form.middleName} ${form.lastName}`], ['Category', form.category], ['Gender', form.gender], ['Date of birth', form.dateOfBirth], ['Marital status', form.maritalStatus], ['Blood group', form.bloodGroup || '—'], ['Genotype', form.genotype || '—']] },
-    { title: 'Contact', icon: Phone, rows: [['Phone', form.phone], ['Email', form.email || '—'], ['Emergency phone', form.emergencyPhone], ['Next of kin', `${form.nextOfKinFullName} · ${form.nextOfKinRelationship}`]] },
+    { title: 'Contact', icon: Phone, rows: [['Phone', form.phone], ['Email', form.email || '—'], ['Next of kin', form.nextOfKinFullName || '—'], ['Relationship', form.nextOfKinRelationship || '—']] },
     { title: 'Location and care', icon: MapPin, rows: [['Ward', record.wardName], ['LGA', form.lgaOfResidence], ['Address', form.residentialAddress], ['Health facility', record.facilityName]] },
     { title: 'Documents', icon: FileText, rows: [['Passport', form.passportName], [form.idType || 'ID document', form.idDocumentName], ['NIN', form.nin || '—']] },
   ]

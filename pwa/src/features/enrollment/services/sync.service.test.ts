@@ -27,9 +27,9 @@ async function queueCompleteEnrollment(firstName: string) {
   draft.form = {
     ...EMPTY_ENROLLMENT_FORM, category: 'IDPs', passportFileId: passport.id, passportName: passport.name,
     idDocumentFileId: identity.id, idDocumentName: identity.name, title: 'mrs', firstName, lastName: 'Yusuf',
-    gender: 'female', dateOfBirth: '1990-05-04', maritalStatus: 'married', phone: '+2348012345678',
+    gender: 'female', dateOfBirth: '1990-05-04', maritalStatus: 'married', phone: '+2348012345678', nin: '1234567890',
     lgaOfResidence: 'Jos North', residentialAddress: '12 Test Road', wardId: 'ward', healthFacilityId: 'facility',
-    idType: 'national_id', nextOfKinFullName: 'Test Person', emergencyPhone: '+2348098765432', nextOfKinRelationship: 'sibling',
+    idType: 'national_id', nextOfKinFullName: 'Test Person', nextOfKinRelationship: 'sibling',
   }
   return queueEnrollment(draft, 'Ward', 'Facility')
 }

@@ -1,7 +1,7 @@
 # PLASCHEMA Project Handoff
 
-Last updated: 5 September 2026
-Last verified code commit: `7d5456a`
+Last updated: 7 September 2026
+Last verified code commit: `177f909`
 
 ## Purpose
 
@@ -26,8 +26,11 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Feature folders live under `frontend/src/features/`.
 - Thin route files live under `frontend/src/routes/`.
 - Admin designs and navigation are implemented.
-- Dashboard and most feature data remain mock-only on the admin UI; ward and health-facility admin screens are API-backed.
-- Backend `GET /api/dashboard` (admin-only) returns a single overview payload for the dashboard screens: KPIs, enrollment trend, recent activity, category/status breakdowns, top wards (10), all LGAs with data, facility overview (top 5), field-worker performance (top 10), and recent enrollments (5). Filters: `lga`, `wardId`, `period` (`7d`|`30d`|`3m`|`6m`|`1y`, default `30d`), `trend` (`daily`|`weekly`|`monthly`, default `monthly`). No state filter.
+- The admin dashboard uses `GET /api/dashboard` for its KPIs, enrollment trend, recent activity, category/status breakdowns, ward/LGA rankings, facility overview, field-worker performance and recent enrollments.
+- Dashboard filters are LGA, a searchable Ward, period (`7d`|`30d`|`3m`|`6m`|`1y`, default `30d`) and trend (`daily`|`weekly`|`monthly`, default `monthly`). Plateau is fixed rather than exposed as a State filter; selecting an LGA clears an incompatible Ward and selecting a Ward applies its LGA.
+- Every dashboard visual is rendered with Recharts: the enrollment trend is a gradient area chart with a stroked line, per-point dots, a labelled y-axis, a hover tooltip and a dashed average reference line; enrollment by category, ward and LGA share one horizontal bar chart; enrollment by status is a donut with a legend and a centre total. No hand-rolled SVG or CSS-div bars remain in the dashboard feature.
+- Ward bars on the dashboard still navigate to ward detail. Because a Recharts bar click is mouse-only, each clickable chart also renders a visually hidden list of real buttons so keyboard and screen-reader users keep the same navigation.
+- Chart colours come from the `--chart-1` … `--chart-5` theme tokens in `frontend/src/index.css`. Recharts mount animations are disabled so charts render deterministically and do not re-animate on every filter change or background refetch.
 - Admin login uses `POST /auth/login`; saved sessions are validated with `GET /auth/me`.
 - The typed API layer is split into client, request, error and contract modules and is consumed through feature services and React Query hooks.
 - Authentication is admin-only. Zustand owns the access token, authenticated user and session status.
@@ -63,10 +66,13 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Capitation list API returns run-wide `summary`, filter-scoped `filteredSummary`, and `meta.total`. The response interceptor preserves both summary fields. The admin UI still labels cards as current-page totals until wired.
 - Admin CBHI Enrolments now uses `GET /enrollments` with cursor pagination and production search, status, category, printed-state, LGA, ward, facility, field-worker, date and age filters.
 - Enrollment detail combines `GET /enrollments/:id` with `GET /enrollments/:id/detail` to show the complete beneficiary record, temporary document links and real activity history.
-- Ward, facility, field-worker and dashboard enrollment rows share the enrollment feature query and open the API-backed detail route.
-- ID Cards queues one to nine records through `POST /enrollments/id-cards/generate`. Excel exports use `POST /enrollments/reports/export`; unsupported search and printed-state filters are explained before export.
+- Enrollment activation and deactivation use `PATCH /enrollments/:id` for row/detail actions and `POST /enrollments/status` for batches of up to 100 unique IDs. Confirmations show partial-result counts for not-found, unchanged and invalid transitions; deceased records have no single-record action.
+- Ward, facility, field-worker and dashboard enrollment rows open the API-backed enrollment detail route.
+- ID Cards queues one to nine records through `POST /enrollments/id-cards/generate`. Excel exports use `POST /enrollments/reports/export`, reuse the supported filters selected on the enrollment list and summarize their scope before submission. An unfiltered export requires an explicit all-enrollments confirmation, while unsupported search and printed-state filters are explained before export.
+- Enrollment Ward, Facility and Field Worker filters use single searchable selectors instead of separate search inputs and dropdowns. Changing the Ward clears the selected Facility to prevent incompatible filters.
+- Admin enrollment and ID-card category filters use the same fixed programme categories as the PWA: IDPs, Elderly 65+, and Indigents / Very Poor / Others.
 - Files replaces Settings in the sidebar and uses `/file-jobs`, `/file-jobs/:id` and `/file-jobs/:id/download` for progress and fresh download links. The Settings route remains available but unlisted.
-- Enrollment creation remains in the field-worker PWA. Admin enrollment status and records are read-only because production exposes no update, status-change or delete endpoint. See `docs/enrollment-backend-feedback.md`.
+- Enrollment creation remains in the field-worker PWA. Admin enrollment details remain read-only apart from activation/deactivation because production exposes no general update or delete endpoint. See `docs/enrollment-backend-feedback.md`.
 
 ### Field-worker PWA
 
@@ -87,7 +93,10 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Server-accepted records remain locally only while the final `POST /auth/sync` report is owed. After that report succeeds, their records and file blobs are removed from the device.
 - Home Pending is device-local. Today and Total combine own `/users/:id/detail` statistics with unsent device records without double-counting retained synced rows; dates use the Africa/Lagos calendar day.
 - People and Sync display only records created on the current device. The PWA does not use `GET /enrollments` as a server-backed beneficiary list.
-- Enrollment State of Residence is fixed to `PLATEAU`. Beneficiary and emergency phones are required 11-digit local numbers; NIN is optional but must contain exactly 10 digits when supplied.
+- Enrollment State of Residence is fixed to `PLATEAU`. Beneficiary phone is required at exactly 11 digits; NIN is required and must contain exactly 10 digits.
+- The Residence step orders geography as State, LGA and Ward. Its offline LGA selector is derived from the worker's accessible active wards, and selecting an LGA filters the ward selector. A sole matching ward is selected automatically.
+- Selecting a ward automatically selects its health facility only when exactly one active facility is available. Multiple facilities require an explicit worker choice, while no active facility blocks the facility step with guidance.
+- Next-of-kin name and relationship remain visible but optional. Emergency phone is no longer collected or submitted by the PWA, including from legacy device records.
 - Profile ward access shows unrestricted workers as **All wards**, one assigned ward directly, and multiple assigned wards in an expandable list. An unrestricted worker still selects one specific ward for each enrollment.
 - Logout is immediate; no refresh-token or server logout endpoint exists.
 
@@ -168,6 +177,9 @@ Both frontend development servers use Vite's `--strictPort` option and exit inst
 - Integrate admin APIs one Swagger endpoint at a time through API client → feature service → React Query hook → component.
 - Restrict the admin frontend to users whose API role is `admin`.
 - `sonner` is the approved toast dependency for the admin frontend.
+- `recharts` is the approved charting dependency for the admin frontend. Keep it inside dashboard chart components; hooks, services, utils and types must stay free of it.
+- Chart marks may not use the brand lime `#9fe870` directly. It is too light for a data mark (only about 1.44:1 against white), so the chart tokens hold the brand hue at an accessible step and the pale lime is used only as the area wash beneath the trend line.
+- Custom Recharts tooltip, label and click handlers are typed with narrow local interfaces plus type guards rather than the library's loose payload types, so the no-`any` rule still holds.
 - Keep server-owned ward records out of Zustand; React Query owns ward API state as read endpoints are integrated.
 - Keep `GET /wards/stream` for a separate PWA offline-sync phase; it is not used by the admin app.
 - Use the admin-specific `GET /wards/:id/detail` response rather than adding the simpler ward-by-ID endpoint without a consumer.
@@ -186,7 +198,7 @@ Both frontend development servers use Vite's `--strictPort` option and exit inst
 - Keep the capitation rate owned by backend configuration. The admin may select the period and preview the calculation but does not override the rate.
 - Allow repeated capitation generation for a period with a warning; the newest run is the one displayed by the backend.
 - Keep admin enrollment creation in the PWA workflow; the admin app reviews, filters, prints and exports server records.
-- Keep enrollment selection across result pages up to the backend limit of nine ID cards per job.
+- Keep enrollment selection across result pages up to 100 records for status changes. The same selection may generate ID cards only while it contains one to nine records.
 - Always request a fresh presigned download URL for a completed file job rather than storing temporary Railway links.
 
 ## Structure rules
@@ -209,6 +221,44 @@ At commit `a73ed09`:
 - Backend had no working-tree changes.
 
 After later edits, rerun the relevant checks before updating this section.
+
+On 7 September 2026 after the dashboard chart rebuild:
+
+- The enrollment trend, category, ward, LGA and status visuals were rebuilt with Recharts. The previous trend chart rendered its fixed 720-wide `viewBox` at native size and centred it inside a much wider card, which left large empty margins; a responsive container removes that entirely.
+- Zero-count buckets now read as a flat line on the baseline instead of drawing nothing, the y-axis carries values, and the average reference line no longer collides with point labels.
+- Enrollment by category, ward and LGA share a single bar-chart component, and the previous `BarList` component and its `relativeWidth` helper were removed as dead code.
+- The chart token ramp was validated for lightness, chroma, colour-vision separation and surface contrast before use; the brand lime failed the mark-contrast floor and was replaced for marks while remaining the trend area wash.
+- Recharts mount animations are disabled. They were observed stalling mid-reveal, which left the line, area and donut sectors partly drawn, and they would otherwise replay on every filter change and background refetch.
+- Admin lint, TypeScript and production build pass. Static checks confirm no `any`, no request wrappers or service imports in components, and no Recharts usage outside the chart components. Note that `tsc -b` via the build script is stricter than a bare `tsc --noEmit` and is what caught the library's tooltip and label typings.
+- Bundle impact was measured against a baseline build: the main chunk was unchanged at about 587 kB while the lazily loaded dashboard chunk grew from about 23 kB to about 423 kB (roughly 119 kB gzipped).
+- Visual and authenticated verification were left to the user.
+
+On 5 September 2026 after the admin dashboard integration:
+
+- Every dashboard section is backed by the single production `GET /api/dashboard` response; mock dashboard data, mock-store calculations and the separate recent-enrollments request were removed.
+- LGA, searchable Ward, rolling period and trend filters use the production query contract. The unsupported State filter was removed.
+- Initial loading, background refresh, retained-data errors, retry and per-section empty states are implemented, including safe zero-value chart calculations and nullable actor/activity dates.
+- The searchable entity selector and Plateau LGA list were promoted to shared admin utilities for enrollment and dashboard filters.
+- Admin lint, TypeScript and production build pass. Static checks confirm the dashboard contains no mock imports, raw API calls or `any`.
+- Authenticated production-data and manual visual testing were intentionally left to the user.
+
+On 5 September 2026 after the admin enrollment status integration:
+
+- Typed service and React Query mutation layers use the production single and bulk activation/deactivation endpoints and invalidate enrollment list/detail/activity data after successful changes.
+- The enrollment table supports selecting the current page and retaining up to 100 selections across cursor pages. Bulk Activate/Deactivate use that selection, while ID-card generation remains limited to one through nine.
+- Pending enrollments may be activated or deactivated; active enrollments may be deactivated; disabled enrollments may be activated; deceased enrollments expose no single-record status action.
+- Row and detail actions require confirmation. Bulk partial results report updated and skipped counts grouped as not found, unchanged or unable to change.
+- Admin lint, TypeScript and production build pass. Local production-preview checks return HTTP 200 for the enrollment list and nested detail routes. No backend or PWA files were changed; authenticated API smoke testing was unavailable without admin credentials.
+
+On 5 September 2026 after the confirmed PWA enrollment feedback:
+
+- NIN is mandatory in both step validation and final offline payload validation. It accepts digits only and must contain exactly 10 digits; beneficiary phone remains mandatory at exactly 11 digits.
+- Ward selection automatically chooses a health facility only when there is one active match. Valid saved choices survive reference refreshes, while missing or inactive choices are cleared.
+- The enrollment route disables the app shell's outer scrolling and keeps one overscroll-contained fields area between the fixed-in-flow enrollment header and action bar. Other PWA routes retain normal page scrolling.
+- Residence geography now follows State → LGA → Ward. LGA choices come from active wards already filtered to the worker's access, wards are filtered by LGA, and a sole matching ward is selected automatically before facility resolution.
+- Next-of-kin name and relationship are optional and omitted from the API payload when blank. Emergency phone was removed from enrollment, review and local detail UI and is not submitted from new or legacy stored records.
+- PWA lint and production build pass. All 35 PWA tests pass, including required NIN, geography selection, optional next-of-kin, facility-selection and layout regression coverage.
+- The unclear date-of-birth visual feedback remains deferred until its product requirement is confirmed.
 
 On 4 September 2026 after the admin capitation integration:
 
@@ -312,12 +362,16 @@ On 2 September 2026 after the PWA authentication integration:
 
 ## Known gaps
 
-- Admin dashboard UI still uses mocks; wire it to `GET /api/dashboard` in a separate frontend task.
 - Remaining mock-only admin areas include general Reports and Settings screens.
 - Admin list KPI cards (field workers, facilities, capitation) still count the current page; wire them to list `meta.total` and `summary` / `filteredSummary`.
 - Programme-wide enrollment totals are unavailable from cursor metadata alone on the enrollments list.
 - Admin enrollment editing, status changes and deletion are unavailable in the production API.
+- Programme-wide facility KPI totals.
+- Programme-wide enrollment totals are unavailable from cursor metadata.
+- General admin enrollment editing and deletion are unavailable in the production API; activation and deactivation are integrated.
 - Enrollment export cannot apply broad search or printed-state filters, and failed report jobs cannot be retried directly.
+- Dashboard charts are not dark-mode ready. The `.dark` block in `frontend/src/index.css` does not define `--success`/`--success-foreground`, and no dark-mode toggle is wired, so a future dark theme needs a chart colour pass.
+- The admin production build reports a Vite chunk larger than 500 kB. This predates the charting work; Recharts is confined to the lazily loaded dashboard route chunk.
 - Refresh-token support and automatic session renewal.
 - Full real-device browser testing.
 - Broader frontend test coverage.
@@ -325,9 +379,8 @@ On 2 September 2026 after the PWA authentication integration:
 ## Suggested next work
 
 1. Test admin enrollment filtering, document links, ID-card PDFs and Excel downloads with a production admin account.
-2. Agree the enrollment API gaps in `docs/enrollment-backend-feedback.md` with the backend team.
-3. Wire the admin dashboard UI to `GET /api/dashboard` (remove State filter; keep View All links to module pages).
-4. Complete real-device PWA browser testing.
+2. Agree the remaining enrollment editing, deletion, export and reporting gaps in `docs/enrollment-backend-feedback.md` with the backend team.
+3. Complete real-device PWA browser testing.
 
 ## Handoff update checklist
 

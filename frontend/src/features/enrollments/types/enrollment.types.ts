@@ -1,6 +1,8 @@
 import type { CursorPaginationMeta } from '@/api'
 
 export type EnrollmentStatus = 'pending' | 'active' | 'disabled' | 'deceased'
+export type EnrollmentStatusTarget = 'active' | 'disabled'
+export type EnrollmentStatusSkipReason = 'not_found' | 'unchanged' | 'invalid_transition'
 export type PrintedStatus = 'all' | 'printed' | 'not_printed'
 export type FileJobKind = 'id_card' | 'enrollment_report'
 export type FileJobFormat = 'pdf' | 'xlsx'
@@ -53,6 +55,29 @@ export interface EnrollmentListParams {
 export interface EnrollmentListResult {
   items: EnrollmentListItem[]
   meta: CursorPaginationMeta
+}
+
+export interface EnrollmentStatusSkip {
+  id: string
+  reason: EnrollmentStatusSkipReason
+  currentStatus?: EnrollmentStatus
+}
+
+export interface EnrollmentStatusResult {
+  status: EnrollmentStatusTarget
+  updated: number
+  updatedIds: string[]
+  skipped: EnrollmentStatusSkip[]
+}
+
+export interface BulkEnrollmentStatusPayload {
+  enrollmentIds: string[]
+  status: EnrollmentStatusTarget
+}
+
+export interface SingleEnrollmentStatusPayload {
+  id: string
+  status: EnrollmentStatusTarget
 }
 
 export type EnrollmentTitle = 'mr' | 'mrs' | 'miss' | 'ms' | 'dr' | 'chief' | 'rev' | 'alhaji' | 'hajia' | 'other'

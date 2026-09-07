@@ -1,5 +1,5 @@
 import { Home, RefreshCw, UserRound, UsersRound, Wifi, WifiOff, Plus } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { UpdatePrompt } from '@/components/update-prompt'
 import { useNetworkStatus } from '@/hooks/use-network-status'
@@ -14,6 +14,7 @@ const navItems = [
 
 export function AppLayout() {
   const isOnline = useNetworkStatus()
+  const isEnrollmentRoute = useLocation().pathname === '/enroll'
   return (
     <div className="app-frame flex flex-col">
       <header className="flex shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-4 py-3">
@@ -26,7 +27,7 @@ export function AppLayout() {
         </div>
       </header>
       <UpdatePrompt />
-      <main className="min-h-0 flex-1 overflow-y-auto"><Outlet /></main>
+      <main className={`min-h-0 flex-1 ${isEnrollmentRoute ? 'overflow-hidden' : 'overflow-y-auto'}`}><Outlet /></main>
       <nav aria-label="Main navigation" className="relative z-30 mx-auto flex w-full max-w-[430px] shrink-0 items-end border-t border-neutral-200 bg-white px-1 pt-5 pb-[max(.35rem,env(safe-area-inset-bottom))]">
         {navItems.map(({ to, label, icon: Icon, primary }) => (
           <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => `flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-bold ${isActive ? 'text-neutral-950' : 'text-neutral-400'}`}>

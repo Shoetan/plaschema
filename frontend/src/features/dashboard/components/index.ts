@@ -1,1 +1,5 @@
+export { DashboardEmptyState } from './dashboard-empty-state'
 export { DashboardView } from './dashboard-view'
+export { EnrollmentBarChart } from './enrollment-bar-chart'
+export { EnrollmentStatusDonut } from './enrollment-status-donut'
+export { EnrollmentTrendChart } from './enrollment-trend-chart'

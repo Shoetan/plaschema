@@ -1,513 +1,82 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { recentActivity, enrollmentTrendData } from "@/mocks/admin-data";
-import { useAdminDataStore } from "@/stores/admin-data.store";
-import { StatusBadge } from "@/components/admin/status-badge";
-import { cardShadow, btnSecondary, thCell, tdCell, tabGroup } from "@/components/admin/styles";
-import { useEnrollments } from "@/features/enrollments/hooks";
-import { formatEnrollmentDate, statusLabel } from "@/features/enrollments/utils";
+import { Activity, LoaderCircle, RefreshCw } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 
-const selectCls = "border border-border rounded-[8px] px-3 py-2 text-sm font-medium text-foreground bg-card outline-none";
+import { getApiErrorMessage } from '@/api'
+import { SearchableFilterSelect } from '@/components/admin/searchable-filter-select'
+import { StatusBadge } from '@/components/admin/status-badge'
+import { btnSecondary, cardShadow, tabGroup, tdCell, thCell } from '@/components/admin/styles'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useWardOptions } from '@/features/wards/hooks'
+import type { WardListItem } from '@/features/wards/types'
+import { PLATEAU_LGAS } from '@/lib/geography'
 
-const trendPeriods = ["Daily", "Weekly", "Monthly"];
+import { useDashboard } from '../hooks'
+import type { DashboardPeriod, DashboardTrendGranularity } from '../types'
+import { formatDashboardDate, initials, signedValue, toCategorySeries, toLgaSeries, toWardSeries } from '../utils'
 
-const categoryBreakdown = [
-  { label: "IDPs", value: 3 },
-  { label: "Indigents / Very Poor / Others", value: 4 },
-  { label: "Elderly 65+", value: 3 },
-  { label: "Other", value: 2 },
-];
+import { DashboardEmptyState } from './dashboard-empty-state'
+import { EnrollmentBarChart } from './enrollment-bar-chart'
+import { EnrollmentStatusDonut } from './enrollment-status-donut'
+import { EnrollmentTrendChart } from './enrollment-trend-chart'
 
-const maxCategory = Math.max(...categoryBreakdown.map((c) => c.value));
+const selectClass = 'h-10 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground outline-none focus:border-primary'
+const periods: Array<[DashboardPeriod, string]> = [['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['3m', 'Last 3 months'], ['6m', 'Last 6 months'], ['1y', 'Last year']]
+const trends: Array<[DashboardTrendGranularity, string]> = [['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly']]
+
+function DashboardSkeleton() {
+  return <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6"><div className="space-y-2"><Skeleton className="h-8 w-40" /><Skeleton className="h-4 w-full max-w-xl" /><Skeleton className="mt-5 h-10 w-full max-w-3xl" /></div><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }, (_, index) => <Skeleton className="h-28 rounded-xl" key={index} />)}</div><div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]"><Skeleton className="h-80 rounded-xl" /><Skeleton className="h-80 rounded-xl" /></div><div className="grid gap-4 lg:grid-cols-2">{Array.from({ length: 4 }, (_, index) => <Skeleton className="h-64 rounded-xl" key={index} />)}</div></div>
+}
+
+function ClickableRow({ children, label, onClick }: { children: ReactNode; label: string; onClick: () => void }) {
+  return <tr aria-label={label} className="cursor-pointer hover:bg-muted/40 focus:bg-muted/40 focus:outline-2 focus:outline-ring" onClick={onClick} onKeyDown={(event) => { if (event.key === 'Enter') onClick() }} role="link" tabIndex={0}>{children}</tr>
+}
 
 export function DashboardView() {
-  const navigate = useNavigate();
-  const communities = useAdminDataStore((store) => store.communities);
-  const fieldWorkers = useAdminDataStore((store) => store.fieldWorkers);
-  const facilities = useAdminDataStore((store) => store.facilities);
-  const recentEnrollmentsQuery = useEnrollments({ limit: 5 });
-  const [trendPeriod, setTrendPeriod] = useState("Monthly");
-  const [filterState, setFilterState] = useState("All States");
-  const [filterLGA, setFilterLGA] = useState("All LGAs");
-  const [filterWard, setFilterWard] = useState("All Wards");
-  const [filterDate, setFilterDate] = useState("Last 30 Days");
+  const navigate = useNavigate()
+  const [lga, setLga] = useState('')
+  const [selectedWard, setSelectedWard] = useState<WardListItem | null>(null)
+  const [wardSearch, setWardSearch] = useState('')
+  const [period, setPeriod] = useState<DashboardPeriod>('30d')
+  const [trend, setTrend] = useState<DashboardTrendGranularity>('monthly')
+  const wardsQuery = useWardOptions(wardSearch.trim())
+  const wards = useMemo(() => {
+    const values = new Map<string, WardListItem>()
+    for (const ward of wardsQuery.data?.pages.flatMap((page) => page.items) ?? []) if (!lga || ward.lga === lga) values.set(ward.id, ward)
+    return [...values.values()]
+  }, [lga, wardsQuery.data])
+  const params = useMemo(() => ({ lga: lga || undefined, wardId: selectedWard?.id, period, trend }), [lga, period, selectedWard?.id, trend])
+  const query = useDashboard(params)
 
-  const maxVal = Math.max(...enrollmentTrendData.map((d) => d.enrollments));
-  const sortedFacilities = [...facilities].sort((a, b) => b.beneficiaries - a.beneficiaries);
-  const totalFacilityBeneficiaries = facilities.reduce((s, f) => s + f.beneficiaries, 0);
-  const activeFacilities = facilities.filter((f) => f.status === "Active").length;
-  const sortedFieldWorkers = [...fieldWorkers].sort((a, b) => b.enrolled - a.enrolled);
-  const totalEnrolled = fieldWorkers.reduce((s, fw) => s + fw.enrolled, 0);
-  const avgPerWorker = Math.round(totalEnrolled / Math.max(fieldWorkers.length, 1));
-  const maxBeneficiaries = Math.max(...communities.map((c) => c.beneficiaries));
-  const lgaData = communities.reduce((acc, community) => {
-    acc[community.lga] = (acc[community.lga] || 0) + community.beneficiaries;
-    return acc;
-  }, {} as Record<string, number>);
-  const lgaList = Object.entries(lgaData).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const maxLga = lgaList[0]?.[1] ?? 1;
-  const recentBeneficiaries = recentEnrollmentsQuery.data?.items ?? [];
+  if (query.isPending) return <DashboardSkeleton />
+  if (query.isError && !query.data) return <div className="flex flex-1 items-center justify-center p-6"><div className={`flex min-h-72 w-full max-w-2xl flex-col items-center justify-center gap-3 rounded-xl bg-card p-8 text-center ${cardShadow}`} role="alert"><p className="text-lg font-semibold">Unable to load the dashboard.</p><p className="text-sm text-muted-foreground">{getApiErrorMessage(query.error, 'Check your connection and try again.')}</p><Button onClick={() => void query.refetch()} variant="outline"><RefreshCw aria-hidden="true" /> Retry</Button></div></div>
 
-  return (
-    <div
-      className="flex flex-col gap-6 p-6 overflow-auto flex-1"
-      style={{ fontFamily: "'Inter Tight', sans-serif" }}
-    >
-      {/* ── Section 1: Header + Global Filters ── */}
-      <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="text-foreground text-[24px] font-semibold tracking-[-0.48px] leading-[1.3]">Dashboard</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Monitor enrollment, coverage, facilities, field operations and programme performance.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <select className={selectCls} value={filterState} onChange={(e) => setFilterState(e.target.value)}>
-            <option>All States</option>
-            <option>Plateau</option>
-          </select>
-          <select className={selectCls} value={filterLGA} onChange={(e) => setFilterLGA(e.target.value)}>
-            <option>All LGAs</option>
-            <option>Jos North</option>
-            <option>Jos South</option>
-            <option>Riyom</option>
-            <option>Barkin Ladi</option>
-            <option>Pankshin</option>
-            <option>Langtang North</option>
-            <option>Mikang</option>
-          </select>
-          <select className={selectCls} value={filterWard} onChange={(e) => setFilterWard(e.target.value)}>
-            <option>All Wards</option>
-          </select>
-          <select className={selectCls} value={filterDate} onChange={(e) => setFilterDate(e.target.value)}>
-            <option>Last 7 Days</option>
-            <option>Last 30 Days</option>
-            <option>Last 3 Months</option>
-            <option>Last 6 Months</option>
-            <option>Last Year</option>
-          </select>
-        </div>
-      </div>
+  const data = query.data
+  const kpis = [
+    { label: 'Total Enrollments', value: data.kpis.totalEnrollments.value, change: data.kpis.totalEnrollments.changePercent, suffix: '%', href: '/admin/beneficiaries' },
+    { label: 'Active Beneficiaries', value: data.kpis.activeBeneficiaries.value, change: data.kpis.activeBeneficiaries.changePercent, suffix: '%', href: '/admin/beneficiaries' },
+    { label: 'Inactive Beneficiaries', value: data.kpis.inactiveBeneficiaries.value, change: data.kpis.inactiveBeneficiaries.changePercent, suffix: '%', inverse: true, href: '/admin/beneficiaries' },
+    { label: 'New Enrollments', value: data.kpis.newEnrollments.value, change: data.kpis.newEnrollments.changePercent, suffix: '%' },
+    { label: 'Total Facilities', value: data.kpis.totalFacilities.value, change: data.kpis.totalFacilities.changeAbsolute },
+    { label: 'Field Workers', value: data.kpis.fieldWorkers.value, change: data.kpis.fieldWorkers.changeAbsolute },
+  ]
 
-      {/* ── Section 2: Primary KPI Cards ── */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: "Total Enrollments", value: "2,299", change: "+8.5%", positive: true, nav: null },
-          { label: "Active Beneficiaries", value: "2,044", change: "+5.2%", positive: true, nav: "/admin/beneficiaries" },
-          { label: "Inactive Beneficiaries", value: "255", change: "-2.1%", positive: false, nav: "/admin/beneficiaries" },
-          { label: "New Enrollments (Month)", value: "257", change: "+12%", positive: true, nav: null },
-          { label: "Total Facilities", value: "10", change: "0%", positive: true, nav: null },
-          { label: "Field Workers", value: "8", change: "+3", positive: true, nav: null },
-        ].map((k) => (
-          <div
-            key={k.label}
-            className={`bg-card rounded-[12px] ${cardShadow} p-4 flex flex-col gap-3 ${k.nav ? "cursor-pointer hover:bg-muted/40" : ""}`}
-            onClick={() => k.nav && navigate(k.nav)}
-          >
-            <p className="text-muted-foreground text-sm font-medium tracking-[0.28px]">{k.label}</p>
-            <div className="flex items-end gap-2">
-              <span className="text-foreground text-[24px] tracking-[-0.48px] font-semibold">{k.value}</span>
-              <span className={`text-sm font-semibold mb-0.5 ${k.positive ? "text-success-foreground" : "text-[#dc2626]"}`}>
-                {k.change}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+  return <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6">
+    <section className="space-y-4" aria-labelledby="dashboard-title"><div><h1 className="text-2xl font-semibold tracking-[-0.48px]" id="dashboard-title">Dashboard</h1><p className="mt-1 text-sm text-muted-foreground">Monitor enrollment, coverage, facilities, field operations and programme performance.</p></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><label className="grid gap-1 text-xs font-medium text-muted-foreground">LGA<select className={selectClass} onChange={(event) => { setLga(event.target.value); setSelectedWard(null) }} value={lga}><option value="">All LGAs</option>{PLATEAU_LGAS.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><SearchableFilterSelect allLabel="All wards" emptyText={lga ? `No wards found in ${lga}.` : 'No wards found.'} hasMore={Boolean(wardsQuery.hasNextPage)} label="Ward" loading={wardsQuery.isFetching && !wardsQuery.isFetchingNextPage} loadingMore={wardsQuery.isFetchingNextPage} onLoadMore={() => void wardsQuery.fetchNextPage()} onSearchChange={setWardSearch} onSelect={(option) => { const ward = option ? wards.find((item) => item.id === option.id) ?? null : null; setSelectedWard(ward); if (ward) setLga(ward.lga) }} options={wards.map((ward) => ({ id: ward.id, label: ward.name, description: ward.lga }))} search={wardSearch} searchPlaceholder="Search wards…" value={selectedWard ? { id: selectedWard.id, label: selectedWard.name, description: selectedWard.lga } : null} /><label className="grid gap-1 text-xs font-medium text-muted-foreground">Period<select className={selectClass} onChange={(event) => setPeriod(event.target.value as DashboardPeriod)} value={period}>{periods.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><div className="flex items-end pb-2 text-sm text-muted-foreground">Plateau State · {formatDashboardDate(data.filters.periodStart)} – {formatDashboardDate(data.filters.periodEnd)}</div></div>{wardsQuery.isError && <p className="text-sm text-destructive" role="alert">Ward options could not be loaded. You can still filter by LGA.</p>}{query.isFetching && <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status"><LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" /> Updating dashboard…</p>}{query.isError && query.data && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert"><span>The latest dashboard update failed. The previous results are still shown.</span><Button onClick={() => void query.refetch()} size="sm" variant="outline">Retry</Button></div>}</section>
 
-      {/* ── Section 3: Enrollment Trend + Recent Activity ── */}
-      <div className="grid grid-cols-[1fr_340px] gap-4">
-        {/* Enrollment Trend Chart */}
-        <div className={`bg-card rounded-[12px] ${cardShadow} flex flex-col`}>
-          <div className="flex items-center gap-4 p-4 border-b border-border">
-            <div className="flex flex-col gap-1 flex-1">
-              <p className="text-foreground text-sm font-semibold tracking-[0.28px]">Enrollment Trend</p>
-              <p className="text-foreground text-[24px] tracking-[-0.48px] font-semibold">2,299 <span className="text-muted-foreground text-sm font-medium">total enrollments</span></p>
-            </div>
-            <div className={tabGroup}>
-              {trendPeriods.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setTrendPeriod(p)}
-                  className={`px-3 py-2 h-[38px] text-[12px] tracking-[0.24px] transition-colors ${
-                    trendPeriod === p ? "bg-card font-semibold text-foreground" : "font-medium text-muted-foreground"
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="p-4">
-            <div className="relative h-[220px]">
-              {/* Y-axis labels */}
-              <div className="absolute left-0 top-0 bottom-[21px] flex flex-col justify-between items-end pr-3">
-                {["800", "600", "400", "200", "0"].map((l) => (
-                  <span key={l} className="text-muted-foreground text-[12px] font-medium">{l}</span>
-                ))}
-              </div>
-              {/* Chart area */}
-              <div className="absolute left-[44px] right-0 top-0 bottom-[21px]">
-                {/* Grid lines */}
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <div key={i} className="w-full h-px bg-muted" />
-                  ))}
-                </div>
-                {/* Avg line */}
-                <div className="absolute left-0 right-0 flex items-center" style={{ top: "38%" }}>
-                  <div className="flex items-start shrink-0">
-                    <div className="bg-[#455c33] flex items-center pl-1 pr-0.5 py-px rounded-l-[4px]">
-                      <span className="text-white text-[11px] font-normal whitespace-nowrap">Avg</span>
-                    </div>
-                  </div>
-                  <div className="flex-1 h-px border-t border-dashed border-[#455c33]" />
-                </div>
-                {/* Bars */}
-                <div className="absolute bottom-0 left-2 right-0 top-4 flex items-end gap-2">
-                  {enrollmentTrendData.map((d) => (
-                    <div key={d.month} className="flex flex-col items-center gap-1 flex-1">
-                      <span className="text-muted-foreground text-[10px]">{d.enrollments}</span>
-                      <div
-                        className="w-full rounded-[6px] transition-all"
-                        style={{
-                          height: `${(d.enrollments / maxVal) * 130}px`,
-                          background: d.month === "Aug" ? "#9FE870" : "#f5f5f5",
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* X-axis labels */}
-              <div className="absolute bottom-0 left-[44px] right-0 flex gap-2">
-                {enrollmentTrendData.map((d) => (
-                  <div key={d.month} className="flex-1 text-center">
-                    <span className="text-muted-foreground text-[11px] font-medium">{d.month}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+    <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Programme indicators">{kpis.map((item) => { const good = item.inverse ? item.change <= 0 : item.change >= 0; const card = <div className={`flex h-full flex-col gap-3 rounded-xl bg-card p-4 ${cardShadow}`}><p className="text-sm font-medium tracking-[0.28px] text-muted-foreground">{item.label}</p><div className="flex items-end gap-2"><span className="text-2xl font-semibold tracking-[-0.48px]">{item.value.toLocaleString()}</span><span className={`mb-0.5 text-sm font-semibold ${item.change === 0 ? 'text-muted-foreground' : good ? 'text-success-foreground' : 'text-destructive'}`}>{signedValue(item.change, item.suffix)}</span></div><p className="text-xs text-muted-foreground">Compared with the previous period</p></div>; return item.href ? <button className="text-left" key={item.label} onClick={() => navigate(item.href)} type="button">{card}</button> : <div key={item.label}>{card}</div> })}</section>
 
-        {/* Recent Activity */}
-        <div className={`bg-card rounded-[12px] ${cardShadow} flex flex-col`}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <p className="text-foreground text-sm font-semibold tracking-[0.28px]">Recent Activity</p>
-          </div>
-          <div className="flex-1 divide-y divide-[#f5f5f5] overflow-y-auto">
-            {recentActivity.map((a) => (
-              <div key={a.id} className="px-4 py-3 flex gap-3 items-start">
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                    a.type === "enrollment" ? "bg-accent" :
-                    a.type === "sync"       ? "bg-[#eff6ff]" : "bg-muted"
-                  }`}
-                >
-                  <span className="text-[10px]">
-                    {a.type === "enrollment" ? "✓" :
-                     a.type === "sync"       ? "↑" :
-                     a.type === "worker"     ? "👷" :
-                     a.type === "community"  ? "🏘️" : "✏️"}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-foreground text-[13px] font-medium leading-[1.4]">{a.message}</p>
-                  <p className="text-muted-foreground text-[12px] tracking-[0.24px] mt-0.5">
-                    Ward: {a.community} · {a.time}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+    <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]"><div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}><div className="flex flex-wrap items-center gap-4 border-b border-border p-4"><div className="min-w-48 flex-1"><h2 className="text-sm font-semibold">Enrollment Trend</h2><p className="mt-1 text-2xl font-semibold">{data.enrollmentTrend.total.toLocaleString()} <span className="text-sm font-medium text-muted-foreground">enrollments</span></p></div><div aria-label="Enrollment trend granularity" className={tabGroup} role="tablist">{trends.map(([value, label]) => <button aria-selected={trend === value} className={`h-9 px-3 text-xs ${trend === value ? 'bg-card font-semibold text-foreground' : 'text-muted-foreground'}`} key={value} onClick={() => setTrend(value)} role="tab" type="button">{label}</button>)}</div></div><EnrollmentTrendChart average={data.enrollmentTrend.average} granularity={data.enrollmentTrend.granularity} points={data.enrollmentTrend.points} /></div><div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}><div className="border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">Recent Activity</h2></div>{data.recentActivity.length === 0 ? <DashboardEmptyState>No recent activity is available for this period.</DashboardEmptyState> : <div className="max-h-80 divide-y divide-border overflow-y-auto">{data.recentActivity.map((item) => <div className="flex gap-3 px-4 py-3" key={item.id}><div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><Activity className="size-3.5" aria-hidden="true" /></div><div className="min-w-0 flex-1"><p className="text-[13px] font-medium leading-snug">{item.summary}</p><p className="mt-1 text-xs text-muted-foreground"><button className="hover:text-foreground hover:underline" onClick={() => navigate(`/admin/wards/${item.ward.id}`)} type="button">{item.ward.name}</button> · {item.actor?.name ?? 'System'} · {formatDashboardDate(item.occurredAt, true)}</p></div></div>)}</div>}</div></section>
 
-      {/* ── Section 4: Enrollment Breakdown ── */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Enrollment by Category */}
-        <div className={`bg-card rounded-[12px] ${cardShadow}`}>
-          <div className="px-4 py-3 border-b border-border">
-            <p className="text-foreground text-sm font-semibold">Enrollment by Category</p>
-          </div>
-          <div className="p-4 flex flex-col gap-3">
-            {categoryBreakdown.map((c) => (
-              <div key={c.label} className="flex items-center gap-3">
-                <span className="text-muted-foreground text-xs w-44 shrink-0 truncate">{c.label}</span>
-                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${(c.value / maxCategory) * 100}%` }}
-                  />
-                </div>
-                <span className="text-foreground text-xs font-semibold w-6 text-right">{c.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+    <section className="grid gap-4 lg:grid-cols-2"><div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}><div className="border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">Enrollment by Category</h2></div><EnrollmentBarChart emptyText="No category data is available." items={toCategorySeries(data.enrollmentByCategory)} labelWidth={168} /></div><div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}><div className="border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">Enrollment by Status</h2></div><EnrollmentStatusDonut breakdown={data.enrollmentByStatus} /></div></section>
 
-        {/* Enrollment by Status */}
-        <div className={`bg-card rounded-[12px] ${cardShadow}`}>
-          <div className="px-4 py-3 border-b border-border">
-            <p className="text-foreground text-sm font-semibold">Enrollment by Status</p>
-          </div>
-          <div className="p-4 flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-              <span className="text-muted-foreground text-xs w-16 shrink-0">Active</span>
-              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full rounded-full bg-primary" style={{ width: "89%" }} />
-              </div>
-              <span className="text-foreground text-xs font-semibold w-24 text-right">2,044 (89%)</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-muted-foreground text-xs w-16 shrink-0">Inactive</span>
-              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full rounded-full bg-[#f87171]" style={{ width: "11%" }} />
-              </div>
-              <span className="text-foreground text-xs font-semibold w-24 text-right">255 (11%)</span>
-            </div>
-            {/* Visual donut */}
-            <div className="flex items-center gap-6 mt-2">
-              <div className="relative w-20 h-20 shrink-0">
-                <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
-                  <circle cx="18" cy="18" r="15.9" fill="transparent" stroke="#9FE870" strokeWidth="4"
-                    strokeDasharray="89 11" strokeDashoffset="0" />
-                  <circle cx="18" cy="18" r="15.9" fill="transparent" stroke="#f87171" strokeWidth="4"
-                    strokeDasharray="11 89" strokeDashoffset="-89" />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-foreground text-[11px] font-semibold">2,299</span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-primary" />
-                  <span className="text-muted-foreground text-xs">Active</span>
-                  <span className="text-foreground text-xs font-semibold ml-2">89%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#f87171]" />
-                  <span className="text-muted-foreground text-xs">Inactive</span>
-                  <span className="text-foreground text-xs font-semibold ml-2">11%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <section className="grid gap-4 lg:grid-cols-2"><div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}><div className="border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">Enrollment by Ward</h2></div><EnrollmentBarChart emptyText="No ward enrollment data is available." items={toWardSeries(data.enrollmentByWard)} onSelect={(id) => navigate(`/admin/wards/${id}`)} /></div><div className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}><div className="flex items-center justify-between border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">Enrollment by LGA</h2><button className="text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => navigate('/admin/wards')} type="button">View wards</button></div><div className="max-h-96 overflow-y-auto"><EnrollmentBarChart emptyText="No LGA enrollment data is available." items={toLgaSeries(data.enrollmentByLga)} /></div></div></section>
 
-      {/* ── Section 5: Geographic Performance ── */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Enrollment by Ward */}
-        <div className={`bg-card rounded-[12px] ${cardShadow}`}>
-          <div className="px-4 py-3 border-b border-border">
-            <p className="text-foreground text-sm font-semibold">Enrollment by Ward</p>
-          </div>
-          <div className="p-4 flex flex-col gap-3">
-            {[...communities].sort((a, b) => b.beneficiaries - a.beneficiaries).map((c) => (
-              <div key={c.id} className="flex items-center gap-3">
-                <span className="text-muted-foreground text-xs w-32 shrink-0 truncate">{c.name}</span>
-                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${(c.beneficiaries / maxBeneficiaries) * 100}%` }}
-                  />
-                </div>
-                <span className="text-foreground text-xs font-semibold w-10 text-right">{c.beneficiaries}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+    <section className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}><div className="flex items-center justify-between border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">Facility Overview</h2><button className="text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => navigate('/admin/facilities')} type="button">View All</button></div><div className="grid grid-cols-1 gap-4 border-b border-border p-4 sm:grid-cols-3">{[['Total Facilities', data.facilityOverview.totalFacilities], ['Active Facilities', data.facilityOverview.activeFacilities], ['Total Beneficiaries', data.facilityOverview.totalBeneficiaries]].map(([label, value]) => <div key={label}><p className="text-xs font-medium text-muted-foreground">{label}</p><p className="mt-1 text-xl font-semibold">{Number(value).toLocaleString()}</p></div>)}</div><div className="overflow-x-auto"><table className="w-full"><thead><tr>{['Facility', 'LGA', 'Ward', 'Beneficiaries'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}</tr></thead><tbody>{data.facilityOverview.items.map((item) => <ClickableRow key={item.id} label={`View ${item.name}`} onClick={() => navigate(`/admin/facilities/${item.id}`)}><td className={`${tdCell} font-semibold`}>{item.name}</td><td className={`${tdCell} text-muted-foreground`}>{item.lga}</td><td className={`${tdCell} text-muted-foreground`}>{item.ward.name}</td><td className={`${tdCell} font-semibold`}>{item.beneficiaries.toLocaleString()}</td></ClickableRow>)}{data.facilityOverview.items.length === 0 && <tr><td className="px-4 py-10 text-center text-sm text-muted-foreground" colSpan={4}>No facilities have enrollments for this period.</td></tr>}</tbody></table></div></section>
 
-        {/* Top LGAs */}
-        <div className={`bg-card rounded-[12px] ${cardShadow}`}>
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <p className="text-foreground text-sm font-semibold">Top LGAs by Enrollment</p>
-            <button
-              onClick={() => navigate("/admin/wards")}
-              className="text-muted-foreground text-[12px] font-medium hover:text-foreground"
-            >
-              View All
-            </button>
-          </div>
-          <div className="p-4 flex flex-col gap-3">
-            {lgaList.map(([lga, count]) => (
-              <div
-                key={lga}
-                className="flex items-center gap-3 cursor-pointer group"
-                onClick={() => navigate("/admin/wards")}
-              >
-                <span className="text-muted-foreground text-xs w-32 shrink-0 truncate group-hover:text-foreground transition-colors">{lga}</span>
-                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-[#0a0a0a]"
-                    style={{ width: `${(count / maxLga) * 100}%` }}
-                  />
-                </div>
-                <span className="text-foreground text-xs font-semibold w-10 text-right">{count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+    <section className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}><div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">Field Worker Performance</h2><div className="flex flex-wrap items-center gap-2">{[['Total', data.fieldWorkerPerformance.totalFieldWorkers], ['Active', data.fieldWorkerPerformance.activeFieldWorkers], ['Enrolled', data.fieldWorkerPerformance.totalEnrolled], ['Average', data.fieldWorkerPerformance.averagePerWorker]].map(([label, value]) => <span className="rounded-lg bg-muted px-3 py-1.5 text-xs" key={label}><span className="text-muted-foreground">{label}: </span><strong>{Number(value).toLocaleString()}</strong></span>)}<button className="px-2 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => navigate('/admin/field-workers')} type="button">View All</button></div></div><div className="overflow-x-auto"><table className="w-full"><thead><tr>{['Field Worker', 'Enrolled', 'Last Activity', 'Status'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}</tr></thead><tbody>{data.fieldWorkerPerformance.items.map((item) => <ClickableRow key={item.id} label={`View ${item.name}`} onClick={() => navigate(`/admin/field-workers/${item.id}`)}><td className={tdCell}><div className="flex items-center gap-2"><span aria-hidden="true" className="flex size-8 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">{initials(item.name)}</span><span className="font-medium">{item.name}</span></div></td><td className={`${tdCell} font-semibold`}>{item.enrolled.toLocaleString()}</td><td className={`${tdCell} whitespace-nowrap text-muted-foreground`}>{formatDashboardDate(item.lastActivityAt, true)}</td><td className={tdCell}><StatusBadge status={item.status === 'active' ? 'Active' : 'Inactive'} /></td></ClickableRow>)}{data.fieldWorkerPerformance.items.length === 0 && <tr><td className="px-4 py-10 text-center text-sm text-muted-foreground" colSpan={4}>No field-worker activity is available for this period.</td></tr>}</tbody></table></div></section>
 
-      {/* ── Section 6: Facility Overview ── */}
-      <div className={`bg-card rounded-[12px] ${cardShadow}`}>
-        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-          <p className="text-foreground text-sm font-semibold">Facility Overview</p>
-          <button
-            onClick={() => navigate("/admin/facilities")}
-            className="text-muted-foreground text-[12px] font-medium hover:text-foreground"
-          >
-            View All
-          </button>
-        </div>
-        {/* Facility KPI row */}
-        <div className="grid grid-cols-3 gap-4 p-4 border-b border-[#f5f5f5]">
-          {[
-            { label: "Total Facilities", value: "10" },
-            { label: "Active Facilities", value: String(activeFacilities) },
-            { label: "Total Facility Beneficiaries", value: totalFacilityBeneficiaries.toLocaleString() },
-          ].map((k) => (
-            <div key={k.label} className="flex flex-col gap-1">
-              <p className="text-muted-foreground text-xs font-medium">{k.label}</p>
-              <p className="text-foreground text-[20px] font-semibold tracking-[-0.4px]">{k.value}</p>
-            </div>
-          ))}
-        </div>
-        {/* Top Facilities table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr>
-                {["Facility", "LGA", "Ward", "Beneficiaries"].map((h) => (
-                  <th key={h} className={thCell}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedFacilities.slice(0, 5).map((f) => (
-                <tr
-                  key={f.id}
-                  className="hover:bg-muted/40 cursor-pointer transition-colors"
-                  onClick={() => navigate(`/admin/facilities/${f.id}`)}
-                >
-                  <td className={`${tdCell} font-semibold`}>{f.name}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{f.lga}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{f.ward}</td>
-                  <td className={`${tdCell} font-semibold`}>{f.beneficiaries.toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ── Section 7: Field Worker Performance ── */}
-      <div className={`bg-card rounded-[12px] ${cardShadow}`}>
-        <div className="px-4 py-3 border-b border-border flex items-center justify-between flex-wrap gap-3">
-          <p className="text-foreground text-sm font-semibold">Field Worker Performance</p>
-          <div className="flex items-center gap-4 flex-wrap">
-            {[
-              { label: "Total Field Workers", value: "8" },
-              { label: "Active", value: "7" },
-              { label: "Total Enrolled", value: totalEnrolled.toLocaleString() },
-              { label: "Avg per Worker", value: String(avgPerWorker) },
-            ].map((k) => (
-              <div key={k.label} className="flex items-center gap-1.5 bg-muted rounded-[8px] px-3 py-1.5">
-                <span className="text-muted-foreground text-xs font-medium">{k.label}:</span>
-                <span className="text-foreground text-xs font-semibold">{k.value}</span>
-              </div>
-            ))}
-            <button
-              onClick={() => navigate("/admin/field-workers")}
-              className="text-muted-foreground text-[12px] font-medium hover:text-foreground"
-            >
-              View All
-            </button>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr>
-                {["Field Worker", "Enrolled", "Last Activity", "Status"].map((h) => (
-                  <th key={h} className={thCell}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedFieldWorkers.map((fw) => (
-                <tr
-                  key={fw.id}
-                  className="hover:bg-muted/40 cursor-pointer transition-colors"
-                  onClick={() => navigate(`/admin/field-workers/${fw.id}`)}
-                >
-                  <td className={tdCell}>
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0">
-                        <span className="text-primary-foreground text-[12px] font-semibold">
-                          {fw.name.split(" ").map((n) => n[0]).join("")}
-                        </span>
-                      </div>
-                      <span className="text-foreground text-sm font-medium">{fw.name}</span>
-                    </div>
-                  </td>
-                  <td className={`${tdCell} font-semibold`}>{fw.enrolled}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{fw.lastEnrollment}</td>
-                  <td className={tdCell}><StatusBadge status={fw.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ── Section 8: Recent Enrollments ── */}
-      <div className={`bg-card rounded-[12px] ${cardShadow}`}>
-        <div className="flex items-center justify-between px-4 h-[56px] border-b border-border">
-          <p className="text-foreground text-sm font-semibold">Recent Enrollments</p>
-          <button
-            className={btnSecondary}
-            onClick={() => navigate("/admin/beneficiaries")}
-          >
-            View All
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr>
-                {["Beneficiary Name", "Enrollment ID", "Category", "LGA", "Ward", "Facility", "Date", "Status"].map((h) => (
-                  <th key={h} className={thCell}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {recentBeneficiaries.map((b) => (
-                <tr
-                  key={b.id}
-                  className="hover:bg-muted/40 cursor-pointer transition-colors"
-                  onClick={() => navigate(`/admin/beneficiaries/${b.id}`)}
-                >
-                  <td className={`${tdCell} font-semibold`}>{b.beneficiaryName}</td>
-                  <td className={`${tdCell} text-muted-foreground font-mono text-[13px]`}>{b.enrollmentId}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{b.category}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{b.healthFacility.ward.lga}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{b.healthFacility.ward.name}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{b.healthFacility.name}</td>
-                  <td className={`${tdCell} text-muted-foreground`}>{formatEnrollmentDate(b.createdAt)}</td>
-                  <td className={tdCell}><StatusBadge status={statusLabel(b.status)} /></td>
-                </tr>
-              ))}
-              {!recentEnrollmentsQuery.isPending && recentBeneficiaries.length === 0 && (
-                <tr><td className="px-6 py-10 text-center text-sm text-muted-foreground" colSpan={8}>No recent enrollments are available.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
+    <section className={`overflow-hidden rounded-xl bg-card ${cardShadow}`}><div className="flex items-center justify-between border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">Recent Enrollments</h2><button className={btnSecondary} onClick={() => navigate('/admin/beneficiaries')} type="button">View All</button></div><div className="overflow-x-auto"><table className="w-full"><thead><tr>{['Beneficiary', 'Enrollment ID', 'Category', 'LGA', 'Ward', 'Facility', 'Date', 'Status'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}</tr></thead><tbody>{data.recentEnrollments.map((item) => <ClickableRow key={item.id} label={`View ${item.beneficiaryName}`} onClick={() => navigate(`/admin/beneficiaries/${item.id}`)}><td className={`${tdCell} font-semibold`}>{item.beneficiaryName}</td><td className={`${tdCell} whitespace-nowrap font-mono text-xs text-muted-foreground`}>{item.enrollmentId}</td><td className={`${tdCell} text-muted-foreground`}>{item.category}</td><td className={`${tdCell} text-muted-foreground`}>{item.lga}</td><td className={`${tdCell} text-muted-foreground`}>{item.ward.name}</td><td className={`${tdCell} text-muted-foreground`}>{item.facility.name}</td><td className={`${tdCell} whitespace-nowrap text-muted-foreground`}>{formatDashboardDate(item.createdAt)}</td><td className={tdCell}><StatusBadge status={item.status[0].toUpperCase() + item.status.slice(1)} /></td></ClickableRow>)}{data.recentEnrollments.length === 0 && <tr><td className="px-4 py-10 text-center text-sm text-muted-foreground" colSpan={8}>No enrollments were created during this period.</td></tr>}</tbody></table></div></section>
+  </div>
 }

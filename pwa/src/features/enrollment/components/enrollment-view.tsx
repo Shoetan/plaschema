@@ -1,5 +1,5 @@
 import { ArrowLeft, Camera, Check, FileText, RefreshCw, RotateCcw, Upload } from 'lucide-react'
-import { type ChangeEvent, type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useAuthStore } from '@/features/auth/stores/auth.store'
@@ -8,7 +8,7 @@ import { hasStorageCapacity, requestPersistentStorage } from '@/lib/offline-db'
 import { useEnrollmentDraft, useEnrollmentReferences, useReferenceSync } from '../hooks'
 import { createEnrollmentDraft, discardEnrollmentDraft, queueEnrollment, removeEnrollmentFile, saveEnrollmentDraft, saveEnrollmentFile } from '../services'
 import type { EnrollmentDraftRecord, EnrollmentFormValues, ReferenceFacility, ReferenceWard } from '../types'
-import { BENEFICIARY_CATEGORIES, hasDraftProgress, isValidNin, isValidPhoneNumber, normalizeNin, normalizePhoneNumber, PLATEAU_STATE } from '../utils'
+import { BENEFICIARY_CATEGORIES, getResidenceLgas, hasDraftProgress, isValidNin, isValidPhoneNumber, normalizeNin, normalizePhoneNumber, PLATEAU_STATE, resolveHealthFacilityId, resolveWardId } from '../utils'
 
 const steps = ['Personal', 'Residence', 'Contact', 'Background', 'Facility', 'Review']
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -35,6 +35,7 @@ export function EnrollmentView() {
   const [submittedId, setSubmittedId] = useState<string | null>(null)
   const [saveMessage, setSaveMessage] = useState('')
   const [isQueueing, setIsQueueing] = useState(false)
+  const fieldsScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { void requestPersistentStorage() }, [])
   useEffect(() => {
@@ -52,21 +53,42 @@ export function EnrollmentView() {
     const timer = window.setTimeout(() => void saveEnrollmentDraft(draft).then(() => setSaveMessage('Saved on this device')), 400)
     return () => window.clearTimeout(timer)
   }, [draft])
-
   const activeWards = useMemo(() => wards.filter((ward) => ward.status === 'active').sort((a, b) => a.name.localeCompare(b.name)), [wards])
+  const residenceLgas = useMemo(() => getResidenceLgas(activeWards), [activeWards])
+  const availableWards = useMemo(() => activeWards.filter((ward) => ward.lga === draft?.form.lgaOfResidence), [activeWards, draft?.form.lgaOfResidence])
   const activeFacilities = useMemo(() => facilities.filter((facility) => facility.status === 'active' && facility.wardId === draft?.form.wardId).sort((a, b) => a.name.localeCompare(b.name)), [draft?.form.wardId, facilities])
+
+  useEffect(() => {
+    if (!draft) return
+    const selectedWard = activeWards.find((ward) => ward.id === draft.form.wardId)
+    const lgaOfResidence = selectedWard?.lga ?? draft.form.lgaOfResidence
+    const wardId = resolveWardId(lgaOfResidence, draft.form.wardId, activeWards)
+    const healthFacilityId = resolveHealthFacilityId(wardId, draft.form.healthFacilityId, facilities)
+    if (lgaOfResidence === draft.form.lgaOfResidence && wardId === draft.form.wardId && healthFacilityId === draft.form.healthFacilityId) return
+    setDraft((current) => current ? { ...current, form: { ...current.form, lgaOfResidence, wardId, healthFacilityId } } : current)
+  }, [activeWards, draft, facilities])
 
   function update(name: keyof EnrollmentFormValues, value: string) {
     setDraft((current) => current ? {
       ...current,
-      form: { ...current.form, [name]: value, ...(name === 'wardId' ? { healthFacilityId: '', lgaOfResidence: activeWards.find((ward) => ward.id === value)?.lga ?? current.form.lgaOfResidence } : {}) },
+      form: {
+        ...current.form,
+        [name]: value,
+        ...(name === 'wardId' ? {
+          healthFacilityId: resolveHealthFacilityId(value, '', facilities),
+          lgaOfResidence: activeWards.find((ward) => ward.id === value)?.lga ?? current.form.lgaOfResidence,
+        } : name === 'lgaOfResidence' ? {
+          wardId: resolveWardId(value, current.form.wardId, activeWards),
+          healthFacilityId: resolveHealthFacilityId(resolveWardId(value, current.form.wardId, activeWards), current.form.healthFacilityId, facilities),
+        } : {}),
+      },
     } : current)
     setErrors((current) => ({ ...current, [name]: '' }))
   }
 
   function changeStep(nextStep: number) {
     setDraft((current) => current ? { ...current, step: nextStep } : current)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.requestAnimationFrame(() => fieldsScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }))
   }
 
   async function handleFile(purpose: 'passport' | 'id_document', event: ChangeEvent<HTMLInputElement>) {
@@ -109,14 +131,13 @@ export function EnrollmentView() {
       ? ['category', 'passportFileId', 'title', 'firstName', 'lastName', 'gender', 'dateOfBirth', 'maritalStatus']
       : draft.step === 1 ? ['lgaOfResidence', 'residentialAddress', 'wardId']
       : draft.step === 2 ? ['phone']
-      : draft.step === 3 ? ['idType', 'idDocumentFileId', 'nextOfKinFullName', 'emergencyPhone', 'nextOfKinRelationship']
+      : draft.step === 3 ? ['idType', 'nin', 'idDocumentFileId']
       : draft.step === 4 ? ['healthFacilityId'] : []
     const nextErrors: Record<string, string> = {}
     for (const key of needed) if (!form[key].trim()) nextErrors[key] = 'This field is required.'
     if (form.email && !/^\S+@\S+\.\S+$/.test(form.email)) nextErrors.email = 'Enter a valid email.'
     if (form.firstName.length > 80 || form.lastName.length > 80 || form.middleName.length > 80) nextErrors.firstName = 'Names must be 80 characters or fewer.'
     if (draft.step === 2 && !isValidPhoneNumber(form.phone)) nextErrors.phone = 'Enter exactly 11 digits.'
-    if (draft.step === 3 && !isValidPhoneNumber(form.emergencyPhone)) nextErrors.emergencyPhone = 'Enter exactly 11 digits.'
     if (draft.step === 3 && !isValidNin(form.nin)) nextErrors.nin = 'NIN must contain exactly 10 digits.'
     if (form.residentialAddress.length > 300) nextErrors.residentialAddress = 'Address must be 300 characters or fewer.'
     if (form.dateOfBirth) {
@@ -156,11 +177,11 @@ export function EnrollmentView() {
   if (!draft) return <CenteredMessage title="Preparing enrollment" text="Opening your saved draft…" />
   if (activeWards.length === 0 || facilities.length === 0) return <div className="flex min-h-[70dvh] flex-col items-center justify-center gap-4 px-6 text-center"><RefreshCw size={32} className={referenceSync.isPending ? 'animate-spin' : ''} /><h1 className="text-xl font-bold">Enrollment data required</h1><p className="text-sm text-neutral-500">Download your wards and health facilities before starting. Once downloaded, they remain available offline.</p>{metadata && <p className="text-xs text-neutral-400">Last complete download: {new Date(metadata.syncedAt).toLocaleString()}</p>}<button className="primary-button w-full" disabled={!navigator.onLine || referenceSync.isPending} onClick={() => referenceSync.mutate()}>{navigator.onLine ? referenceSync.isPending ? 'Downloading…' : 'Download enrollment data' : 'Connect to the internet to download'}</button>{referenceSync.isError && <p role="alert" className="text-sm font-semibold text-red-700">Reference data could not be downloaded. Check your connection and try again.</p>}</div>
   const { form, step } = draft
-  return <div className="flex h-full min-h-0 flex-col">
+  return <div className="flex h-full min-h-0 flex-col overflow-hidden">
     <header className="shrink-0 border-b border-neutral-200 bg-white px-4 py-4"><div className="flex items-center gap-3"><button aria-label="Go back" className="secondary-button !min-h-9 !rounded-full !p-2" onClick={() => step === 0 ? navigate(-1) : changeStep(step - 1)}><ArrowLeft size={18} /></button><div className="min-w-0 flex-1"><h1 className="font-bold">New enrollment</h1><p className="text-xs text-neutral-400">Step {step + 1} of {steps.length} · {steps[step]}</p></div><span aria-live="polite" className="text-[10px] font-semibold text-neutral-400">{saveMessage}</span></div><div className="mt-4 flex gap-1" aria-label={`Step ${step + 1} of ${steps.length}`}>{steps.map((item, index) => <span key={item} className={`h-1 flex-1 rounded-full ${index <= step ? 'bg-brand' : 'bg-neutral-200'}`} />)}</div></header>
-    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5">
+    <div ref={fieldsScrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-5">
       {step === 0 && <PersonalStep form={form} errors={errors} update={update} handleFile={handleFile} clearFile={clearFile} />}
-      {step === 1 && <ResidenceStep form={form} errors={errors} wards={activeWards} update={update} handleFile={handleFile} clearFile={clearFile} />}
+      {step === 1 && <ResidenceStep form={form} errors={errors} lgas={residenceLgas} wards={availableWards} update={update} handleFile={handleFile} clearFile={clearFile} />}
       {step === 2 && <ContactStep form={form} errors={errors} update={update} handleFile={handleFile} clearFile={clearFile} />}
       {step === 3 && <BackgroundStep form={form} errors={errors} update={update} handleFile={handleFile} clearFile={clearFile} />}
       {step === 4 && <FacilityStep form={form} errors={errors} facilities={activeFacilities} ward={activeWards.find((item) => item.id === form.wardId)} update={update} changeStep={changeStep} handleFile={handleFile} clearFile={clearFile} />}
@@ -182,8 +203,8 @@ function PersonalStep({ form, errors, update, handleFile, clearFile }: StepProps
   return <><FilePicker label="Passport photograph" name="passport" value={form.passportName} error={errors.passportFileId} accept="image/jpeg,image/png,image/webp" capture="user" icon={<Camera size={26} />} onChange={(event) => void handleFile('passport', event)} onClear={() => void clearFile('passport')} /><Field label="Beneficiary category" required error={errors.category}><select className="field" value={form.category} onChange={(e) => update('category', e.target.value)}><option value="">Select category</option>{BENEFICIARY_CATEGORIES.map((value) => <option key={value}>{value}</option>)}</select></Field><div className="grid grid-cols-3 gap-3"><Field label="Title" required error={errors.title}><select className="field" value={form.title} onChange={(e) => update('title', e.target.value)}><option value="">Select</option>{titleOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><div className="col-span-2"><Field label="First name" required error={errors.firstName}><input className="field" value={form.firstName} onChange={(e) => update('firstName', e.target.value)} /></Field></div></div><Field label="Middle name"><input className="field" value={form.middleName} onChange={(e) => update('middleName', e.target.value)} /></Field><Field label="Surname" required error={errors.lastName}><input className="field" value={form.lastName} onChange={(e) => update('lastName', e.target.value)} /></Field><Field label="Gender" required error={errors.gender}><div className="grid grid-cols-2 gap-3">{([['male', 'Male'], ['female', 'Female']] as const).map(([value, label]) => <button type="button" key={value} className={form.gender === value ? 'primary-button' : 'secondary-button'} onClick={() => update('gender', value)}>{label}</button>)}</div></Field><Field label="Date of birth" required error={errors.dateOfBirth}><input type="date" className="field" max={new Date().toISOString().slice(0, 10)} value={form.dateOfBirth} onChange={(e) => update('dateOfBirth', e.target.value)} /></Field><Field label="Marital status" required error={errors.maritalStatus}><select className="field" value={form.maritalStatus} onChange={(e) => update('maritalStatus', e.target.value)}><option value="">Select</option>{maritalOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field></>
 }
 
-function ResidenceStep({ form, errors, wards, update }: StepProps & { wards: ReferenceWard[] }) {
-  return <><Field label="State of residence" required><input className="field bg-neutral-100 text-neutral-600" readOnly value={PLATEAU_STATE} /></Field><Field label="Ward" required error={errors.wardId}><select className="field" value={form.wardId} onChange={(e) => update('wardId', e.target.value)}><option value="">Select assigned ward</option>{wards.map((ward) => <option key={ward.id} value={ward.id}>{ward.name} · {ward.lga}</option>)}</select></Field><Field label="Local government" required error={errors.lgaOfResidence}><input className="field" value={form.lgaOfResidence} onChange={(e) => update('lgaOfResidence', e.target.value)} /></Field><Field label="Residential address" required error={errors.residentialAddress}><textarea className="field min-h-28" value={form.residentialAddress} onChange={(e) => update('residentialAddress', e.target.value)} /></Field></>
+function ResidenceStep({ form, errors, lgas, wards, update }: StepProps & { lgas: string[]; wards: ReferenceWard[] }) {
+  return <><Field label="State of residence" required><input className="field bg-neutral-100 text-neutral-600" readOnly value={PLATEAU_STATE} /></Field><Field label="Local government area (LGA)" required error={errors.lgaOfResidence}><select className="field" value={form.lgaOfResidence} onChange={(e) => update('lgaOfResidence', e.target.value)}><option value="">Select LGA</option>{lgas.map((lga) => <option key={lga} value={lga}>{lga}</option>)}</select></Field><Field label="Ward" required error={errors.wardId}><select className="field" disabled={!form.lgaOfResidence} value={form.wardId} onChange={(e) => update('wardId', e.target.value)}><option value="">{form.lgaOfResidence ? 'Select assigned ward' : 'Select an LGA first'}</option>{wards.map((ward) => <option key={ward.id} value={ward.id}>{ward.name}</option>)}</select></Field><Field label="Residential address" required error={errors.residentialAddress}><textarea className="field min-h-28" value={form.residentialAddress} onChange={(e) => update('residentialAddress', e.target.value)} /></Field></>
 }
 
 function ContactStep({ form, errors, update }: StepProps) {
@@ -191,7 +212,7 @@ function ContactStep({ form, errors, update }: StepProps) {
 }
 
 function BackgroundStep({ form, errors, update, handleFile, clearFile }: StepProps) {
-  return <><Field label="ID type" required error={errors.idType}><select className="field" value={form.idType} onChange={(e) => update('idType', e.target.value)}><option value="">Select</option>{idOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><Field label="NIN" error={errors.nin}><input className="field" inputMode="numeric" pattern="[0-9]*" placeholder="Optional · 10 digits" value={form.nin} onChange={(e) => update('nin', normalizeNin(e.target.value))} /></Field><FilePicker label="ID document" name="idDocument" value={form.idDocumentName} error={errors.idDocumentFileId} accept="image/jpeg,image/png,image/webp,application/pdf" icon={<FileText size={26} />} onChange={(event) => void handleFile('id_document', event)} onClear={() => void clearFile('id_document')} /><div className="grid grid-cols-2 gap-3"><Field label="Blood group"><select className="field" value={form.bloodGroup} onChange={(e) => update('bloodGroup', e.target.value)}><option value="">Optional</option>{bloodOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><Field label="Genotype"><select className="field" value={form.genotype} onChange={(e) => update('genotype', e.target.value)}><option value="">Optional</option>{genotypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field></div><Field label="Next of kin full name" required error={errors.nextOfKinFullName}><input className="field" value={form.nextOfKinFullName} onChange={(e) => update('nextOfKinFullName', e.target.value)} /></Field><Field label="Emergency phone" required error={errors.emergencyPhone}><input className="field" inputMode="numeric" pattern="[0-9]*" placeholder="08012345678" type="tel" value={form.emergencyPhone} onChange={(e) => update('emergencyPhone', normalizePhoneNumber(e.target.value))} /></Field><Field label="Relationship" required error={errors.nextOfKinRelationship}><select className="field" value={form.nextOfKinRelationship} onChange={(e) => update('nextOfKinRelationship', e.target.value)}><option value="">Select</option>{relationshipOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field></>
+  return <><Field label="ID type" required error={errors.idType}><select className="field" value={form.idType} onChange={(e) => update('idType', e.target.value)}><option value="">Select</option>{idOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><Field label="NIN" required error={errors.nin}><input className="field" inputMode="numeric" pattern="[0-9]*" placeholder="10 digits" value={form.nin} onChange={(e) => update('nin', normalizeNin(e.target.value))} /></Field><FilePicker label="ID document" name="idDocument" value={form.idDocumentName} error={errors.idDocumentFileId} accept="image/jpeg,image/png,image/webp,application/pdf" icon={<FileText size={26} />} onChange={(event) => void handleFile('id_document', event)} onClear={() => void clearFile('id_document')} /><div className="grid grid-cols-2 gap-3"><Field label="Blood group"><select className="field" value={form.bloodGroup} onChange={(e) => update('bloodGroup', e.target.value)}><option value="">Optional</option>{bloodOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><Field label="Genotype"><select className="field" value={form.genotype} onChange={(e) => update('genotype', e.target.value)}><option value="">Optional</option>{genotypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field></div><Field label="Next of kin full name"><input className="field" placeholder="Optional" value={form.nextOfKinFullName} onChange={(e) => update('nextOfKinFullName', e.target.value)} /></Field><Field label="Relationship"><select className="field" value={form.nextOfKinRelationship} onChange={(e) => update('nextOfKinRelationship', e.target.value)}><option value="">Optional</option>{relationshipOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field></>
 }
 
 function FacilityStep({ form, errors, facilities, ward, update, changeStep }: StepProps & { facilities: ReferenceFacility[]; ward?: ReferenceWard; changeStep: (step: number) => void }) {
@@ -207,7 +228,7 @@ function Review({ form, ward, facility, onEdit }: { form: EnrollmentFormValues; 
     { title: 'Personal', step: 0, rows: [['Name', `${form.title} ${form.firstName} ${form.middleName} ${form.lastName}`], ['Category', form.category], ['Gender', form.gender], ['Date of birth', form.dateOfBirth], ['Passport', form.passportName]] },
     { title: 'Residence', step: 1, rows: [['Ward', ward?.name ?? ''], ['LGA', form.lgaOfResidence], ['Address', form.residentialAddress]] },
     { title: 'Contact', step: 2, rows: [['Phone', form.phone], ['Email', form.email || '—']] },
-    { title: 'Background', step: 3, rows: [['ID', `${form.idType} · ${form.idDocumentName}`], ['NIN', form.nin || '—'], ['Blood group', form.bloodGroup || '—'], ['Genotype', form.genotype || '—'], ['Next of kin', form.nextOfKinFullName], ['Emergency phone', form.emergencyPhone]] },
+    { title: 'Background', step: 3, rows: [['ID', `${form.idType} · ${form.idDocumentName}`], ['NIN', form.nin || '—'], ['Blood group', form.bloodGroup || '—'], ['Genotype', form.genotype || '—'], ['Next of kin', form.nextOfKinFullName || '—'], ['Relationship', form.nextOfKinRelationship || '—']] },
     { title: 'Facility', step: 4, rows: [['Health facility', facility?.name ?? '']] },
   ]
   return <><p className="text-sm text-neutral-500">Review this enrollment before saving it securely on this device.</p>{sections.map((section) => <section className="card p-4" key={section.title}><div className="mb-3 flex justify-between"><h2 className="text-sm font-bold">{section.title}</h2><button className="text-xs font-bold underline" onClick={() => onEdit(section.step)}>Edit</button></div><dl className="space-y-2">{section.rows.map(([label, value]) => <div className="flex justify-between gap-4 text-sm" key={label}><dt className="shrink-0 text-neutral-500">{label}</dt><dd className="break-words text-right font-semibold">{value.trim() || '—'}</dd></div>)}</dl></section>)}</>

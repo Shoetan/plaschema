@@ -1,4 +1,5 @@
 export type {
+  BulkEnrollmentStatusPayload,
   CreateFileJobResult,
   EnrollmentActivity,
   EnrollmentDetail,
@@ -8,6 +9,10 @@ export type {
   EnrollmentListResult,
   EnrollmentRecord,
   EnrollmentStatus,
+  EnrollmentStatusResult,
+  EnrollmentStatusSkip,
+  EnrollmentStatusSkipReason,
+  EnrollmentStatusTarget,
   ExportEnrollmentPayload,
   FileJob,
   FileJobDownload,
@@ -18,4 +23,5 @@ export type {
   FileJobMetadata,
   FileJobStatus,
   PrintedStatus,
+  SingleEnrollmentStatusPayload,
 } from './enrollment.types'
