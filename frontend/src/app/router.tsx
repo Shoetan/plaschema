@@ -11,20 +11,23 @@ export const router = createBrowserRouter([
     children: [
       { index: true, handle: { title: 'Dashboard' }, lazy: async () => ({ Component: (await import('@/routes/dashboard')).DashboardPage }) },
       { path: 'wards', handle: { title: 'Wards' }, lazy: async () => ({ Component: (await import('@/routes/wards')).WardsPage }) },
-      { path: 'wards/:wardId', lazy: async () => ({ Component: (await import('@/routes/ward-detail')).WardDetailPage }) },
+      { path: 'wards/:wardId', handle: { section: 'Wards' }, lazy: async () => ({ Component: (await import('@/routes/ward-detail')).WardDetailPage }) },
       { path: 'field-workers', handle: { title: 'Field Workers' }, lazy: async () => ({ Component: (await import('@/routes/field-workers')).FieldWorkersPage }) },
       {
         path: 'field-workers/:fieldWorkerId',
+        handle: { section: 'Field Workers' },
         lazy: async () => ({ Component: (await import('@/routes/field-worker-detail')).FieldWorkerDetailPage }),
       },
       { path: 'beneficiaries', handle: { title: 'CBHI Enrolments' }, lazy: async () => ({ Component: (await import('@/routes/beneficiaries')).BeneficiariesPage }) },
       {
         path: 'beneficiaries/:beneficiaryId',
+        handle: { section: 'CBHI Enrolments' },
         lazy: async () => ({ Component: (await import('@/routes/beneficiary-detail')).BeneficiaryDetailPage }),
       },
       { path: 'facilities', handle: { title: 'Facilities' }, lazy: async () => ({ Component: (await import('@/routes/facilities')).FacilitiesPage }) },
       {
         path: 'facilities/:facilityId',
+        handle: { section: 'Facilities' },
         lazy: async () => ({ Component: (await import('@/routes/facility-detail')).FacilityDetailPage }),
       },
       { path: 'capitation', handle: { title: 'Capitation' }, lazy: async () => ({ Component: (await import('@/routes/capitation')).CapitationPage }) },

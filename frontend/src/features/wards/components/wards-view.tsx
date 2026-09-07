@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, CircleCheck, LoaderCircle, Plus, RefreshCw, Upload, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CircleCheck, Eye, LoaderCircle, Plus, RefreshCw, Upload, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -123,7 +123,7 @@ export function WardsView() {
               <thead>
                 <tr>
                   <th className={`${thCell} w-10`}><span aria-hidden="true" className="block size-5 rounded-sm border border-border bg-card" /></th>
-                  {['Ward Name', 'State', 'LGA', 'Field Workers', 'Beneficiaries', 'New Enrollments', 'Status', 'Actions'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}
+                  {['Ward Name', 'State', 'LGA', 'Field Workers', 'Beneficiaries', 'New Enrollments', 'Status', 'View'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -143,7 +143,7 @@ export function WardsView() {
                         <td className={`${tdCell} font-semibold`}>{ward.beneficiaries.toLocaleString()}</td>
                         <td className={`${tdCell} font-semibold text-success-foreground`}>+{ward.newEnrollments}</td>
                         <td className={tdCell}><StatusBadge status={statusLabel(ward.status)} /></td>
-                        <td className={tdCell}><button aria-label={`View ${ward.name}`} className="text-muted-foreground transition-colors hover:text-foreground" onClick={() => navigate(`/admin/wards/${ward.id}`)} type="button"><span aria-hidden="true">•••</span></button></td>
+                        <td className={tdCell}><button aria-label={`View ${ward.name}`} className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => navigate(`/admin/wards/${ward.id}`)} type="button"><Eye aria-hidden="true" className="size-4" /></button></td>
                       </tr>
                     ))}
                 {!wardsQuery.isPending && wards.length === 0 && <tr><td className="px-6 py-14 text-center text-sm text-muted-foreground" colSpan={9}>No wards match your search and filter.</td></tr>}
