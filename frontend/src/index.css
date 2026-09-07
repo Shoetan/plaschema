@@ -132,6 +132,18 @@
   html {
     @apply font-sans;
     }
+  button:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  summary,
+  [role='button']:not([aria-disabled='true']) {
+    @apply cursor-pointer;
+    }
+  button:disabled,
+  select:disabled,
+  [role='button'][aria-disabled='true'] {
+    @apply cursor-not-allowed;
+    }
 }
 
 @media (max-width: 1023px) {

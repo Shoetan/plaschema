@@ -1,10 +1,11 @@
-import { Bell, Menu, Search } from 'lucide-react'
+import { Menu } from 'lucide-react'
 
 interface AdminTopBarProps {
   onMenuOpen: () => void
+  title: string
 }
 
-export function AdminTopBar({ onMenuOpen }: AdminTopBarProps) {
+export function AdminTopBar({ onMenuOpen, title }: AdminTopBarProps) {
   return (
     <header className="flex h-[72px] shrink-0 items-center gap-4 border-b bg-card px-4 md:px-6">
       <button
@@ -16,25 +17,7 @@ export function AdminTopBar({ onMenuOpen }: AdminTopBarProps) {
         <Menu className="size-5" />
       </button>
 
-      <label className="flex h-10 w-full max-w-[265px] items-center gap-2 rounded-full border bg-card px-3 opacity-60 shadow-sm">
-        <Search className="size-4 text-muted-foreground" aria-hidden="true" />
-        <span className="sr-only">Global search unavailable</span>
-        <input
-          className="min-w-0 flex-1 bg-transparent text-xs outline-none"
-          disabled
-          placeholder="Search unavailable"
-        />
-      </label>
-
-      <div className="flex-1" />
-      <button
-        aria-label="Notifications unavailable"
-        className="flex size-9 items-center justify-center rounded-full opacity-50"
-        disabled
-        type="button"
-      >
-        <Bell className="size-5" />
-      </button>
+      <p className="truncate text-base font-semibold tracking-tight text-foreground sm:text-lg">{title}</p>
     </header>
   )
 }

@@ -26,6 +26,8 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Feature folders live under `frontend/src/features/`.
 - Thin route files live under `frontend/src/routes/`.
 - Admin designs and navigation are implemented.
+- The admin top bar shows the current feature name from route metadata; unsupported global search and notification controls were removed. Detail routes identify their parent feature in the same metadata.
+- Enabled buttons, links, selects and other interactive controls use a pointer cursor across the admin app, while disabled controls use the not-allowed cursor.
 - The admin dashboard uses `GET /api/dashboard` for its KPIs, enrollment trend, recent activity, category/status breakdowns, ward/LGA rankings, facility overview, field-worker performance and recent enrollments.
 - Dashboard filters are LGA, a searchable Ward, period (`7d`|`30d`|`3m`|`6m`|`1y`, default `30d`) and trend (`daily`|`weekly`|`monthly`, default `monthly`). Plateau is fixed rather than exposed as a State filter; selecting an LGA clears an incompatible Ward and selecting a Ward applies its LGA.
 - Every dashboard visual is rendered with Recharts: the enrollment trend is a gradient area chart with a stroked line, per-point dots, a labelled y-axis, a hover tooltip and a dashed average reference line; enrollment by category, ward and LGA share one horizontal bar chart; enrollment by status is a donut with a legend and a centre total. No hand-rolled SVG or CSS-div bars remain in the dashboard feature.
@@ -45,7 +47,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - The assignment picker reads real candidates from `GET /users?role=field_worker` with cursor pagination. Assignment replaces the ward's complete field-worker selection.
 - The ward Beneficiaries tab is visible but disabled because the detail response does not contain beneficiary rows.
 - Ward API server state is owned by React Query and is not mirrored into Zustand.
-- Health-facility list data uses `GET /health-facilities` with debounced search, searchable ward selection, LGA/type/level/status filters and cursor navigation.
+- Health-facility list data uses `GET /health-facilities` with debounced search, LGA, searchable ward selection, status filtering and cursor navigation. Facility type and level remain visible in the table but are no longer list filters.
 - Health-facility creation uses `POST /health-facilities`; the frontend submits `name`, `wardId`, `type`, `level` and `status`. LGA is displayed from the selected ward but is derived by the backend rather than duplicated in the request.
 - Health-facility batch upload uses `POST /health-facilities/batch` with CSV/XLSX and XLS files up to 2 MB and displays server row errors. Batch-created facilities default to **inactive**.
 - Health-facility detail uses `GET /health-facilities/:id/detail` for overview statistics, capitation history and activity.
@@ -60,6 +62,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Field-worker Enrollment Activity and Sync Activity tabs filter the unified detail activity log. The Beneficiaries Enrolled tab reads `GET /enrollments?enrolledByUserId=` with cursor pagination and remains display-only until beneficiary detail is API-backed.
 - Field-worker server state is owned by React Query and is no longer mirrored from the mock Zustand store.
 - Capitation records use `GET /capitations` with the selected month/year, debounced server search, LGA filtering and cursor-based Previous/Next navigation.
+- Capitation month and year controls share the responsive filter row with search and LGA rather than occupying a separate period panel.
 - Capitation preview and generation use `GET /capitations/preview` and `POST /capitations/generate`. The admin selects a period, reviews the server calculation, confirms generation and sees the real result.
 - The backend-configured capitation rate is authoritative; the admin UI does not submit a rate override. Generating a newer run for an existing period requires confirmation.
 - Payment statuses, marking payments, scoped generation, printing, exports, exceptions and breakdown actions were removed because production does not expose those contracts.
@@ -221,6 +224,14 @@ At commit `a73ed09`:
 - Backend had no working-tree changes.
 
 After later edits, rerun the relevant checks before updating this section.
+
+On 7 September 2026 after the admin interface polish:
+
+- Facilities use one searchable ward picker with in-picker pagination; separate ward-search/load-more controls and type/level filters were removed.
+- Ward, field-worker and facility list tables use labelled view icons instead of ellipses, and their column heading is `View`.
+- Capitation period controls were moved into the main filter row, and the top bar now shows route-aware feature text instead of disabled search and notification controls.
+- Admin-wide enabled and disabled cursor behavior is defined centrally.
+- Admin lint, TypeScript and production build pass. The build retains the existing non-blocking large-chunk warning.
 
 On 7 September 2026 after the dashboard chart rebuild:
 
