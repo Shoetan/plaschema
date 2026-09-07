@@ -43,6 +43,12 @@ export interface HealthFacilityListItem {
 export interface HealthFacilityListResult {
   items: HealthFacilityListItem[]
   meta: CursorPaginationMeta
+  summary?: HealthFacilityListSummary
+}
+
+export interface HealthFacilityListSummary {
+  active: number
+  totalBeneficiaries: number
 }
 
 export interface HealthFacilityRecord {

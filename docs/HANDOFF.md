@@ -53,7 +53,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Health-facility detail uses `GET /health-facilities/:id/detail` for overview statistics, capitation history and activity.
 - Facility editing/status changes use `PATCH /health-facilities/:id`, and deletion uses `DELETE /health-facilities/:id` with confirmation.
 - Unsupported mock-only facility fields (code, ownership, community, address, contacts and onboarding date) are not displayed or submitted. The Beneficiaries tab reads `GET /enrollments?healthFacilityId=` with cursor pagination and remains display-only until beneficiary detail is API-backed.
-- Facility list KPI cards are still current-page totals in the admin UI. The list API now also returns filter-scoped `meta.total` and `summary` (`active`, `totalBeneficiaries`) for a future frontend wiring task.
+- Facility list KPI cards use filter-scoped `meta.total` and `summary` (`active`, `totalBeneficiaries`) rather than calculating the current page.
 - Field-worker list data uses `GET /users?role=field_worker` with debounced search, status filters and cursor-based Previous/Next navigation.
 - Field-worker creation uses `POST /users` with the role fixed to `field_worker`, optional multi-ward assignment and active/inactive status.
 - Empty field-worker ward assignment intentionally means access to all wards and is labelled explicitly throughout the UI.
@@ -61,12 +61,13 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Field-worker detail uses `GET /users/:id/detail`; edits and status changes use `PATCH /users/:id`, and admin password reset uses `POST /users/:id/reset-password`.
 - Field-worker Enrollment Activity and Sync Activity tabs filter the unified detail activity log. The Beneficiaries Enrolled tab reads `GET /enrollments?enrolledByUserId=` with cursor pagination and remains display-only until beneficiary detail is API-backed.
 - Field-worker server state is owned by React Query and is no longer mirrored from the mock Zustand store.
+- Field-worker list KPI cards use filter-scoped `meta.total` and `summary` (`active`, `totalBeneficiariesEnrolled`) rather than calculating the current page.
 - Capitation records use `GET /capitations` with the selected month/year, debounced server search, LGA filtering and cursor-based Previous/Next navigation.
 - Capitation month and year controls share the responsive filter row with search and LGA rather than occupying a separate period panel.
 - Capitation preview and generation use `GET /capitations/preview` and `POST /capitations/generate`. The admin selects a period, reviews the server calculation, confirms generation and sees the real result.
 - The backend-configured capitation rate is authoritative; the admin UI does not submit a rate override. Generating a newer run for an existing period requires confirmation.
 - Payment statuses, marking payments, scoped generation, printing, exports, exceptions and breakdown actions were removed because production does not expose those contracts.
-- Capitation list API returns run-wide `summary`, filter-scoped `filteredSummary`, and `meta.total`. The response interceptor preserves both summary fields. The admin UI still labels cards as current-page totals until wired.
+- Capitation list cards use filter-scoped `filteredSummary`; the rate and latest-generation date continue to use the run-wide `summary`.
 - Admin CBHI Enrolments now uses `GET /enrollments` with cursor pagination and production search, status, category, printed-state, LGA, ward, facility, field-worker, date and age filters.
 - Enrollment detail combines `GET /enrollments/:id` with `GET /enrollments/:id/detail` to show the complete beneficiary record, temporary document links and real activity history.
 - Enrollment activation and deactivation use `PATCH /enrollments/:id` for row/detail actions and `POST /enrollments/status` for batches of up to 100 unique IDs. Confirmations show partial-result counts for not-found, unchanged and invalid transitions; deceased records have no single-record action.
@@ -233,6 +234,14 @@ On 7 September 2026 after the admin interface polish:
 - Admin-wide enabled and disabled cursor behavior is defined centrally.
 - Admin lint, TypeScript and production build pass. The build retains the existing non-blocking large-chunk warning.
 
+On 7 September 2026 after the admin list-total integration:
+
+- Cursor pagination metadata includes the backend-provided filter-scoped `total`.
+- Wards, facilities, field workers, capitation, enrollments, files and ID-card queues show the current row count against the complete filtered total.
+- Facility and field-worker KPI cards use their list summaries. Capitation uses `filteredSummary` for filtered totals and the run-wide `summary` for its rate and generated date.
+- The obsolete current-page/run-total labels and missing-capitation-summary warning were removed.
+- Admin lint, TypeScript and production build pass. The build retains the existing non-blocking large-chunk warning.
+
 On 7 September 2026 after the dashboard chart rebuild:
 
 - The enrollment trend, category, ward, LGA and status visuals were rebuilt with Recharts. The previous trend chart rendered its fixed 720-wide `viewBox` at native size and centred it inside a much wider card, which left large empty margins; a responsive container removes that entirely.
@@ -374,11 +383,7 @@ On 2 September 2026 after the PWA authentication integration:
 ## Known gaps
 
 - Remaining mock-only admin areas include general Reports and Settings screens.
-- Admin list KPI cards (field workers, facilities, capitation) still count the current page; wire them to list `meta.total` and `summary` / `filteredSummary`.
-- Programme-wide enrollment totals are unavailable from cursor metadata alone on the enrollments list.
 - Admin enrollment editing, status changes and deletion are unavailable in the production API.
-- Programme-wide facility KPI totals.
-- Programme-wide enrollment totals are unavailable from cursor metadata.
 - General admin enrollment editing and deletion are unavailable in the production API; activation and deactivation are integrated.
 - Enrollment export cannot apply broad search or printed-state filters, and failed report jobs cannot be retried directly.
 - Dashboard charts are not dark-mode ready. The `.dark` block in `frontend/src/index.css` does not define `--success`/`--success-foreground`, and no dark-mode toggle is wired, so a future dark theme needs a chart colour pass.

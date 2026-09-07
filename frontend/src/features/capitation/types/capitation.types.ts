@@ -24,6 +24,12 @@ export interface CapitationSummary {
   totalCapitation: number
 }
 
+export interface CapitationFilteredSummary {
+  totalFacilities: number
+  totalBeneficiaries: number
+  totalCapitation: number
+}
+
 export interface CapitationListParams {
   month: number
   year: number
@@ -38,6 +44,7 @@ export interface CapitationListResult {
   items: CapitationRecord[]
   meta: CursorPaginationMeta
   summary: CapitationSummary | null | undefined
+  filteredSummary: CapitationFilteredSummary | null | undefined
 }
 
 export interface CapitationPreviewRecord {

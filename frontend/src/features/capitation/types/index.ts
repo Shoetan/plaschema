@@ -1,4 +1,5 @@
 export type {
+  CapitationFilteredSummary,
   CapitationListParams,
   CapitationListResult,
   CapitationPeriod,

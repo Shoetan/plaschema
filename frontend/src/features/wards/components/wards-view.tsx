@@ -47,6 +47,7 @@ export function WardsView() {
   })
   const wards = wardsQuery.data?.items ?? []
   const meta = wardsQuery.data?.meta
+  const totalCount = meta?.total ?? wards.length
 
   function changeStatus(nextStatus: StatusFilter) {
     setStatusFilter(nextStatus)
@@ -106,7 +107,7 @@ export function WardsView() {
           ))}
         </div>
         <div className="ml-auto text-sm font-medium text-muted-foreground">
-          {wardsQuery.isPending ? 'Loading wards…' : `Showing ${wards.length} wards`}
+          {wardsQuery.isPending ? 'Loading wards…' : `Showing ${wards.length} of ${totalCount.toLocaleString()} wards`}
         </div>
       </div>
 
