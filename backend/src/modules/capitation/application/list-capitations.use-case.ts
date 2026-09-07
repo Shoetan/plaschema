@@ -59,8 +59,10 @@ export class ListCapitationsUseCase {
         nextCursor: result.nextCursor,
         hasMore: result.hasMore,
         limit: result.limit,
+        total: result.total,
       },
       summary: result.summary,
+      filteredSummary: result.filteredSummary,
     };
   }
 }

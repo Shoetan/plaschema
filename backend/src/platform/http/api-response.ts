@@ -8,6 +8,7 @@ export type CursorPaginationMeta = {
   nextCursor: string | null;
   hasMore: boolean;
   limit: number;
+  total: number;
 };
 
 export type PaginationMeta = OffsetPaginationMeta | CursorPaginationMeta;

@@ -28,9 +28,11 @@ describe('ListCapitationsUseCase', () => {
     capitation.list.mockResolvedValue({
       items: [],
       summary: null,
+      filteredSummary: null,
       nextCursor: null,
       hasMore: false,
       limit: 50,
+      total: 0,
     });
 
     await useCase.execute({ limit: 50 });
@@ -79,9 +81,15 @@ describe('ListCapitationsUseCase', () => {
         totalBeneficiaries: 2,
         totalCapitation: 1400,
       },
+      filteredSummary: {
+        totalFacilities: 1,
+        totalBeneficiaries: 2,
+        totalCapitation: 1400,
+      },
       nextCursor: null,
       hasMore: false,
       limit: 50,
+      total: 1,
     });
 
     const result = await useCase.execute({
@@ -93,6 +101,8 @@ describe('ListCapitationsUseCase', () => {
 
     expect(result.data).toHaveLength(1);
     expect(result.summary?.totalCapitation).toBe(1400);
+    expect(result.filteredSummary?.totalCapitation).toBe(1400);
     expect(result.meta.hasMore).toBe(false);
+    expect(result.meta.total).toBe(1);
   });
 });

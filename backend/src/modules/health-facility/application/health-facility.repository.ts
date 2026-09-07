@@ -7,6 +7,7 @@ import type {
   HealthFacilityDetailAggregates,
   HealthFacilityLevel,
   HealthFacilityListItem,
+  HealthFacilityListSummary,
   HealthFacilityStatus,
 } from '../domain/health-facility';
 
@@ -40,7 +41,9 @@ export type ListHealthFacilitiesQuery = CursorListQuery & {
   search?: string;
 };
 
-export type PaginatedHealthFacilities = CursorPage<HealthFacilityListItem>;
+export type PaginatedHealthFacilities = CursorPage<HealthFacilityListItem> & {
+  summary?: HealthFacilityListSummary;
+};
 
 export type StreamHealthFacilitiesQuery = {
   batchSize: number;

@@ -298,21 +298,26 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
   async list(query: ListEnrollmentsQuery): Promise<PaginatedEnrollments> {
     const limit = toQueryInt(query.limit, 50, { min: 1, max: 100 });
 
+    const filterWhere = buildEnrollmentListWhere(query);
     const where = {
+      ...filterWhere,
       ...(query.cursor ? { id: { gt: query.cursor } } : {}),
-      ...buildEnrollmentListWhere(query),
     };
 
-    const rows = await this.prisma.enrollment.findMany({
-      where,
-      take: limit + 1,
-      orderBy: { id: 'asc' },
-      include: this.include,
-    });
+    const [total, rows] = await Promise.all([
+      this.prisma.enrollment.count({ where: filterWhere }),
+      this.prisma.enrollment.findMany({
+        where,
+        take: limit + 1,
+        orderBy: { id: 'asc' },
+        include: this.include,
+      }),
+    ]);
 
     return buildCursorPage(
       rows.map((row) => this.mapListItem(row)),
       limit,
+      total,
     );
   }
 

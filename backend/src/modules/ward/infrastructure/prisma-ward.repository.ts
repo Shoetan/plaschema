@@ -55,8 +55,7 @@ export class PrismaWardRepository implements WardRepository {
 
   async list(query: ListWardsQuery): Promise<PaginatedWards> {
     const limit = toQueryInt(query.limit, 50, { min: 1, max: 100 });
-    const where = {
-      ...(query.cursor ? { id: { gt: query.cursor } } : {}),
+    const filterWhere = {
       ...(query.status ? { status: query.status } : {}),
       ...(query.search
         ? {
@@ -77,22 +76,29 @@ export class PrismaWardRepository implements WardRepository {
           }
         : {}),
     };
+    const where = {
+      ...filterWhere,
+      ...(query.cursor ? { id: { gt: query.cursor } } : {}),
+    };
 
-    const rows = await this.prisma.ward.findMany({
-      where,
-      take: limit + 1,
-      orderBy: { id: 'asc' },
-      include: {
-        _count: {
-          select: {
-            assignments: {
-              where: { user: { role: 'field_worker' } },
+    const [total, rows] = await Promise.all([
+      this.prisma.ward.count({ where: filterWhere }),
+      this.prisma.ward.findMany({
+        where,
+        take: limit + 1,
+        orderBy: { id: 'asc' },
+        include: {
+          _count: {
+            select: {
+              assignments: {
+                where: { user: { role: 'field_worker' } },
+              },
+              enrollments: true,
             },
-            enrollments: true,
           },
         },
-      },
-    });
+      }),
+    ]);
 
     const pageRows = rows.length > limit ? rows.slice(0, limit) : rows;
     const wardIds = pageRows.map((row) => row.id);
@@ -133,6 +139,7 @@ export class PrismaWardRepository implements WardRepository {
       nextCursor: hasMore && last ? last.id : null,
       hasMore,
       limit,
+      total,
     };
   }
 

@@ -7,6 +7,7 @@ import type {
   FieldWorkerListItem,
   PublicUser,
   User,
+  UserStatus,
 } from '../domain/user';
 import { toPublicUser } from '../domain/user';
 import { WARD_STATE } from '../../ward/domain/ward';
@@ -103,8 +104,7 @@ export class PrismaUserRepository implements UserRepository {
 
   async list(query: ListUsersQuery): Promise<PaginatedUsers> {
     const limit = toQueryInt(query.limit, 50, { min: 1, max: 100 });
-    const where = {
-      ...(query.cursor ? { id: { gt: query.cursor } } : {}),
+    const filterWhere = {
       ...(query.role ? { role: query.role } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.search
@@ -132,27 +132,68 @@ export class PrismaUserRepository implements UserRepository {
           }
         : {}),
     };
+    const where = {
+      ...filterWhere,
+      ...(query.cursor ? { id: { gt: query.cursor } } : {}),
+    };
 
-    const rows = await this.prisma.user.findMany({
-      where,
-      take: limit + 1,
-      orderBy: { id: 'asc' },
-      include: this.include,
-    });
+    const [total, rows] = await Promise.all([
+      this.prisma.user.count({ where: filterWhere }),
+      this.prisma.user.findMany({
+        where,
+        take: limit + 1,
+        orderBy: { id: 'asc' },
+        include: this.include,
+      }),
+    ]);
 
     if (query.role === 'field_worker') {
-      return this.mapFieldWorkerPage(rows, limit);
+      const summary = await this.buildFieldWorkerListSummary(
+        filterWhere,
+        query.status,
+        total,
+      );
+      return {
+        ...(await this.mapFieldWorkerPage(rows, limit, total)),
+        summary,
+      };
     }
 
     return buildCursorPage(
       rows.map((row) => toPublicUser(this.map(row))),
       limit,
+      total,
     );
+  }
+
+  private async buildFieldWorkerListSummary(
+    filterWhere: Record<string, unknown>,
+    statusFilter: UserStatus | undefined,
+    total: number,
+  ) {
+    const activePromise =
+      statusFilter === 'inactive'
+        ? Promise.resolve(0)
+        : statusFilter === 'active'
+          ? Promise.resolve(total)
+          : this.prisma.user.count({
+              where: { ...filterWhere, status: 'active' },
+            });
+
+    const [active, totalBeneficiariesEnrolled] = await Promise.all([
+      activePromise,
+      this.prisma.enrollment.count({
+        where: { enrolledBy: filterWhere },
+      }),
+    ]);
+
+    return { active, totalBeneficiariesEnrolled };
   }
 
   private async mapFieldWorkerPage(
     rows: UserWithWards[],
     limit: number,
+    total: number,
   ): Promise<PaginatedUsers> {
     const pageRows = rows.length > limit ? rows.slice(0, limit) : rows;
     const userIds = pageRows.map((row) => row.id);
@@ -201,6 +242,7 @@ export class PrismaUserRepository implements UserRepository {
       nextCursor: hasMore && last ? last.id : null,
       hasMore,
       limit,
+      total,
     };
   }
 

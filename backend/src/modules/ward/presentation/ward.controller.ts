@@ -149,6 +149,7 @@ export class WardController {
         nextCursor: result.nextCursor,
         hasMore: result.hasMore,
         limit: result.limit,
+        total: result.total,
       } satisfies CursorPaginationMetaDto,
     };
   }

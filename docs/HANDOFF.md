@@ -44,11 +44,11 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Ward API server state is owned by React Query and is not mirrored into Zustand.
 - Health-facility list data uses `GET /health-facilities` with debounced search, searchable ward selection, LGA/type/level/status filters and cursor navigation.
 - Health-facility creation uses `POST /health-facilities`; the frontend submits `name`, `wardId`, `type`, `level` and `status`. LGA is displayed from the selected ward but is derived by the backend rather than duplicated in the request.
-- Health-facility batch upload uses `POST /health-facilities/batch` with CSV/XLSX and XLS files up to 2 MB and displays server row errors.
+- Health-facility batch upload uses `POST /health-facilities/batch` with CSV/XLSX and XLS files up to 2 MB and displays server row errors. Batch-created facilities default to **inactive**.
 - Health-facility detail uses `GET /health-facilities/:id/detail` for overview statistics, capitation history and activity.
 - Facility editing/status changes use `PATCH /health-facilities/:id`, and deletion uses `DELETE /health-facilities/:id` with confirmation.
 - Unsupported mock-only facility fields (code, ownership, community, address, contacts and onboarding date) are not displayed or submitted. The Beneficiaries tab reads `GET /enrollments?healthFacilityId=` with cursor pagination and remains display-only until beneficiary detail is API-backed.
-- Facility list KPI cards are explicitly current-page totals because cursor metadata does not contain programme-wide totals.
+- Facility list KPI cards are still current-page totals in the admin UI. The list API now also returns filter-scoped `meta.total` and `summary` (`active`, `totalBeneficiaries`) for a future frontend wiring task.
 - Field-worker list data uses `GET /users?role=field_worker` with debounced search, status filters and cursor-based Previous/Next navigation.
 - Field-worker creation uses `POST /users` with the role fixed to `field_worker`, optional multi-ward assignment and active/inactive status.
 - Empty field-worker ward assignment intentionally means access to all wards and is labelled explicitly throughout the UI.
@@ -60,7 +60,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Capitation preview and generation use `GET /capitations/preview` and `POST /capitations/generate`. The admin selects a period, reviews the server calculation, confirms generation and sees the real result.
 - The backend-configured capitation rate is authoritative; the admin UI does not submit a rate override. Generating a newer run for an existing period requires confirmation.
 - Payment statuses, marking payments, scoped generation, printing, exports, exceptions and breakdown actions were removed because production does not expose those contracts.
-- Swagger documents a full-run `summary` on the capitation list, but the backend response interceptor currently appears to discard it. The frontend uses it when available and otherwise labels calculated cards as current-page totals. See `docs/capitation-backend-feedback.md`.
+- Capitation list API returns run-wide `summary`, filter-scoped `filteredSummary`, and `meta.total`. The response interceptor preserves both summary fields. The admin UI still labels cards as current-page totals until wired.
 - Admin CBHI Enrolments now uses `GET /enrollments` with cursor pagination and production search, status, category, printed-state, LGA, ward, facility, field-worker, date and age filters.
 - Enrollment detail combines `GET /enrollments/:id` with `GET /enrollments/:id/detail` to show the complete beneficiary record, temporary document links and real activity history.
 - Ward, facility, field-worker and dashboard enrollment rows share the enrollment feature query and open the API-backed detail route.
@@ -314,8 +314,8 @@ On 2 September 2026 after the PWA authentication integration:
 
 - Admin dashboard UI still uses mocks; wire it to `GET /api/dashboard` in a separate frontend task.
 - Remaining mock-only admin areas include general Reports and Settings screens.
-- Programme-wide facility KPI totals.
-- Programme-wide enrollment totals are unavailable from cursor metadata.
+- Admin list KPI cards (field workers, facilities, capitation) still count the current page; wire them to list `meta.total` and `summary` / `filteredSummary`.
+- Programme-wide enrollment totals are unavailable from cursor metadata alone on the enrollments list.
 - Admin enrollment editing, status changes and deletion are unavailable in the production API.
 - Enrollment export cannot apply broad search or printed-state filters, and failed report jobs cannot be retried directly.
 - Refresh-token support and automatic session renewal.

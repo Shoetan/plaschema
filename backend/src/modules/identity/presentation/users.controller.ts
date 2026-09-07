@@ -122,7 +122,9 @@ export class UsersController {
         nextCursor: result.nextCursor,
         hasMore: result.hasMore,
         limit: result.limit,
+        total: result.total,
       } satisfies CursorPaginationMetaDto,
+      ...(result.summary ? { summary: result.summary } : {}),
     };
   }
 

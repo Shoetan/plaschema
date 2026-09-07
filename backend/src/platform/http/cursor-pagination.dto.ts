@@ -13,4 +13,10 @@ export class CursorPaginationMetaDto {
 
   @ApiProperty()
   limit!: number;
+
+  @ApiProperty({
+    description:
+      'Total rows matching the current list filters (not just this page)',
+  })
+  total!: number;
 }

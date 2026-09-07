@@ -96,7 +96,8 @@ export class HealthFacilityController {
     },
   })
   @ApiOperation({
-    summary: 'Batch create health facilities from CSV or Excel',
+    summary:
+      'Batch create health facilities from CSV or Excel (new rows default to inactive)',
   })
   @ApiOkResponse({ type: BatchUploadResultDto })
   batchCreate(@UploadedFile() file?: Express.Multer.File) {
@@ -151,7 +152,9 @@ export class HealthFacilityController {
         nextCursor: result.nextCursor,
         hasMore: result.hasMore,
         limit: result.limit,
+        total: result.total,
       } satisfies CursorPaginationMetaDto,
+      ...(result.summary ? { summary: result.summary } : {}),
     };
   }
 
