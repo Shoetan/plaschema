@@ -20,9 +20,15 @@ export type ListCapitationsQuery = {
 export type PaginatedCapitations = {
   items: CapitationRecordListItem[];
   summary: CapitationRunSummary | null;
+  filteredSummary: {
+    totalFacilities: number;
+    totalBeneficiaries: number;
+    totalCapitation: number;
+  } | null;
   nextCursor: string | null;
   hasMore: boolean;
   limit: number;
+  total: number;
 };
 
 export type CreateCapitationRunInput = {

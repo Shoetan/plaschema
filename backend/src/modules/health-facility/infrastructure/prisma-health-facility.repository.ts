@@ -96,8 +96,7 @@ export class PrismaHealthFacilityRepository
     query: ListHealthFacilitiesQuery,
   ): Promise<PaginatedHealthFacilities> {
     const limit = toQueryInt(query.limit, 50, { min: 1, max: 100 });
-    const where = {
-      ...(query.cursor ? { id: { gt: query.cursor } } : {}),
+    const filterWhere = {
       ...(query.wardId ? { wardId: query.wardId } : {}),
       ...(query.type
         ? { type: { equals: query.type, mode: 'insensitive' as const } }
@@ -146,16 +145,23 @@ export class PrismaHealthFacilityRepository
           }
         : {}),
     };
+    const where = {
+      ...filterWhere,
+      ...(query.cursor ? { id: { gt: query.cursor } } : {}),
+    };
 
-    const rows = await this.prisma.healthFacility.findMany({
-      where,
-      take: limit + 1,
-      orderBy: { id: 'asc' },
-      include: {
-        ...this.include,
-        _count: { select: { enrollments: true } },
-      },
-    });
+    const [total, rows] = await Promise.all([
+      this.prisma.healthFacility.count({ where: filterWhere }),
+      this.prisma.healthFacility.findMany({
+        where,
+        take: limit + 1,
+        orderBy: { id: 'asc' },
+        include: {
+          ...this.include,
+          _count: { select: { enrollments: true } },
+        },
+      }),
+    ]);
 
     const pageRows = rows.length > limit ? rows.slice(0, limit) : rows;
     const items: HealthFacilityListItem[] = pageRows.map((row) => ({
@@ -171,12 +177,44 @@ export class PrismaHealthFacilityRepository
     const hasMore = rows.length > limit;
     const last = items[items.length - 1];
 
+    const summary = await this.buildFacilityListSummary(
+      filterWhere,
+      query.status,
+      total,
+    );
+
     return {
       items,
       nextCursor: hasMore && last ? last.id : null,
       hasMore,
       limit,
+      total,
+      summary,
     };
+  }
+
+  private async buildFacilityListSummary(
+    filterWhere: Record<string, unknown>,
+    statusFilter: HealthFacility['status'] | undefined,
+    total: number,
+  ) {
+    const activePromise =
+      statusFilter === 'inactive'
+        ? Promise.resolve(0)
+        : statusFilter === 'active'
+          ? Promise.resolve(total)
+          : this.prisma.healthFacility.count({
+              where: { ...filterWhere, status: 'active' },
+            });
+
+    const [active, totalBeneficiaries] = await Promise.all([
+      activePromise,
+      this.prisma.enrollment.count({
+        where: { healthFacility: filterWhere },
+      }),
+    ]);
+
+    return { active, totalBeneficiaries };
   }
 
   async *stream(

@@ -40,6 +40,11 @@ export type FieldWorkerListItem = {
   status: UserStatus;
 };
 
+export type FieldWorkerListSummary = {
+  active: number;
+  totalBeneficiariesEnrolled: number;
+};
+
 export type FieldWorkerDetailStats = {
   totalEnrolled: number;
   /** Enrollments created today (Africa/Lagos calendar day) — already on server / synced. */

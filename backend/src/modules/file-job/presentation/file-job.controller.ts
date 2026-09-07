@@ -53,6 +53,7 @@ export class FileJobController {
         nextCursor: result.nextCursor,
         hasMore: result.hasMore,
         limit: result.limit,
+        total: result.total,
       },
     };
   }

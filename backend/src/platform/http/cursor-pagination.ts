@@ -8,6 +8,8 @@ export type CursorPage<T> = {
   nextCursor: string | null;
   hasMore: boolean;
   limit: number;
+  /** Total rows matching the list filters (excluding cursor pagination). */
+  total: number;
 };
 
 /**
@@ -16,6 +18,7 @@ export type CursorPage<T> = {
 export function buildCursorPage<T extends { id: string }>(
   rows: T[],
   limit: number,
+  total: number,
 ): CursorPage<T> {
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;
@@ -26,5 +29,6 @@ export function buildCursorPage<T extends { id: string }>(
     nextCursor: hasMore && last ? last.id : null,
     hasMore,
     limit,
+    total,
   };
 }

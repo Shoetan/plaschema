@@ -91,7 +91,7 @@ export class BatchCreateHealthFacilitiesUseCase {
         lga: ward.lga,
         type: DEFAULT_HEALTH_FACILITY_TYPE,
         level: DEFAULT_HEALTH_FACILITY_LEVEL,
-        status: 'active',
+        status: 'inactive',
         wardId: ward.id,
         row: rowNumber,
       });

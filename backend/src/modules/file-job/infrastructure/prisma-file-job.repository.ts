@@ -149,6 +149,11 @@ export class PrismaFileJobRepository implements FileJobRepository {
     const limit = toQueryInt(query.limit, 50, { min: 1, max: 100 });
     const cursor = query.cursor ? decodeListCursor(query.cursor) : null;
 
+    const filterWhere = {
+      requestedByUserId: query.requestedByUserId,
+      ...(query.status ? { status: query.status } : {}),
+    };
+
     const cursorFilter = cursor
       ? {
           OR: [
@@ -166,19 +171,23 @@ export class PrismaFileJobRepository implements FileJobRepository {
         }
       : {};
 
-    const rows = await this.prisma.fileJob.findMany({
-      where: {
-        requestedByUserId: query.requestedByUserId,
-        ...(query.status ? { status: query.status } : {}),
-        ...cursorFilter,
-      },
-      orderBy: [
-        { statusRank: 'asc' },
-        { createdAt: 'desc' },
-        { id: 'desc' },
-      ],
-      take: limit + 1,
-    });
+    const where = {
+      ...filterWhere,
+      ...cursorFilter,
+    };
+
+    const [total, rows] = await Promise.all([
+      this.prisma.fileJob.count({ where: filterWhere }),
+      this.prisma.fileJob.findMany({
+        where,
+        orderBy: [
+          { statusRank: 'asc' },
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
+        take: limit + 1,
+      }),
+    ]);
 
     const hasMore = rows.length > limit;
     const pageRows = hasMore ? rows.slice(0, limit) : rows;
@@ -189,6 +198,7 @@ export class PrismaFileJobRepository implements FileJobRepository {
       items,
       hasMore,
       limit,
+      total,
       nextCursor:
         hasMore && last
           ? encodeListCursor({

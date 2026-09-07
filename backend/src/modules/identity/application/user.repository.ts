@@ -5,6 +5,7 @@ import type {
 import type {
   FieldWorkerDetailAggregates,
   FieldWorkerListItem,
+  FieldWorkerListSummary,
   PublicUser,
   User,
   UserRole,
@@ -39,7 +40,9 @@ export type ListUsersQuery = CursorListQuery & {
   search?: string;
 };
 
-export type PaginatedUsers = CursorPage<PublicUser | FieldWorkerListItem>;
+export type PaginatedUsers = CursorPage<PublicUser | FieldWorkerListItem> & {
+  summary?: FieldWorkerListSummary;
+};
 
 export interface UserRepository {
   create(input: CreateUserInput): Promise<PublicUser>;

@@ -46,6 +46,11 @@ export type HealthFacilityListItem = {
   status: HealthFacilityStatus;
 };
 
+export type HealthFacilityListSummary = {
+  active: number;
+  totalBeneficiaries: number;
+};
+
 export type HealthFacilityDetailStats = {
   totalBeneficiaries: number;
   enrollmentsThisMonth: number;

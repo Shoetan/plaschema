@@ -39,8 +39,16 @@ export class ResponseInterceptor implements NestInterceptor {
           'data' in body &&
           'meta' in body
         ) {
-          const wrapped = body as { data: unknown; meta: unknown };
-          return successResponse(wrapped.data, (wrapped.meta as never) ?? null);
+          const wrapped = body as {
+            data: unknown;
+            meta: unknown;
+            [key: string]: unknown;
+          };
+          const { data, meta, ...rest } = wrapped;
+          return {
+            ...successResponse(data, (meta as never) ?? null),
+            ...rest,
+          };
         }
 
         return successResponse(body ?? null);

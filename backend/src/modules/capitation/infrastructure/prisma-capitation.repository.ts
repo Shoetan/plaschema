@@ -180,9 +180,11 @@ export class PrismaCapitationRepository implements CapitationRepository {
       return {
         items: [],
         summary: null,
+        filteredSummary: null,
         nextCursor: null,
         hasMore: false,
         limit,
+        total: 0,
       };
     }
 
@@ -228,6 +230,20 @@ export class PrismaCapitationRepository implements CapitationRepository {
     });
 
     const sortedRecords = sortCapitationListRecords(filteredRecords);
+    const total = sortedRecords.length;
+    const filteredSummary = summarizeRecords(
+      sortedRecords.map((row) => ({
+        healthFacilityId: row.healthFacilityId,
+        facilityName: row.facilityName,
+        lga: row.lga,
+        beneficiaryCount: row.beneficiaryCount,
+        rate: row.rate,
+        amount: row.amount,
+      })),
+      latestRun.month,
+      latestRun.year,
+      latestRun.rate,
+    );
 
     let startIndex = 0;
     if (query.cursor) {
@@ -255,9 +271,11 @@ export class PrismaCapitationRepository implements CapitationRepository {
     return {
       items,
       summary,
+      filteredSummary,
       nextCursor: hasMore && last ? last.id : null,
       hasMore,
       limit,
+      total,
     };
   }
 
