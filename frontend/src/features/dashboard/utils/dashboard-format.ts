@@ -17,8 +17,3 @@ export function signedValue(value: number, suffix = ''): string {
 export function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || '—'
 }
-
-export function relativeWidth(value: number, maximum: number): number {
-  if (value <= 0 || maximum <= 0) return 0
-  return Math.min(100, Math.max(0, (value / maximum) * 100))
-}

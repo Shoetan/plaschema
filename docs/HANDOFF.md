@@ -1,7 +1,7 @@
 # PLASCHEMA Project Handoff
 
-Last updated: 5 September 2026
-Last verified code commit: `7d5456a`
+Last updated: 7 September 2026
+Last verified code commit: `177f909`
 
 ## Purpose
 
@@ -28,6 +28,9 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Admin designs and navigation are implemented.
 - The admin dashboard uses `GET /api/dashboard` for its KPIs, enrollment trend, recent activity, category/status breakdowns, ward/LGA rankings, facility overview, field-worker performance and recent enrollments.
 - Dashboard filters are LGA, a searchable Ward, period (`7d`|`30d`|`3m`|`6m`|`1y`, default `30d`) and trend (`daily`|`weekly`|`monthly`, default `monthly`). Plateau is fixed rather than exposed as a State filter; selecting an LGA clears an incompatible Ward and selecting a Ward applies its LGA.
+- Every dashboard visual is rendered with Recharts: the enrollment trend is a gradient area chart with a stroked line, per-point dots, a labelled y-axis, a hover tooltip and a dashed average reference line; enrollment by category, ward and LGA share one horizontal bar chart; enrollment by status is a donut with a legend and a centre total. No hand-rolled SVG or CSS-div bars remain in the dashboard feature.
+- Ward bars on the dashboard still navigate to ward detail. Because a Recharts bar click is mouse-only, each clickable chart also renders a visually hidden list of real buttons so keyboard and screen-reader users keep the same navigation.
+- Chart colours come from the `--chart-1` … `--chart-5` theme tokens in `frontend/src/index.css`. Recharts mount animations are disabled so charts render deterministically and do not re-animate on every filter change or background refetch.
 - Admin login uses `POST /auth/login`; saved sessions are validated with `GET /auth/me`.
 - The typed API layer is split into client, request, error and contract modules and is consumed through feature services and React Query hooks.
 - Authentication is admin-only. Zustand owns the access token, authenticated user and session status.
@@ -174,6 +177,9 @@ Both frontend development servers use Vite's `--strictPort` option and exit inst
 - Integrate admin APIs one Swagger endpoint at a time through API client → feature service → React Query hook → component.
 - Restrict the admin frontend to users whose API role is `admin`.
 - `sonner` is the approved toast dependency for the admin frontend.
+- `recharts` is the approved charting dependency for the admin frontend. Keep it inside dashboard chart components; hooks, services, utils and types must stay free of it.
+- Chart marks may not use the brand lime `#9fe870` directly. It is too light for a data mark (only about 1.44:1 against white), so the chart tokens hold the brand hue at an accessible step and the pale lime is used only as the area wash beneath the trend line.
+- Custom Recharts tooltip, label and click handlers are typed with narrow local interfaces plus type guards rather than the library's loose payload types, so the no-`any` rule still holds.
 - Keep server-owned ward records out of Zustand; React Query owns ward API state as read endpoints are integrated.
 - Keep `GET /wards/stream` for a separate PWA offline-sync phase; it is not used by the admin app.
 - Use the admin-specific `GET /wards/:id/detail` response rather than adding the simpler ward-by-ID endpoint without a consumer.
@@ -215,6 +221,17 @@ At commit `a73ed09`:
 - Backend had no working-tree changes.
 
 After later edits, rerun the relevant checks before updating this section.
+
+On 7 September 2026 after the dashboard chart rebuild:
+
+- The enrollment trend, category, ward, LGA and status visuals were rebuilt with Recharts. The previous trend chart rendered its fixed 720-wide `viewBox` at native size and centred it inside a much wider card, which left large empty margins; a responsive container removes that entirely.
+- Zero-count buckets now read as a flat line on the baseline instead of drawing nothing, the y-axis carries values, and the average reference line no longer collides with point labels.
+- Enrollment by category, ward and LGA share a single bar-chart component, and the previous `BarList` component and its `relativeWidth` helper were removed as dead code.
+- The chart token ramp was validated for lightness, chroma, colour-vision separation and surface contrast before use; the brand lime failed the mark-contrast floor and was replaced for marks while remaining the trend area wash.
+- Recharts mount animations are disabled. They were observed stalling mid-reveal, which left the line, area and donut sectors partly drawn, and they would otherwise replay on every filter change and background refetch.
+- Admin lint, TypeScript and production build pass. Static checks confirm no `any`, no request wrappers or service imports in components, and no Recharts usage outside the chart components. Note that `tsc -b` via the build script is stricter than a bare `tsc --noEmit` and is what caught the library's tooltip and label typings.
+- Bundle impact was measured against a baseline build: the main chunk was unchanged at about 587 kB while the lazily loaded dashboard chunk grew from about 23 kB to about 423 kB (roughly 119 kB gzipped).
+- Visual and authenticated verification were left to the user.
 
 On 5 September 2026 after the admin dashboard integration:
 
@@ -350,6 +367,8 @@ On 2 September 2026 after the PWA authentication integration:
 - Programme-wide enrollment totals are unavailable from cursor metadata.
 - General admin enrollment editing and deletion are unavailable in the production API; activation and deactivation are integrated.
 - Enrollment export cannot apply broad search or printed-state filters, and failed report jobs cannot be retried directly.
+- Dashboard charts are not dark-mode ready. The `.dark` block in `frontend/src/index.css` does not define `--success`/`--success-foreground`, and no dark-mode toggle is wired, so a future dark theme needs a chart colour pass.
+- The admin production build reports a Vite chunk larger than 500 kB. This predates the charting work; Recharts is confined to the lazily loaded dashboard route chunk.
 - Refresh-token support and automatic session renewal.
 - Full real-device browser testing.
 - Broader frontend test coverage.
