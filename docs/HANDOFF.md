@@ -28,6 +28,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Admin designs and navigation are implemented.
 - The admin top bar shows the current feature name from route metadata; unsupported global search and notification controls were removed. Detail routes identify their parent feature in the same metadata.
 - Enabled buttons, links, selects and other interactive controls use a pointer cursor across the admin app, while disabled controls use the not-allowed cursor.
+- The protected admin layout owns page-level vertical scrolling. Feature views do not create competing page scroll containers; tables, tabs, dropdowns and dialogs retain their intentional bounded scrolling.
 - The admin dashboard uses `GET /api/dashboard` for its KPIs, enrollment trend, recent activity, category/status breakdowns, ward/LGA rankings, facility overview, field-worker performance and recent enrollments.
 - Dashboard filters are LGA, a searchable Ward, period (`7d`|`30d`|`3m`|`6m`|`1y`, default `30d`) and trend (`daily`|`weekly`|`monthly`, default `monthly`). Plateau is fixed rather than exposed as a State filter; selecting an LGA clears an incompatible Ward and selecting a Ward applies its LGA.
 - Every dashboard visual is rendered with Recharts: the enrollment trend is a gradient area chart with a stroked line, per-point dots, a labelled y-axis, a hover tooltip and a dashed average reference line; enrollment by category, ward and LGA share one horizontal bar chart; enrollment by status is a donut with a legend and a centre total. No hand-rolled SVG or CSS-div bars remain in the dashboard feature.
@@ -89,6 +90,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Worker profile identity and assigned wards come from the authenticated user response; empty ward assignment means access to all wards.
 - Enrollment drafts, selected files, local queues, reference data and cached worker statistics use IndexedDB through Dexie. Authentication remains separate in local storage.
 - The six-step enrollment wizard always saves locally first. One active draft survives refreshes and app restarts; completed drafts enter an owner-scoped pending queue with a UUID v7 idempotency key.
+- PWA form fields, including the native Date of Birth control, are constrained to the mobile frame so they cannot widen the enrollment screen or create document-level horizontal scrolling.
 - Wards and health facilities are downloaded from their NDJSON stream endpoints when missing, older than 24 hours or when the worker's ward access changes. Workers can also refresh them manually.
 - Synchronization runs in the foreground while the app is open: presign each file, upload it directly with the returned PUT URL, then create each enrollment one at a time.
 - Pending work retries with durable leases and bounded delays. Failed records retain their form, error and files for Review, Edit, Retry or Discard actions.
@@ -232,6 +234,13 @@ On 7 September 2026 after the admin interface polish:
 - Capitation period controls were moved into the main filter row, and the top bar now shows route-aware feature text instead of disabled search and notification controls.
 - Admin-wide enabled and disabled cursor behavior is defined centrally.
 - Admin lint, TypeScript and production build pass. The build retains the existing non-blocking large-chunk warning.
+
+On 7 September 2026 after the PWA/admin overflow corrections:
+
+- Shared PWA fields and the native Date of Birth input are width-constrained, while the PWA document, app frame and enrollment fields area prevent accidental horizontal overflow.
+- The admin protected layout is the only page-level vertical scroll owner; redundant `overflow-auto` declarations were removed from feature-page roots while bounded component scrolling remains intact.
+- All 36 PWA tests pass, including the new native-date width regression. PWA lint, TypeScript and production build pass.
+- Admin lint, TypeScript and production build pass. Both builds retain their existing non-blocking large-chunk warnings.
 
 On 7 September 2026 after the dashboard chart rebuild:
 

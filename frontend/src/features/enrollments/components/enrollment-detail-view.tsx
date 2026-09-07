@@ -26,7 +26,7 @@ export function EnrollmentDetailView({ enrollmentId }: { enrollmentId: string })
   const query = useEnrollmentDetail(enrollmentId)
   const detail = query.data
 
-  if (query.isPending) return <div className="flex flex-1 flex-col gap-5 overflow-auto p-4 sm:p-6"><Skeleton className="h-8 w-72" /><Skeleton className="h-32 w-full" /><Skeleton className="h-80 w-full" /></div>
+  if (query.isPending) return <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6"><Skeleton className="h-8 w-72" /><Skeleton className="h-32 w-full" /><Skeleton className="h-80 w-full" /></div>
   if (query.isError || !detail) {
     const missing = getApiErrorStatus(query.error) === 404
     return <div className="flex flex-1 items-center justify-center p-6"><div className="max-w-md text-center"><h1 className="text-xl font-semibold">{missing ? 'Enrollment not found' : 'Unable to load enrollment'}</h1><p className="mt-2 text-sm text-muted-foreground">{missing ? 'This record may no longer exist or the link may be incorrect.' : getApiErrorMessage(query.error, 'Check your connection and try again.')}</p><div className="mt-5 flex justify-center gap-2"><Button onClick={() => navigate('/admin/beneficiaries')} variant="outline"><ArrowLeft aria-hidden="true" /> Back</Button>{!missing && <Button onClick={() => void query.refetch()}><RefreshCw aria-hidden="true" /> Retry</Button>}</div></div></div>
@@ -37,7 +37,7 @@ export function EnrollmentDetailView({ enrollmentId }: { enrollmentId: string })
   const statusTargets = availableEnrollmentStatusTargets(record.status)
 
   return (
-    <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6">
+    <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
       <button className="flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground" onClick={() => navigate('/admin/beneficiaries')} type="button"><ArrowLeft className="size-4" aria-hidden="true" /> Back to CBHI Enrolments</button>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div><p className="font-mono text-xs text-muted-foreground">{record.enrollmentId}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">{overview.beneficiaryName}</h1><p className="mt-1 text-sm text-muted-foreground">Enrolled on {formatEnrollmentDate(record.createdAt)}</p></div>

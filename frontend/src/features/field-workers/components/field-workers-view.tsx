@@ -63,7 +63,7 @@ export function FieldWorkersView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 overflow-auto p-4 sm:p-6">
+    <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-semibold tracking-[-0.48px]">Field Workers</h1><p className="mt-0.5 text-sm text-muted-foreground">Manage field-worker accounts, ward access and enrollment activity.</p></div><div className="flex gap-2"><button className={btnSecondary} disabled title="Field-worker batch upload is not supported by the API" type="button"><Upload aria-hidden="true" className="size-4" /> Bulk Upload</button><button className={btnPrimary} onClick={() => setCreateOpen(true)} type="button"><Plus aria-hidden="true" className="size-4" /> Add Field Worker</button></div></div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">{[{ label: 'Field workers · Current page', value: workers.length }, { label: 'Active · Current page', value: activeCount }, { label: 'Beneficiaries enrolled · Current page', value: enrolledCount.toLocaleString() }].map((item) => <div className={`flex flex-col gap-1 rounded-xl bg-card p-5 ${cardShadow}`} key={item.label}><p className="text-xs font-medium text-muted-foreground">{item.label}</p>{query.isPending ? <Skeleton className="mt-1 h-8 w-24" /> : <p className="text-[28px] font-semibold tracking-[-0.56px]">{item.value}</p>}</div>)}</div>

@@ -22,7 +22,7 @@ export function ReportsView() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-auto flex-1" style={{ fontFamily: "'Inter Tight', sans-serif" }}>
+    <div className="flex flex-1 flex-col gap-6 p-6" style={{ fontFamily: "'Inter Tight', sans-serif" }}>
       <h1 className="text-foreground text-[24px] font-semibold tracking-[-0.48px]">Reports</h1>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6">

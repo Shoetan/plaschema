@@ -15,7 +15,7 @@ export function SettingsView() {
   });
 
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-auto flex-1" style={{ fontFamily: "'Inter Tight', sans-serif" }}>
+    <div className="flex flex-1 flex-col gap-6 p-6" style={{ fontFamily: "'Inter Tight', sans-serif" }}>
       <div className="flex items-center justify-between">
         <h1 className="text-foreground text-[24px] font-semibold tracking-[-0.48px]">Settings</h1>
         <div className="flex gap-2">
