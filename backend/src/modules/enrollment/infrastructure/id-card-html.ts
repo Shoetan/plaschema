@@ -250,7 +250,7 @@ html, body {
   margin: 0;
   color: ${GREEN};
   font-weight: 700;
-  font-size: 5.1pt;
+  font-size: 6.5pt;
   line-height: 1.12;
   letter-spacing: 0.01em;
 }
@@ -258,7 +258,7 @@ html, body {
   margin: 1.1mm 0 0;
   color: ${GREEN};
   font-weight: 700;
-  font-size: 5.4pt;
+  font-size: 7pt;
   line-height: 1.1;
 }
 .front-body {
@@ -288,20 +288,20 @@ html, body {
   align-items: center;
   justify-content: center;
   color: #9ca3af;
-  font-size: 5pt;
+  font-size: 6pt;
   font-weight: 700;
 }
 .details { min-width: 0; }
 .name {
   margin: 0 0 1.4mm;
-  font-size: 7.2pt;
+  font-size: 9pt;
   font-weight: 700;
   line-height: 1.1;
   text-transform: uppercase;
 }
 .field {
   margin: 0 0 1.15mm;
-  font-size: 5.1pt;
+  font-size: 6.8pt;
   line-height: 1.15;
 }
 .field .label { display: block; font-weight: 400; }
