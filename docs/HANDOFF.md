@@ -381,6 +381,9 @@ On 2 September 2026 after the PWA authentication integration:
 1. Test admin enrollment filtering, document links, ID-card PDFs and Excel downloads with a production admin account.
 2. Agree the remaining enrollment editing, deletion, export and reporting gaps in `docs/enrollment-backend-feedback.md` with the backend team.
 3. Complete real-device PWA browser testing.
+4. Agree the enrollment API gaps in `docs/enrollment-backend-feedback.md` with the backend team.
+5. Wire the admin dashboard UI to `GET /api/dashboard` (remove State filter; keep View All links to module pages).
+6. Wire admin list KPI cards and pagination footers using `docs/frontend-list-kpi-handoff.md` (`meta.total`, `summary`, `filteredSummary` on `feat/list-filter-totals`).
 
 ## Handoff update checklist
 
