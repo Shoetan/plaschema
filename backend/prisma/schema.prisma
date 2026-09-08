@@ -270,6 +270,8 @@ model Enrollment {
   healthFacilityId String @db.Uuid
 
   passportObjectKey   String
+  /// JPEG variant resized for ID card printing (object storage key).
+  passportPrintObjectKey String?
   idDocumentObjectKey String
 
   title      EnrollmentTitle

@@ -1,6 +1,6 @@
 # PLASCHEMA Project Handoff
 
-Last updated: 7 September 2026
+Last updated: 8 September 2026
 Last verified code commit: `177f909`
 
 ## Purpose
@@ -169,6 +169,7 @@ Both frontend development servers use Vite's `--strictPort` option and exit inst
 - `backend` `build` also runs `puppeteer browsers install chrome`.
 - `nixpacks.toml` (repo root and `backend/`) installs the Linux libraries Chrome needs.
 - Optional: `PUPPETEER_EXECUTABLE_PATH` to point at a custom Chromium binary.
+- Passport photos are resized to a stored print JPEG (`passportPrintObjectKey`, under `…/print/…`) when an enrollment is created; ID-card jobs use that variant and backfill legacy records on first reprint. PDF size should drop from tens of MB to a few MB per sheet.
 
 ## Decisions already made
 

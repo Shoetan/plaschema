@@ -26,6 +26,7 @@ import {
   type IdCardRenderInput,
 } from './id-card-html';
 import { IdCardPdfRenderer } from './id-card-pdf-renderer';
+import { PassportPrintService } from '../application/passport-print.service';
 
 @Injectable()
 export class BullIdCardQueueAdapter implements IdCardQueuePort {
@@ -58,6 +59,7 @@ export class IdCardGenerationProcessor
     private readonly enrollments: EnrollmentRepository,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly pdfRenderer: IdCardPdfRenderer,
+    private readonly passportPrint: PassportPrintService,
     private readonly recordActivity: RecordActivityUseCase,
     private readonly markFileJobProcessing: MarkFileJobProcessingUseCase,
     private readonly completeFileJob: CompleteFileJobUseCase,
@@ -89,16 +91,13 @@ export class IdCardGenerationProcessor
 
       const cards: IdCardRenderInput[] = await Promise.all(
         rows.map(async (row) => {
-          let passport: Buffer | null = null;
-          try {
-            const object = await this.storage.getObject(row.passportObjectKey);
-            passport = object.body;
-          } catch (error) {
-            this.logger.warn(
-              `Passport missing for ${row.enrollmentId}: ${
-                error instanceof Error ? error.message : 'unknown'
-              }`,
-            );
+          const passport = await this.passportPrint.getBufferForIdCard({
+            enrollmentId: row.id,
+            passportObjectKey: row.passportObjectKey,
+            passportPrintObjectKey: row.passportPrintObjectKey,
+          });
+          if (!passport) {
+            this.logger.warn(`Passport unavailable for ${row.enrollmentId}`);
           }
 
           return {
