@@ -33,6 +33,7 @@ type EnrollmentRow = {
   wardId: string;
   healthFacilityId: string;
   passportObjectKey: string;
+  passportPrintObjectKey: string | null;
   idDocumentObjectKey: string;
   title: Enrollment['title'];
   gender: Enrollment['gender'];
@@ -94,6 +95,7 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
       wardId: row.wardId,
       healthFacilityId: row.healthFacilityId,
       passportObjectKey: row.passportObjectKey,
+      passportPrintObjectKey: row.passportPrintObjectKey,
       idDocumentObjectKey: row.idDocumentObjectKey,
       title: row.title,
       gender: row.gender,
@@ -209,6 +211,7 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
         emergencyPhone: true,
         bloodGroup: true,
         passportObjectKey: true,
+        passportPrintObjectKey: true,
         healthFacility: { select: { name: true } },
       },
     });
@@ -230,6 +233,7 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
           emergencyPhone: row.emergencyPhone,
           bloodGroup: row.bloodGroup,
           passportObjectKey: row.passportObjectKey,
+          passportPrintObjectKey: row.passportPrintObjectKey,
           facilityName: row.healthFacility.name,
         },
       ];
@@ -292,6 +296,16 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
         printedAt,
         printCount: { increment: 1 },
       },
+    });
+  }
+
+  async setPassportPrintObjectKey(
+    enrollmentId: string,
+    passportPrintObjectKey: string,
+  ): Promise<void> {
+    await this.prisma.enrollment.update({
+      where: { id: enrollmentId },
+      data: { passportPrintObjectKey },
     });
   }
 

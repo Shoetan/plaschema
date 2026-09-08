@@ -36,6 +36,7 @@ import {
 } from './infrastructure/id-card-job.processor';
 import { EnrollmentReportXlsxRenderer } from './infrastructure/enrollment-report-xlsx';
 import { IdCardPdfRenderer } from './infrastructure/id-card-pdf-renderer';
+import { PassportPrintService } from './application/passport-print.service';
 import { PrismaEnrollmentRepository } from './infrastructure/prisma-enrollment.repository';
 import { EnrollmentController } from './presentation/enrollment.controller';
 
@@ -75,6 +76,7 @@ import { EnrollmentController } from './presentation/enrollment.controller';
     GenerateIdCardsUseCase,
     ExportEnrollmentReportUseCase,
     UpdateEnrollmentStatusUseCase,
+    PassportPrintService,
     IdCardPdfRenderer,
     IdCardGenerationProcessor,
     EnrollmentReportXlsxRenderer,

@@ -83,6 +83,7 @@ export type Enrollment = {
   wardId: string;
   healthFacilityId: string;
   passportObjectKey: string;
+  passportPrintObjectKey: string | null;
   idDocumentObjectKey: string;
   title: EnrollmentTitle;
   gender: EnrollmentGender;

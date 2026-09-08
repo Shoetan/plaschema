@@ -22,6 +22,7 @@ export type CreateEnrollmentRecordInput = {
   wardId: string;
   healthFacilityId: string;
   passportObjectKey: string;
+  passportPrintObjectKey?: string | null;
   idDocumentObjectKey: string;
   title: Enrollment['title'];
   gender: Enrollment['gender'];
@@ -74,6 +75,7 @@ export type IdCardEnrollmentData = {
   emergencyPhone: string | null;
   bloodGroup: Enrollment['bloodGroup'];
   passportObjectKey: string;
+  passportPrintObjectKey: string | null;
   facilityName: string;
 };
 
@@ -102,6 +104,10 @@ export interface EnrollmentRepository {
   findManyStatusByIds(ids: string[]): Promise<EnrollmentStatusRow[]>;
   updateStatus(ids: string[], status: EnrollmentStatus): Promise<number>;
   markPrinted(ids: string[], printedAt: Date): Promise<void>;
+  setPassportPrintObjectKey(
+    enrollmentId: string,
+    passportPrintObjectKey: string,
+  ): Promise<void>;
   list(query: ListEnrollmentsQuery): Promise<PaginatedEnrollments>;
   iterateForExport(
     query: Omit<ListEnrollmentsQuery, 'cursor' | 'limit'>,

@@ -30,6 +30,7 @@ import {
   ENROLLMENT_REPOSITORY,
   type EnrollmentRepository,
 } from './enrollment.repository';
+import { PassportPrintService } from './passport-print.service';
 import { fieldWorkerCanAccessWard } from './field-worker-ward-access';
 import { RecordActivityUseCase } from '../../activity-log/application/record-activity.use-case';
 
@@ -76,6 +77,7 @@ export class CreateEnrollmentUseCase {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly checkDuplicate: CheckEnrollmentDuplicateUseCase,
     private readonly recordActivity: RecordActivityUseCase,
+    private readonly passportPrint: PassportPrintService,
   ) {}
 
   async execute(
@@ -178,6 +180,10 @@ export class CreateEnrollmentUseCase {
       );
     }
 
+    const passportPrintObjectKey = await this.passportPrint.ensureStored(
+      input.passportObjectKey,
+    );
+
     let capturedAt: Date | null = null;
     if (input.capturedAt) {
       const parsed = new Date(input.capturedAt);
@@ -207,6 +213,7 @@ export class CreateEnrollmentUseCase {
         wardId: input.wardId,
         healthFacilityId: input.healthFacilityId,
         passportObjectKey: input.passportObjectKey,
+        passportPrintObjectKey,
         idDocumentObjectKey: input.idDocumentObjectKey,
         title: input.title,
         gender: input.gender,
