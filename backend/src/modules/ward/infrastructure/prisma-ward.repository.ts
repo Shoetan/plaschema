@@ -40,6 +40,12 @@ export class PrismaWardRepository implements WardRepository {
     return this.prisma.ward.findUnique({ where: { id } });
   }
 
+  findByCode(code: string): Promise<Ward | null> {
+    return this.prisma.ward.findFirst({
+      where: { code: { equals: code, mode: 'insensitive' } },
+    });
+  }
+
   findByName(name: string): Promise<Ward | null> {
     return this.prisma.ward.findUnique({ where: { name } });
   }
@@ -53,6 +59,26 @@ export class PrismaWardRepository implements WardRepository {
     });
   }
 
+  findByCodes(codes: string[]): Promise<Ward[]> {
+    if (codes.length === 0) {
+      return Promise.resolve([]);
+    }
+    return this.prisma.ward.findMany({
+      where: {
+        OR: codes.map((code) => ({
+          code: { equals: code, mode: 'insensitive' as const },
+        })),
+      },
+    });
+  }
+
+  async listCodes(): Promise<string[]> {
+    const rows = await this.prisma.ward.findMany({
+      select: { code: true },
+    });
+    return rows.map((row) => row.code);
+  }
+
   async list(query: ListWardsQuery): Promise<PaginatedWards> {
     const limit = toQueryInt(query.limit, 50, { min: 1, max: 100 });
     const filterWhere = {
@@ -62,6 +88,12 @@ export class PrismaWardRepository implements WardRepository {
             OR: [
               {
                 name: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                code: {
                   contains: query.search,
                   mode: 'insensitive' as const,
                 },
@@ -122,6 +154,7 @@ export class PrismaWardRepository implements WardRepository {
 
     const items: WardListItem[] = pageRows.map((row) => ({
       id: row.id,
+      code: row.code,
       name: row.name,
       state: WARD_STATE,
       lga: row.lga,

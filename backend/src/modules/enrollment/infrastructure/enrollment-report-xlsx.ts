@@ -74,22 +74,9 @@ const EXPORT_COLUMNS: Array<{
   },
   { header: 'ID Type', width: 18, value: (row) => formatLabel(row.idType) },
   {
-    header: 'Next of Kin Full Name',
-    width: 22,
-    value: (row) => row.nextOfKinFullName ?? '',
-  },
-  {
     header: 'Emergency Phone',
     width: 18,
     value: (row) => row.emergencyPhone ?? '',
-  },
-  {
-    header: 'Next of Kin Relationship',
-    width: 20,
-    value: (row) =>
-      row.nextOfKinRelationship
-        ? formatLabel(row.nextOfKinRelationship)
-        : '',
   },
   {
     header: 'State of Residence',

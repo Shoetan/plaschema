@@ -124,7 +124,7 @@ export function WardsView() {
               <thead>
                 <tr>
                   <th className={`${thCell} w-10`}><span aria-hidden="true" className="block size-5 rounded-sm border border-border bg-card" /></th>
-                  {['Ward Name', 'State', 'LGA', 'Field Workers', 'Beneficiaries', 'New Enrollments', 'Status', 'View'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}
+                  {['Ward Name', 'State', 'LGA', 'Enrollment Officers', 'Beneficiaries', 'New Enrollments', 'Status', 'View'].map((heading) => <th className={thCell} key={heading}>{heading}</th>)}
                 </tr>
               </thead>
               <tbody>

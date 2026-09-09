@@ -74,16 +74,6 @@ enum IdDocumentType {
   other
 }
 
-enum NextOfKinRelationship {
-  spouse
-  parent
-  sibling
-  child
-  relative
-  friend
-  other
-}
-
 enum EnrollmentStatus {
   pending
   active
@@ -139,8 +129,14 @@ enum FileJobStatus {
   completed
 }
 
+enum HouseholdRole {
+  head
+  member
+}
+
 model Ward {
   id        String     @id @db.Uuid
+  code      String     @unique
   name      String     @unique
   lga       String
   status    WardStatus @default(active)
@@ -149,11 +145,32 @@ model Ward {
 
   assignments      UserWardAssignment[]
   healthFacilities HealthFacility[]
+  households       Household[]
   enrollments      Enrollment[]
   activityLogs     ActivityLog[]
 
   @@index([status])
   @@index([lga])
+}
+
+model Household {
+  id                 String   @id @db.Uuid
+  householdLocalId   String   @unique @db.Uuid
+  householdCode      String
+  wardId             String   @db.Uuid
+  headEnrollmentId   String?  @unique @db.Uuid
+  baseEnrollmentId   String?  @unique
+  residentialAddress String?
+  memberCount        Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  ward           Ward          @relation(fields: [wardId], references: [id], onDelete: Restrict)
+  headEnrollment Enrollment?   @relation("HouseholdHead", fields: [headEnrollmentId], references: [id], onDelete: Restrict)
+  enrollments    Enrollment[]
+
+  @@unique([wardId, householdCode])
+  @@index([wardId])
 }
 
 model User {
@@ -293,9 +310,7 @@ model Enrollment {
   genotype      Genotype?
   idType        IdDocumentType
 
-  nextOfKinFullName      String?
   emergencyPhone         String?
-  nextOfKinRelationship  NextOfKinRelationship?
 
   stateOfResidence  String @default("Plateau")
   lgaOfResidence    String
@@ -306,16 +321,23 @@ model Enrollment {
   /// How many times an ID card has been generated/printed for this enrollment.
   printCount Int      @default(0)
 
+  householdId    String?        @db.Uuid
+  householdRole  HouseholdRole?
+  memberSequence Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   enrolledBy     User           @relation("EnrollmentEnrolledBy", fields: [enrolledByUserId], references: [id], onDelete: Restrict)
   ward           Ward           @relation(fields: [wardId], references: [id], onDelete: Restrict)
   healthFacility HealthFacility @relation(fields: [healthFacilityId], references: [id], onDelete: Restrict)
+  household      Household?     @relation(fields: [householdId], references: [id], onDelete: Restrict)
+  headOfHousehold Household?    @relation("HouseholdHead")
   activityLogs   ActivityLog[]
 
   @@unique([firstNameNormalized, lastNameNormalized, dateOfBirth], map: "enrollment_identity_key")
   @@index([wardId])
+  @@index([householdId])
   @@index([healthFacilityId])
   @@index([enrolledByUserId])
   @@index([createdAt])

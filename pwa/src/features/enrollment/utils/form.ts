@@ -3,12 +3,12 @@ import type { CreateEnrollmentPayload, EnrollmentFormValues, FieldWorkerDetailSt
 export const BENEFICIARY_CATEGORIES = ['IDPs', 'Elderly 65+', 'Indigents / Very Poor / Others'] as const
 export const PLATEAU_STATE = 'PLATEAU' as const
 
-function canonicalPhoneNumber(value: string) {
-  const digits = value.replace(/\D/g, '')
+function canonicalPhoneNumber(value: string | undefined | null) {
+  const digits = (value ?? '').replace(/\D/g, '')
   return digits.startsWith('234') && digits.length === 13 ? `0${digits.slice(3)}` : digits
 }
 
-export function normalizePhoneNumber(value: string) {
+export function normalizePhoneNumber(value: string | undefined | null) {
   return canonicalPhoneNumber(value).slice(0, 11)
 }
 
@@ -16,23 +16,35 @@ export function isValidPhoneNumber(value: string) {
   return /^\d{11}$/.test(value)
 }
 
-export function normalizeNin(value: string) {
-  return value.replace(/\D/g, '').slice(0, 10)
+export function normalizeNin(value: string | undefined | null) {
+  return (value ?? '').replace(/\D/g, '').slice(0, 10)
 }
 
 export function isValidNin(value: string) {
   return /^\d{10}$/.test(value)
 }
 
+export function getActiveWardFacilities(wardId: string, facilities: ReferenceFacility[]) {
+  return facilities.filter((facility) => facility.status === 'active' && facility.wardId === wardId)
+}
+
 export function resolveHealthFacilityId(wardId: string, currentFacilityId: string, facilities: ReferenceFacility[]) {
-  const activeFacilities = facilities.filter((facility) => facility.status === 'active' && facility.wardId === wardId)
+  const activeFacilities = getActiveWardFacilities(wardId, facilities)
   if (activeFacilities.some((facility) => facility.id === currentFacilityId)) return currentFacilityId
   return activeFacilities.length === 1 ? activeFacilities[0].id : ''
+}
+
+export function isWardFacilityLocked(wardId: string, facilities: ReferenceFacility[]) {
+  return getActiveWardFacilities(wardId, facilities).length === 1
 }
 
 export function getResidenceLgas(wards: ReferenceWard[]) {
   return [...new Set(wards.filter((ward) => ward.status === 'active').map((ward) => ward.lga))]
     .sort((a, b) => a.localeCompare(b))
+}
+
+export function getOfficerLga(assignedWards: Array<{ lga: string }>, fallbackWards: Array<{ lga: string }> = []) {
+  return assignedWards[0]?.lga ?? fallbackWards[0]?.lga ?? ''
 }
 
 export function resolveWardId(lga: string, currentWardId: string, wards: ReferenceWard[]) {
@@ -42,20 +54,20 @@ export function resolveWardId(lga: string, currentWardId: string, wards: Referen
 }
 
 export function normalizeEnrollmentForm(form: EnrollmentFormValues): EnrollmentFormValues {
+  const merged = { ...EMPTY_ENROLLMENT_FORM, ...form, stateOfResidence: PLATEAU_STATE }
   return {
-    ...form,
-    stateOfResidence: PLATEAU_STATE,
-    phone: normalizePhoneNumber(form.phone),
-    nin: normalizeNin(form.nin),
+    ...merged,
+    phone: normalizePhoneNumber(merged.phone),
+    emergencyPhone: normalizePhoneNumber(merged.emergencyPhone),
+    nin: normalizeNin(merged.nin),
   }
 }
 
 export const EMPTY_ENROLLMENT_FORM: EnrollmentFormValues = {
   category: '', passportFileId: '', passportName: '', idDocumentFileId: '', idDocumentName: '',
   title: '', firstName: '', middleName: '', lastName: '', gender: '', dateOfBirth: '', maritalStatus: '',
-  phone: '', email: '', nin: '', bloodGroup: '', genotype: '', stateOfResidence: PLATEAU_STATE,
+  phone: '', email: '', emergencyPhone: '', nin: '', bloodGroup: '', genotype: '', stateOfResidence: PLATEAU_STATE,
   lgaOfResidence: '', residentialAddress: '', wardId: '', healthFacilityId: '', idType: '',
-  nextOfKinFullName: '', nextOfKinRelationship: '',
 }
 
 export function hasDraftProgress(form: EnrollmentFormValues) {
@@ -65,12 +77,14 @@ export function hasDraftProgress(form: EnrollmentFormValues) {
 export function toCreateEnrollmentPayload(record: LocalEnrollmentRecord): CreateEnrollmentPayload {
   const form = { ...record.form, stateOfResidence: PLATEAU_STATE }
   const phone = canonicalPhoneNumber(form.phone)
-  const nin = form.nin.replace(/\D/g, '')
+  const ninDigits = (form.nin ?? '').replace(/\D/g, '')
   if (!record.passportObjectKey || !record.idDocumentObjectKey || !form.category || !form.title || !form.gender || !form.maritalStatus || !form.idType) {
     throw new Error('Enrollment is missing required information.')
   }
   if (!isValidPhoneNumber(phone)) throw new Error('Phone number must contain exactly 11 digits.')
-  if (!isValidNin(nin)) throw new Error('NIN must contain exactly 10 digits.')
+  const emergencyPhone = canonicalPhoneNumber(form.emergencyPhone)
+  if (emergencyPhone && !isValidPhoneNumber(emergencyPhone)) throw new Error('Emergency contact number must contain exactly 11 digits.')
+  if (form.idType === 'nin' && !isValidNin(ninDigits)) throw new Error('NIN must contain exactly 10 digits.')
   return {
     idempotencyId: record.idempotencyId,
     capturedAt: record.capturedAt,
@@ -85,13 +99,12 @@ export function toCreateEnrollmentPayload(record: LocalEnrollmentRecord): Create
     dateOfBirth: form.dateOfBirth,
     phone,
     ...(form.email.trim() ? { email: form.email.trim() } : {}),
-    nin,
+    ...(form.idType === 'nin' && ninDigits ? { nin: ninDigits } : {}),
     maritalStatus: form.maritalStatus,
     ...(form.bloodGroup ? { bloodGroup: form.bloodGroup } : {}),
     ...(form.genotype ? { genotype: form.genotype } : {}),
     idType: form.idType,
-    ...(form.nextOfKinFullName.trim() ? { nextOfKinFullName: form.nextOfKinFullName.trim() } : {}),
-    ...(form.nextOfKinRelationship ? { nextOfKinRelationship: form.nextOfKinRelationship } : {}),
+    ...(emergencyPhone ? { emergencyPhone } : {}),
     stateOfResidence: PLATEAU_STATE,
     lgaOfResidence: form.lgaOfResidence.trim(),
     residentialAddress: form.residentialAddress.trim(),

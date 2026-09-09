@@ -101,7 +101,8 @@ export class WardController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'CSV or Excel (.xlsx/.xls) with columns: name,lga',
+          description:
+            'CSV or Excel (.xlsx/.xls) with columns: name,lga (code is derived as `<LGA_3>-<NAME_3>`)',
         },
       },
     },
@@ -133,7 +134,7 @@ export class WardController {
     name: 'search',
     required: false,
     type: String,
-    description: 'Search by ward name or LGA',
+    description: 'Search by ward code, name or LGA',
   })
   @ApiQuery({
     name: 'status',

@@ -68,9 +68,9 @@ export function SettingsView() {
             <div className="flex flex-col gap-0 divide-y divide-[#f5f5f5]">
               {[
                 { key: "newEnrollment", label: "New Enrollment", desc: "Alert when a new beneficiary is enrolled" },
-                { key: "syncComplete", label: "Sync Complete", desc: "Alert when field worker synchronizes records" },
+                { key: "syncComplete", label: "Sync Complete", desc: "Alert when an enrollment officer synchronizes records" },
                 { key: "syncFailed", label: "Sync Failures", desc: "Alert when records fail to synchronize" },
-                { key: "newFieldWorker", label: "New Field Worker", desc: "Alert when a new field worker is created" },
+                { key: "newFieldWorker", label: "New Enrollment Officer", desc: "Alert when a new enrollment officer is created" },
                 { key: "weeklyReport", label: "Weekly Summary", desc: "Receive weekly enrollment summary report" },
                 { key: "systemAlerts", label: "System Alerts", desc: "Critical system notifications" },
               ].map(({ key, label, desc }) => (

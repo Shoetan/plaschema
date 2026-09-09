@@ -29,7 +29,7 @@ async function queueCompleteEnrollment(firstName: string) {
     idDocumentFileId: identity.id, idDocumentName: identity.name, title: 'mrs', firstName, lastName: 'Yusuf',
     gender: 'female', dateOfBirth: '1990-05-04', maritalStatus: 'married', phone: '+2348012345678', nin: '1234567890',
     lgaOfResidence: 'Jos North', residentialAddress: '12 Test Road', wardId: 'ward', healthFacilityId: 'facility',
-    idType: 'national_id', nextOfKinFullName: 'Test Person', nextOfKinRelationship: 'sibling',
+    idType: 'national_id',
   }
   return queueEnrollment(draft, 'Ward', 'Facility')
 }

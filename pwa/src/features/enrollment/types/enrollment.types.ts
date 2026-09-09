@@ -4,10 +4,10 @@ export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed' | 'sep
 export type BloodGroup = 'a_pos' | 'a_neg' | 'b_pos' | 'b_neg' | 'ab_pos' | 'ab_neg' | 'o_pos' | 'o_neg' | 'unknown'
 export type Genotype = 'aa' | 'as' | 'ss' | 'ac' | 'sc' | 'unknown'
 export type IdDocumentType = 'nin' | 'national_id' | 'voters_card' | 'drivers_license' | 'international_passport' | 'other'
-export type NextOfKinRelationship = 'spouse' | 'parent' | 'sibling' | 'child' | 'relative' | 'friend' | 'other'
 export type BeneficiaryCategory = 'IDPs' | 'Elderly 65+' | 'Indigents / Very Poor / Others'
 export type LocalSyncStatus = 'pending' | 'uploading' | 'submitting' | 'failed' | 'synced'
 export type EnrollmentStatus = 'pending' | 'active' | 'disabled' | 'deceased'
+export type HouseholdRole = 'head' | 'member'
 
 export interface EnrollmentFormValues {
   category: BeneficiaryCategory | ''
@@ -24,6 +24,7 @@ export interface EnrollmentFormValues {
   maritalStatus: MaritalStatus | ''
   phone: string
   email: string
+  emergencyPhone: string
   nin: string
   bloodGroup: BloodGroup | ''
   genotype: Genotype | ''
@@ -33,8 +34,6 @@ export interface EnrollmentFormValues {
   wardId: string
   healthFacilityId: string
   idType: IdDocumentType | ''
-  nextOfKinFullName: string
-  nextOfKinRelationship: NextOfKinRelationship | ''
 }
 
 export interface EnrollmentDraftRecord {
@@ -82,12 +81,20 @@ export interface LocalEnrollmentRecord {
   errorMessage?: string
   errorDetails?: unknown
   leaseUntil?: string
+  enrollmentKind?: 'individual' | 'household'
+  householdLocalId?: string
+  householdId?: string
+  householdCode?: string
+  householdRole?: HouseholdRole
+  localMemberOrder?: number
+  memberSequence?: number
 }
 
 export interface ReferenceWard {
   key: string
   ownerUserId: string
   id: string
+  code: string
   name: string
   state: string | null
   lga: string
@@ -149,8 +156,7 @@ export interface CreateEnrollmentPayload {
   bloodGroup?: BloodGroup
   genotype?: Genotype
   idType: IdDocumentType
-  nextOfKinFullName?: string
-  nextOfKinRelationship?: NextOfKinRelationship
+  emergencyPhone?: string
   stateOfResidence: 'PLATEAU'
   lgaOfResidence: string
   residentialAddress: string
@@ -166,6 +172,73 @@ export interface CreateEnrollmentResponse {
   capturedAt: string | null
   createdAt: string
   idempotentReplay: boolean
+}
+
+export interface HouseholdEnrollmentContextPayload {
+  householdLocalId: string
+  householdCode: string
+  role: HouseholdRole
+  householdId?: string
+  sharedResidentialAddress?: string
+}
+
+export interface CreateHouseholdEnrollmentPayload extends CreateEnrollmentPayload {
+  household: HouseholdEnrollmentContextPayload
+}
+
+export interface CreateHouseholdEnrollmentResponse extends CreateEnrollmentResponse {
+  householdId: string | null
+  householdRole: HouseholdRole | null
+  memberSequence: number | null
+  householdCode: string | null
+}
+
+export interface HouseholdDraftMember {
+  idempotencyId: string
+  form: EnrollmentFormValues
+  passportObjectKey?: string
+  idDocumentObjectKey?: string
+  passportFileId: string
+  passportName: string
+  idDocumentFileId: string
+  idDocumentName: string
+}
+
+export interface HouseholdDraftRecord {
+  ownerUserId: string
+  householdLocalId: string
+  householdCode: string
+  wardId: string
+  sharedResidentialAddress: string
+  head: HouseholdDraftMember | null
+  members: HouseholdDraftMember[]
+  phase: 'setup' | 'head' | 'members' | 'review'
+  headStep: number
+  memberStep: number
+  activeMemberIndex: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CachedHouseholdRecord {
+  key: string
+  ownerUserId: string
+  id?: string
+  householdLocalId: string
+  householdCode: string
+  wardId: string
+  wardName: string
+  headName: string | null
+  memberCount: number
+  residentialAddress: string | null
+  updatedAt: string
+}
+
+export interface HouseholdCounterRecord {
+  key: string
+  ownerUserId: string
+  wardId: string
+  lastValue: number
 }
 
 export interface FieldWorkerDetailStats {

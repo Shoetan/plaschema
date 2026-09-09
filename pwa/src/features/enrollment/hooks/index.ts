@@ -1,5 +1,7 @@
 export {
+  useCachedHouseholds,
   useEnrollmentDraft,
+  useHouseholdDraft,
   useDeviceSyncState,
   useEnrollmentReferences,
   useEnrollmentSync,

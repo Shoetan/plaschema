@@ -28,8 +28,8 @@ export function DeleteWardDialog({ open, wardId, wardName, onDeleted, onOpenChan
     <AlertDialog onOpenChange={changeOpen} open={open}>
       <AlertDialogContent>
         <AlertDialogTitle className="text-lg font-semibold">Delete {wardName}?</AlertDialogTitle>
-        <AlertDialogDescription className="mt-2 text-sm text-muted-foreground">This permanently removes the ward. The server will refuse deletion if field workers are still assigned.</AlertDialogDescription>
-        {mutation.isError && <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{getApiErrorMessage(mutation.error, 'The ward could not be deleted. Remove its field-worker assignments or try again.')}</p>}
+        <AlertDialogDescription className="mt-2 text-sm text-muted-foreground">This permanently removes the ward. The server will refuse deletion if enrollment officers are still assigned.</AlertDialogDescription>
+        {mutation.isError && <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{getApiErrorMessage(mutation.error, 'The ward could not be deleted. Remove its enrollment officer assignments or try again.')}</p>}
         <div className="mt-6 flex justify-end gap-3">
           <AlertDialogCancel asChild><Button className={btnSecondary} disabled={mutation.isPending} variant="outline">Cancel</Button></AlertDialogCancel>
           <AlertDialogAction asChild>

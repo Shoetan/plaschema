@@ -12,6 +12,10 @@ export function useEnrollmentDraft(ownerUserId: string) {
   return useLiveQuery(async () => (await offlineDb.drafts.get(ownerUserId)) ?? null, [ownerUserId])
 }
 
+export function useHouseholdDraft(ownerUserId: string) {
+  return useLiveQuery(async () => (await offlineDb.householdDrafts.get(ownerUserId)) ?? null, [ownerUserId])
+}
+
 export function useLocalEnrollments(ownerUserId: string) {
   return useLiveQuery(
     () => offlineDb.enrollments.where('ownerUserId').equals(ownerUserId).reverse().sortBy('capturedAt'),
@@ -26,6 +30,14 @@ export function useLocalEnrollment(localId: string) {
 
 export function useDeviceSyncState(ownerUserId: string) {
   return useLiveQuery(() => offlineDb.syncState.get(ownerUserId), [ownerUserId])
+}
+
+export function useCachedHouseholds(ownerUserId: string) {
+  return useLiveQuery(
+    () => offlineDb.households.where('ownerUserId').equals(ownerUserId).reverse().sortBy('updatedAt'),
+    [ownerUserId],
+    [],
+  )
 }
 
 export function useEnrollmentReferences(ownerUserId: string) {

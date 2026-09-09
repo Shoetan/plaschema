@@ -33,6 +33,7 @@ export function buildEnrollmentListWhere(
     ...(query.enrolledByUserId
       ? { enrolledByUserId: query.enrolledByUserId }
       : {}),
+    ...(query.householdId ? { householdId: query.householdId } : {}),
     ...(query.status ? { status: query.status } : {}),
     ...(query.category ? { category: query.category } : {}),
     ...(query.lga

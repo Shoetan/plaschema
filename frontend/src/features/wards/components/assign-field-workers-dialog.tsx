@@ -73,28 +73,28 @@ export function AssignFieldWorkersDialog({ open, wardId, wardName, currentWorker
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-card shadow-2xl outline-none" onEscapeKeyDown={(event) => mutation.isPending && event.preventDefault()} onInteractOutside={(event) => mutation.isPending && event.preventDefault()}>
           <div className="flex items-start justify-between border-b border-border px-6 py-5">
             <div>
-              <Dialog.Title className="text-lg font-semibold">Assign Field Workers</Dialog.Title>
-              <Dialog.Description className="mt-1 text-sm text-muted-foreground">Choose the field workers assigned to {wardName}. Saving replaces the current list.</Dialog.Description>
+              <Dialog.Title className="text-lg font-semibold">Assign Enrollment Officers</Dialog.Title>
+              <Dialog.Description className="mt-1 text-sm text-muted-foreground">Choose the enrollment officers assigned to {wardName}. Saving replaces the current list.</Dialog.Description>
             </div>
             <Button aria-label="Close assignment dialog" disabled={mutation.isPending} onClick={() => changeOpen(false)} size="icon" variant="ghost"><X aria-hidden="true" /></Button>
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 py-5">
-            {mutation.isError && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{getApiErrorMessage(mutation.error, 'Unable to assign the field workers.')}</div>}
+            {mutation.isError && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{getApiErrorMessage(mutation.error, 'Unable to assign the enrollment officers.')}</div>}
             <div className="relative">
               <Search aria-hidden="true" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input aria-label="Search field workers" className="pl-9" onChange={(event) => setSearch(event.target.value)} placeholder="Search by name or phone..." value={search} />
+              <Input aria-label="Search enrollment officers" className="pl-9" onChange={(event) => setSearch(event.target.value)} placeholder="Search by name or phone..." value={search} />
             </div>
             <p className="text-sm text-muted-foreground" aria-live="polite">{selectedIds.size} selected</p>
             <div className="min-h-40 flex-1 overflow-y-auto rounded-lg border border-border">
               {workersQuery.isPending ? (
-                <div className="flex items-center justify-center gap-2 p-10 text-sm text-muted-foreground"><LoaderCircle aria-hidden="true" className="animate-spin" /> Loading field workers…</div>
+                <div className="flex items-center justify-center gap-2 p-10 text-sm text-muted-foreground"><LoaderCircle aria-hidden="true" className="animate-spin" /> Loading enrollment officers…</div>
               ) : workersQuery.isError ? (
                 <div className="flex flex-col items-center gap-3 p-8 text-center" role="alert">
-                  <p className="text-sm text-muted-foreground">Unable to load field workers.</p>
+                  <p className="text-sm text-muted-foreground">Unable to load enrollment officers.</p>
                   <Button onClick={() => void workersQuery.refetch()} variant="outline"><RefreshCw aria-hidden="true" /> Retry</Button>
                 </div>
               ) : workers.length === 0 ? (
-                <p className="p-10 text-center text-sm text-muted-foreground">No field workers match this search.</p>
+                <p className="p-10 text-center text-sm text-muted-foreground">No enrollment officers match this search.</p>
               ) : (
                 <div className="divide-y divide-border">
                   {workers.map((worker) => {
@@ -110,7 +110,7 @@ export function AssignFieldWorkersDialog({ open, wardId, wardName, currentWorker
                 </div>
               )}
             </div>
-            {workersQuery.hasNextPage && <Button disabled={workersQuery.isFetchingNextPage} onClick={() => void workersQuery.fetchNextPage()} variant="outline">{workersQuery.isFetchingNextPage ? 'Loading…' : 'Load more field workers'}</Button>}
+            {workersQuery.hasNextPage && <Button disabled={workersQuery.isFetchingNextPage} onClick={() => void workersQuery.fetchNextPage()} variant="outline">{workersQuery.isFetchingNextPage ? 'Loading…' : 'Load more enrollment officers'}</Button>}
           </div>
           <div className="flex gap-3 border-t border-border px-6 py-5">
             <Button className={`${btnSecondary} flex-1`} disabled={mutation.isPending} onClick={() => changeOpen(false)} variant="outline">Cancel</Button>

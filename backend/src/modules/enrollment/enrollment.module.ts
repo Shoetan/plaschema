@@ -82,6 +82,10 @@ import { EnrollmentController } from './presentation/enrollment.controller';
     EnrollmentReportXlsxRenderer,
     EnrollmentExportProcessor,
   ],
-  exports: [ENROLLMENT_REPOSITORY],
+  exports: [
+    ENROLLMENT_REPOSITORY,
+    CheckEnrollmentDuplicateUseCase,
+    PassportPrintService,
+  ],
 })
 export class EnrollmentModule {}

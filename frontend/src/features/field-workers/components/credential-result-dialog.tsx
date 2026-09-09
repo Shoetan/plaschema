@@ -64,14 +64,14 @@ export function CredentialResultDialog({
           {result && (
             <div className="space-y-4 px-6 py-5">
               <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs font-medium text-muted-foreground">Field worker</p>
+                <p className="text-xs font-medium text-muted-foreground">Enrollment officer</p>
                 <p className="mt-1 font-semibold">{result.name}</p>
                 <div className="mt-4 grid gap-3">
                   <div><p className="text-xs text-muted-foreground">Email</p><p className="break-all font-mono text-sm">{result.email}</p></div>
                   <div><p className="text-xs text-muted-foreground">Password</p><p className="break-all font-mono text-sm font-semibold">{result.password}</p></div>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">Share these credentials securely with the field worker. Closing this dialog clears the password from the screen.</p>
+              <p className="text-xs text-muted-foreground">Share these credentials securely with the enrollment officer. Closing this dialog clears the password from the screen.</p>
             </div>
           )}
           <div className="flex gap-3 px-6 pb-6">

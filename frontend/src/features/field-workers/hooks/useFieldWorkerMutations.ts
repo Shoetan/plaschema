@@ -16,10 +16,10 @@ export function useCreateFieldWorker() {
     mutationFn: createFieldWorker,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['field-workers'] })
-      toast.success('Field worker created successfully.')
+      toast.success('Enrollment officer created successfully.')
     },
     onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Unable to create the field worker.'))
+      toast.error(getApiErrorMessage(error, 'Unable to create the enrollment officer.'))
     },
   })
 }
@@ -35,10 +35,10 @@ export function useUpdateFieldWorker() {
         queryKey: ['field-workers', 'detail', worker.id],
       })
       void queryClient.invalidateQueries({ queryKey: ['wards'] })
-      toast.success('Field worker updated successfully.')
+      toast.success('Enrollment officer updated successfully.')
     },
     onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Unable to update the field worker.'))
+      toast.error(getApiErrorMessage(error, 'Unable to update the enrollment officer.'))
     },
   })
 }

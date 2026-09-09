@@ -40,15 +40,6 @@ export type IdDocumentType =
   | 'international_passport'
   | 'other';
 
-export type NextOfKinRelationship =
-  | 'spouse'
-  | 'parent'
-  | 'sibling'
-  | 'child'
-  | 'relative'
-  | 'friend'
-  | 'other';
-
 export type EnrollmentStatus =
   | 'pending'
   | 'active'
@@ -98,12 +89,14 @@ export type Enrollment = {
   bloodGroup: BloodGroup | null;
   genotype: Genotype | null;
   idType: IdDocumentType;
-  nextOfKinFullName: string | null;
   emergencyPhone: string | null;
-  nextOfKinRelationship: NextOfKinRelationship | null;
   stateOfResidence: string;
   lgaOfResidence: string;
   residentialAddress: string;
+  householdId: string | null;
+  householdRole: 'head' | 'member' | null;
+  memberSequence: number | null;
+  household: { id: string; householdCode: string } | null;
   /** Denormalized ward of the chosen facility (same as healthFacility.ward). */
   ward: EnrollmentWardRef;
   healthFacility: EnrollmentFacilityRef;
@@ -201,16 +194,6 @@ export const ID_DOCUMENT_TYPES: IdDocumentType[] = [
   'voters_card',
   'drivers_license',
   'international_passport',
-  'other',
-];
-
-export const NEXT_OF_KIN_RELATIONSHIPS: NextOfKinRelationship[] = [
-  'spouse',
-  'parent',
-  'sibling',
-  'child',
-  'relative',
-  'friend',
   'other',
 ];
 

@@ -85,7 +85,7 @@ export function useAssignWardFieldWorkers() {
     },
     onError: (error) => {
       toast.error(
-        getApiErrorMessage(error, 'Unable to assign the field workers.'),
+        getApiErrorMessage(error, 'Unable to assign the enrollment officers.'),
       )
     },
   })
