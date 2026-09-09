@@ -150,9 +150,10 @@ async function persistSuccessfulSync(
             && row.syncStatus === 'pending',
           )
           .toArray()
+        const householdId = acknowledgement.householdId
         await offlineDb.enrollments.bulkUpdate(related.map((row) => ({
           key: row.localId,
-          changes: { householdId: acknowledgement.householdId },
+          changes: { householdId },
         })))
       }
     }

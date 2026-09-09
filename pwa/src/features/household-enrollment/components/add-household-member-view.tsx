@@ -145,8 +145,8 @@ export function AddHouseholdMemberView() {
     form: member.form,
     errors,
     update,
-    handleFile: (purpose: 'passport' | 'id_document', event: ChangeEvent<HTMLInputElement>) => void handleFile(purpose, event),
-    clearFile: (purpose: 'passport' | 'id_document') => void clearFile(purpose),
+    handleFile: (purpose: 'passport' | 'id_document', event: ChangeEvent<HTMLInputElement>) => handleFile(purpose, event),
+    clearFile: (purpose: 'passport' | 'id_document') => clearFile(purpose),
   }
 
   function goBackInWizard() {

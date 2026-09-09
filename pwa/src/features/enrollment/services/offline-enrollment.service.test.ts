@@ -63,8 +63,8 @@ describe('offline enrollment storage', () => {
   it('filters downloaded reference data to assigned wards', async () => {
     const wardId = completeForm().wardId
     await replaceReferenceData(owner, [wardId], [
-      { id: wardId, name: 'Allowed', state: 'Plateau', lga: 'Jos North', status: 'active', createdAt: '', updatedAt: '' },
-      { id: 'other', name: 'Hidden', state: 'Plateau', lga: 'Riyom', status: 'active', createdAt: '', updatedAt: '' },
+      { id: wardId, name: 'Allowed', state: 'Plateau', lga: 'Jos North', code: 'JON-001', status: 'active', createdAt: '', updatedAt: '' },
+      { id: 'other', name: 'Hidden', state: 'Plateau', lga: 'Riyom', code: 'RIY-001', status: 'active', createdAt: '', updatedAt: '' },
     ], [
       { id: 'facility', name: 'Allowed PHC', lga: 'Jos North', type: 'PHC', level: 'primary', status: 'active', wardId, ward: { id: wardId, name: 'Allowed', lga: 'Jos North' }, createdAt: '', updatedAt: '' },
       { id: 'hidden-facility', name: 'Hidden PHC', lga: 'Riyom', type: 'PHC', level: 'primary', status: 'active', wardId: 'other', ward: { id: 'other', name: 'Hidden', lga: 'Riyom' }, createdAt: '', updatedAt: '' },
