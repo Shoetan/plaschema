@@ -6,7 +6,6 @@ import { HealthFacilityModule } from '../health-facility/health-facility.module'
 import { IdentityModule } from '../identity/identity.module';
 import { WardModule } from '../ward/ward.module';
 import { CheckEnrollmentDuplicateUseCase } from './application/check-enrollment-duplicate.use-case';
-import { CreateEnrollmentUseCase } from './application/create-enrollment.use-case';
 import { ENROLLMENT_REPOSITORY } from './application/enrollment.repository';
 import { AttachEnrollmentFileUrls } from './application/attach-enrollment-file-urls';
 import { DevUploadEnrollmentFileUseCase } from './application/dev-upload-enrollment-file.use-case';
@@ -26,6 +25,7 @@ import { ListEnrollmentsUseCase } from './application/list-enrollments.use-case'
 import { PresignEnrollmentUploadUseCase } from './application/presign-enrollment-upload.use-case';
 import { ResolveEnrollmentListFiltersUseCase } from './application/resolve-enrollment-list-filters';
 import { UpdateEnrollmentStatusUseCase } from './application/update-enrollment-status.use-case';
+import { UpdateEnrollmentUseCase } from './application/update-enrollment.use-case';
 import {
   BullEnrollmentExportQueueAdapter,
   EnrollmentExportProcessor,
@@ -64,7 +64,6 @@ import { EnrollmentController } from './presentation/enrollment.controller';
       provide: ENROLLMENT_EXPORT_QUEUE_PORT,
       useClass: BullEnrollmentExportQueueAdapter,
     },
-    CreateEnrollmentUseCase,
     PresignEnrollmentUploadUseCase,
     DevUploadEnrollmentFileUseCase,
     AttachEnrollmentFileUrls,
@@ -76,6 +75,7 @@ import { EnrollmentController } from './presentation/enrollment.controller';
     GenerateIdCardsUseCase,
     ExportEnrollmentReportUseCase,
     UpdateEnrollmentStatusUseCase,
+    UpdateEnrollmentUseCase,
     PassportPrintService,
     IdCardPdfRenderer,
     IdCardGenerationProcessor,

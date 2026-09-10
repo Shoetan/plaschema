@@ -14,6 +14,5 @@ export {
   PLATEAU_STATE,
   resolveHealthFacilityId,
   resolveWardId,
-  toCreateEnrollmentPayload,
 } from './form'
 export { getEnrollmentHomeSummary } from './form'

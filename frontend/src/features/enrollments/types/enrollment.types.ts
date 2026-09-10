@@ -80,6 +80,34 @@ export interface SingleEnrollmentStatusPayload {
   status: EnrollmentStatusTarget
 }
 
+export interface UpdateEnrollmentProfilePayload {
+  category?: string
+  title?: EnrollmentTitle
+  gender?: EnrollmentGender
+  firstName?: string
+  lastName?: string
+  middleName?: string | null
+  dateOfBirth?: string
+  phone?: string
+  email?: string | null
+  nin?: string | null
+  maritalStatus?: MaritalStatus
+  bloodGroup?: BloodGroup | null
+  genotype?: Genotype | null
+  idType?: IdDocumentType
+  emergencyPhone?: string | null
+  stateOfResidence?: string
+  lgaOfResidence?: string
+  residentialAddress?: string
+  wardId?: string
+  healthFacilityId?: string
+}
+
+export interface UpdateEnrollmentProfileVariables {
+  id: string
+  payload: UpdateEnrollmentProfilePayload
+}
+
 export type EnrollmentTitle = 'mr' | 'mrs' | 'miss' | 'ms' | 'dr' | 'chief' | 'rev' | 'alhaji' | 'hajia' | 'other'
 export type EnrollmentGender = 'male' | 'female'
 export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed' | 'separated'

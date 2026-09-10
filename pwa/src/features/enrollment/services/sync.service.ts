@@ -5,9 +5,7 @@ import { useAuthStore } from '@/features/auth/stores/auth.store'
 import { offlineDb } from '@/lib/offline-db'
 
 import type { LocalEnrollmentRecord } from '../types'
-import { toCreateEnrollmentPayload } from '../utils'
 import {
-  createEnrollment,
   downloadFacilities,
   downloadWards,
   presignEnrollmentUpload,
@@ -50,6 +48,10 @@ function isTransientFailure(error: unknown) {
 function nextRetry(attempt: number) {
   const delays = [30_000, 120_000, 600_000]
   return new Date(Date.now() + delays[Math.min(attempt - 1, delays.length - 1)]).toISOString()
+}
+
+function isHouseholdRecord(record: LocalEnrollmentRecord) {
+  return Boolean(record.householdLocalId && record.householdCode && record.householdRole)
 }
 
 function orderPendingRecords(records: LocalEnrollmentRecord[]) {
@@ -126,7 +128,7 @@ async function persistSuccessfulSync(
       errorDetails: undefined,
     })
 
-    if (record.enrollmentKind === 'household' && record.householdLocalId) {
+    if (record.householdLocalId) {
       const householdKey = `${record.ownerUserId}:${record.householdLocalId}`
       const cached = await offlineDb.households.get(householdKey)
       if (cached) {
@@ -166,7 +168,45 @@ async function persistSuccessfulSync(
   })
 }
 
+async function markSyncFailure(record: LocalEnrollmentRecord, error: unknown) {
+  const errorCode = getApiErrorCode(error)
+  if (errorCode === 'HOUSEHOLD_HEAD_NOT_SYNCED') {
+    await offlineDb.enrollments.update(record.localId, {
+      syncStatus: 'pending',
+      leaseUntil: undefined,
+    })
+    return false
+  }
+
+  const current = await offlineDb.enrollments.get(record.localId)
+  const attemptCount = (current?.attemptCount ?? record.attemptCount) + 1
+  const status = getApiErrorStatus(error)
+  const authFailure = status === 401
+  const transient = isTransientFailure(error)
+  await offlineDb.enrollments.update(record.localId, {
+    syncStatus: authFailure || (transient && attemptCount <= 3) ? 'pending' : 'failed',
+    attemptCount,
+    retryAt: authFailure ? undefined : transient && attemptCount <= 3 ? nextRetry(attemptCount) : undefined,
+    leaseUntil: undefined,
+    errorCode: errorCode ?? (transient ? 'NETWORK_ERROR' : 'SYNC_ERROR'),
+    errorMessage: getApiErrorMessage(error, 'Unable to synchronize this enrollment.'),
+    errorDetails: getApiErrorDetails(error),
+  })
+  if (authFailure) throw error
+  return false
+}
+
 async function syncOne(record: LocalEnrollmentRecord) {
+  if (!isHouseholdRecord(record)) {
+    await offlineDb.enrollments.update(record.localId, {
+      syncStatus: 'failed',
+      leaseUntil: undefined,
+      errorCode: 'UNSUPPORTED_ENROLLMENT',
+      errorMessage: 'This device record is missing household metadata. Re-enroll through the household flow.',
+    })
+    return false
+  }
+
   try {
     if (!await claimRecord(record)) return false
     const passportObjectKey = await uploadPurpose(record, 'passport')
@@ -174,41 +214,11 @@ async function syncOne(record: LocalEnrollmentRecord) {
     const ready = { ...record, passportObjectKey, idDocumentObjectKey }
     await offlineDb.enrollments.update(record.localId, { syncStatus: 'submitting', uploadStage: 'enrollment' })
 
-    if (record.enrollmentKind === 'household') {
-      const acknowledgement = await createHouseholdEnrollment(toCreateHouseholdEnrollmentPayload(ready))
-      await persistSuccessfulSync(record, acknowledgement)
-      return true
-    }
-
-    const acknowledgement = await createEnrollment(toCreateEnrollmentPayload(ready))
+    const acknowledgement = await createHouseholdEnrollment(toCreateHouseholdEnrollmentPayload(ready))
     await persistSuccessfulSync(record, acknowledgement)
     return true
   } catch (error) {
-    const errorCode = getApiErrorCode(error)
-    if (errorCode === 'HOUSEHOLD_HEAD_NOT_SYNCED') {
-      await offlineDb.enrollments.update(record.localId, {
-        syncStatus: 'pending',
-        leaseUntil: undefined,
-      })
-      return false
-    }
-
-    const current = await offlineDb.enrollments.get(record.localId)
-    const attemptCount = (current?.attemptCount ?? record.attemptCount) + 1
-    const status = getApiErrorStatus(error)
-    const authFailure = status === 401
-    const transient = isTransientFailure(error)
-    await offlineDb.enrollments.update(record.localId, {
-      syncStatus: authFailure || (transient && attemptCount <= 3) ? 'pending' : 'failed',
-      attemptCount,
-      retryAt: authFailure ? undefined : transient && attemptCount <= 3 ? nextRetry(attemptCount) : undefined,
-      leaseUntil: undefined,
-      errorCode: errorCode ?? (transient ? 'NETWORK_ERROR' : 'SYNC_ERROR'),
-      errorMessage: getApiErrorMessage(error, 'Unable to synchronize this enrollment.'),
-      errorDetails: getApiErrorDetails(error),
-    })
-    if (authFailure) throw error
-    return false
+    return markSyncFailure(record, error)
   }
 }
 

@@ -92,6 +92,34 @@ export type EnrollmentStatusRow = {
 
 export type PaginatedEnrollments = CursorPage<EnrollmentListItem>;
 
+export type UpdateEnrollmentRecordInput = Partial<
+  Pick<
+    CreateEnrollmentRecordInput,
+    | 'category'
+    | 'title'
+    | 'gender'
+    | 'firstName'
+    | 'lastName'
+    | 'middleName'
+    | 'firstNameNormalized'
+    | 'lastNameNormalized'
+    | 'dateOfBirth'
+    | 'phone'
+    | 'email'
+    | 'nin'
+    | 'maritalStatus'
+    | 'bloodGroup'
+    | 'genotype'
+    | 'idType'
+    | 'emergencyPhone'
+    | 'stateOfResidence'
+    | 'lgaOfResidence'
+    | 'residentialAddress'
+    | 'wardId'
+    | 'healthFacilityId'
+  >
+>;
+
 export interface EnrollmentRepository {
   allocateEnrollmentId(year: number): Promise<string>;
   create(input: CreateEnrollmentRecordInput): Promise<Enrollment>;
@@ -104,6 +132,7 @@ export interface EnrollmentRepository {
   }): Promise<Enrollment | null>;
   findManyByIds(ids: string[]): Promise<IdCardEnrollmentData[]>;
   findManyStatusByIds(ids: string[]): Promise<EnrollmentStatusRow[]>;
+  update(id: string, input: UpdateEnrollmentRecordInput): Promise<Enrollment>;
   updateStatus(ids: string[], status: EnrollmentStatus): Promise<number>;
   markPrinted(ids: string[], printedAt: Date): Promise<void>;
   setPassportPrintObjectKey(

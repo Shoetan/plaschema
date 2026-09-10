@@ -1,3 +1,4 @@
+export { EditEnrollmentDialog } from './edit-enrollment-dialog'
 export { EnrollmentDetailView } from './enrollment-detail-view'
 export { EnrollmentRowActions } from './enrollment-row-actions'
 export { EnrollmentStatusDialog } from './enrollment-status-dialog'

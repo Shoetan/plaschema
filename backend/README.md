@@ -85,8 +85,7 @@ Clean Architecture only (no DDD / bounded contexts). Feature modules:
 - `GET /api/capitations` — list latest-run records for a month/year (defaults to current Lagos period). Filters: `lga`, `healthFacilityId`, `search`. Returns `{ data, meta, summary }`
 - `POST /api/enrollments/files/presign-upload` — Railway presigned PUT URL for passport/ID upload
 - `POST /api/enrollments/files/dev-upload` — **dev/test only**: multipart upload that presigns + PUTs to Railway (returns `objectKey`)
-- `POST /api/enrollments` — create enrollment (idempotent via `idempotencyId`; duplicate = first+last+DOB). Returns slim sync acknowledgement (`id`, `enrollmentId`, `idempotencyId`, `status`, `capturedAt`, `createdAt`, `idempotentReplay`)
-- `POST /api/household-enrollments` — create household head or member (same enrollment body plus `household` context). Head gets a global year counter ID; members receive `{baseEnrollmentId}-{NN}` with server-assigned `memberSequence`. Idempotent via `idempotencyId`; `409 HOUSEHOLD_HEAD_NOT_SYNCED` when members arrive before the head.
+- `POST /api/household-enrollments` — create household head or member (enrollment body plus `household` context). Head gets a global year counter ID; members receive `{baseEnrollmentId}-{NN}` with server-assigned `memberSequence`. Idempotent via `idempotencyId`; `409 HOUSEHOLD_HEAD_NOT_SYNCED` when members arrive before the head.
 - `GET /api/households` — cursor list of households for field workers (filters: `wardId`, `search`, `householdCode`)
 - `GET /api/households/:id` — household detail with head and member summaries
 - `GET /api/enrollments` — cursor list for beneficiaries / ID-card page (`enrollmentId`, name, category, lga, facility, ward, status, `hasPrinted`, `printCount`, `printedAt`). Filters: `category`, `printedStatus` (`all`|`printed`|`not_printed`), `lga`, `wardId`, `healthFacilityId`, `householdId`, `enrolledByUserId` (admin), `beneficiaryName`, `enrollmentId`, `createdFrom`/`createdTo`, `status`, `search`, `enrolledByMe`, `ageMin`/`ageMax`
@@ -102,20 +101,15 @@ Clean Architecture only (no DDD / bounded contexts). Feature modules:
 
 Roles: `admin` | `field_worker`. Field workers with assigned wards are scoped to those wards; with no assignments they can enroll and view enrollments in all wards.
 
-### Offline-first enrollment sync
+### Offline-first household enrollment sync
 
-1. On device, generate a UUID v7 `idempotencyId` and capture `capturedAt` when the form is filled offline.
-2. When online, request presigned upload URLs, PUT passport + ID files to Railway, then `POST /api/enrollments` with the object keys. Response is a slim acknowledgement (`id`, `enrollmentId`, `idempotencyId`, `status`, `capturedAt`, `createdAt`, `idempotentReplay`).
-3. Retrying with the same `idempotencyId` returns the same slim acknowledgement with `idempotentReplay: true`.
+1. On device, generate UUID v7 `idempotencyId` per person and `householdLocalId` plus `{wardCode}-{NNN}` household code offline; capture `capturedAt` when forms are filled.
+2. When online, request presigned upload URLs, PUT passport + ID files to Railway, then `POST /api/household-enrollments` with the object keys and `household` context. Response is a slim acknowledgement plus `householdId`, `householdRole`, `memberSequence`, and `householdCode`.
+3. Retrying with the same `idempotencyId` returns the same acknowledgement with `idempotentReplay: true`.
 4. A different request with the same first name + last name + `dateOfBirth` (`YYYY-MM-DD`) is rejected as `DUPLICATE_ENROLLMENT`.
-5. After the client finishes its one-by-one pending loop, call `POST /api/auth/sync` to persist `lastSyncedAt` on the user record.
-
-### Household enrollment sync
-
-1. Client generates a UUID v7 `householdLocalId` and `{wardCode}-{NNN}` household code offline.
-2. Queue the head first, then members, through `POST /api/household-enrollments` with `household.role` set appropriately.
-3. Member requests may omit `householdId` until the head acknowledgement returns it; the server assigns `memberSequence` atomically from Postgres `memberCount`.
-4. Retry members that receive `409 HOUSEHOLD_HEAD_NOT_SYNCED` after the head sync succeeds.
+5. Queue the head first, then members; member requests may omit `householdId` until the head acknowledgement returns it.
+6. Retry members that receive `409 HOUSEHOLD_HEAD_NOT_SYNCED` after the head sync succeeds.
+7. After the client finishes its one-by-one pending loop, call `POST /api/auth/sync` to persist `lastSyncedAt` on the user record.
 
 ## Scripts
 

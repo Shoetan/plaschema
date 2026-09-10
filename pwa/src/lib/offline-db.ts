@@ -1,7 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 
 import type {
-  EnrollmentDraftRecord,
   CachedFieldWorkerStats,
   CachedHouseholdRecord,
   DeviceSyncState,
@@ -15,7 +14,6 @@ import type {
 } from '@/features/enrollment/types'
 
 class PlaschemaOfflineDatabase extends Dexie {
-  drafts!: EntityTable<EnrollmentDraftRecord, 'ownerUserId'>
   enrollments!: EntityTable<LocalEnrollmentRecord, 'localId'>
   files!: EntityTable<StoredEnrollmentFile, 'id'>
   wards!: EntityTable<ReferenceWard, 'key'>
@@ -59,6 +57,18 @@ class PlaschemaOfflineDatabase extends Dexie {
     this.version(4).stores({
       drafts: '&ownerUserId, updatedAt',
       enrollments: '&localId, ownerUserId, [ownerUserId+syncStatus], capturedAt, serverId, idempotencyId, retryAt, householdLocalId, enrollmentKind',
+      files: '&id, ownerUserId, enrollmentLocalId, [enrollmentLocalId+purpose]',
+      wards: '&key, ownerUserId, status, lga',
+      facilities: '&key, ownerUserId, wardId, status, lga',
+      referenceMetadata: '&ownerUserId, syncedAt',
+      workerStats: '&ownerUserId, cachedAt',
+      syncState: '&ownerUserId, updatedAt',
+      householdDrafts: '&ownerUserId, updatedAt',
+      households: '&key, ownerUserId, householdLocalId, wardId, householdCode',
+      householdCounters: '&key, ownerUserId, wardId',
+    })
+    this.version(5).stores({
+      enrollments: '&localId, ownerUserId, [ownerUserId+syncStatus], capturedAt, serverId, idempotencyId, retryAt, householdLocalId',
       files: '&id, ownerUserId, enrollmentLocalId, [enrollmentLocalId+purpose]',
       wards: '&key, ownerUserId, status, lga',
       facilities: '&key, ownerUserId, wardId, status, lga',

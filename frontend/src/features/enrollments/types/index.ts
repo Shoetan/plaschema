@@ -24,4 +24,6 @@ export type {
   FileJobStatus,
   PrintedStatus,
   SingleEnrollmentStatusPayload,
+  UpdateEnrollmentProfilePayload,
+  UpdateEnrollmentProfileVariables,
 } from './enrollment.types'

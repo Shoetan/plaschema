@@ -1,6 +1,8 @@
 # PWA beneficiary enrollment — handoff
 
-Last updated: 2 September 2026
+Last updated: 10 September 2026
+
+> **Superseded for create/sync:** use `docs/mobile-app-enrollment-handoff.md`. Standalone `POST /api/enrollments` create was removed; the PWA syncs only through `POST /api/household-enrollments`.
 
 This document explains how beneficiary enrollment is meant to work on the **PLASCHEMA Field Worker PWA**, with emphasis on **offline behaviour**, **sync**, and **which API endpoints to call for what**.
 

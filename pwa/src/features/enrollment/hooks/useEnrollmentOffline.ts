@@ -8,10 +8,6 @@ import { offlineDb } from '@/lib/offline-db'
 import { fetchOwnFieldWorkerDetail } from '../services'
 import { syncPendingEnrollments, syncReferenceData } from '../services/sync.service'
 
-export function useEnrollmentDraft(ownerUserId: string) {
-  return useLiveQuery(async () => (await offlineDb.drafts.get(ownerUserId)) ?? null, [ownerUserId])
-}
-
 export function useHouseholdDraft(ownerUserId: string) {
   return useLiveQuery(async () => (await offlineDb.householdDrafts.get(ownerUserId)) ?? null, [ownerUserId])
 }

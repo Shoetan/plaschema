@@ -16,6 +16,8 @@ import type {
   FileJobListParams,
   FileJobListResult,
   SingleEnrollmentStatusPayload,
+  UpdateEnrollmentProfilePayload,
+  UpdateEnrollmentProfileVariables,
 } from '../types'
 
 export async function fetchEnrollments(params: EnrollmentListParams): Promise<EnrollmentListResult> {
@@ -50,6 +52,14 @@ export async function fetchEnrollmentDetail(id: string): Promise<EnrollmentDetai
     overview: detailResponse.data.data.overview,
     activityLog: detailResponse.data.data.activityLog,
   }
+}
+
+export async function updateEnrollmentProfile({ id, payload }: UpdateEnrollmentProfileVariables): Promise<EnrollmentRecord> {
+  const response = await _patch<ApiResponse<EnrollmentRecord>, UpdateEnrollmentProfilePayload>(
+    `/enrollments/${id}/profile`,
+    payload,
+  )
+  return response.data.data
 }
 
 export async function updateEnrollmentStatus({ id, status }: SingleEnrollmentStatusPayload): Promise<EnrollmentStatusResult> {
