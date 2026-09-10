@@ -8,7 +8,6 @@ export type {
   CreateHouseholdEnrollmentPayload,
   CreateHouseholdEnrollmentResponse,
   DeviceSyncState,
-  EnrollmentDraftRecord,
   EnrollmentFormValues,
   EnrollmentGender,
   EnrollmentPresignRequest,

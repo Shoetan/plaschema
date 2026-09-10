@@ -21,6 +21,7 @@ export class CheckEnrollmentDuplicateUseCase {
     firstName: string;
     lastName: string;
     dateOfBirth: string;
+    excludeId?: string;
   }) {
     let dateOfBirth: Date;
     try {
@@ -40,10 +41,14 @@ export class CheckEnrollmentDuplicateUseCase {
       dateOfBirth,
     });
 
+    const isDuplicate = Boolean(
+      existing && existing.id !== input.excludeId,
+    );
+
     return {
-      isDuplicate: Boolean(existing),
-      id: existing?.id ?? null,
-      enrollmentId: existing?.enrollmentId ?? null,
+      isDuplicate,
+      id: isDuplicate ? existing!.id : null,
+      enrollmentId: isDuplicate ? existing!.enrollmentId : null,
     };
   }
 }

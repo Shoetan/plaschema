@@ -19,6 +19,7 @@ import type {
   IdCardEnrollmentData,
   ListEnrollmentsQuery,
   PaginatedEnrollments,
+  UpdateEnrollmentRecordInput,
 } from '../application/enrollment.repository';
 import { buildEnrollmentListWhere } from './prisma-enrollment-list-filters';
 
@@ -278,6 +279,18 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
           ]
         : [];
     });
+  }
+
+  async update(
+    id: string,
+    input: UpdateEnrollmentRecordInput,
+  ): Promise<Enrollment> {
+    const row = await this.prisma.enrollment.update({
+      where: { id },
+      data: input,
+      include: this.include,
+    });
+    return this.map(row);
   }
 
   async updateStatus(ids: string[], status: EnrollmentStatus): Promise<number> {

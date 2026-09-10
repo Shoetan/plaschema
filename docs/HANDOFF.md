@@ -1,6 +1,6 @@
 # PLASCHEMA Project Handoff
 
-Last updated: 9 September 2026
+Last updated: 10 September 2026
 Last verified code commit: `177f909`
 
 ## Purpose
@@ -14,7 +14,7 @@ This is the living context document for engineers and future coding sessions. Up
 | `frontend/` | Admin web app | Designs implemented; login and session APIs integrated |
 | `pwa/` | Field-worker mobile PWA | Production auth/profile and offline-first enrollment sync integrated |
 | `backend/` | NestJS API, Prisma, PostgreSQL and Redis | Existing backend project; frontend work must not change it unless requested |
-| `docs/` | Project guides and handoff | Read before architecture or routing work |
+| `docs/` | Project guides and handoff | Read before architecture or routing work; mobile enrollment API flow in `docs/mobile-app-enrollment-handoff.md` |
 
 This is a pnpm workspace. The root scripts manage all three apps.
 
@@ -73,6 +73,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - CBHI Enrolments also exposes a **Households** tab on the same page. It lists households from `GET /households` (family head, household ID/code, LGA, household size, ward) and opens `/admin/beneficiaries/households/:id` for the API-backed household detail view (`GET /households/:id`).
 - Enrollment detail combines `GET /enrollments/:id` with `GET /enrollments/:id/detail` to show the complete beneficiary record, temporary document links and real activity history.
 - Enrollment activation and deactivation use `PATCH /enrollments/:id` for row/detail actions and `POST /enrollments/status` for batches of up to 100 unique IDs. Confirmations show partial-result counts for not-found, unchanged and invalid transitions; deceased records have no single-record action.
+- Admin beneficiary edits use `PATCH /enrollments/:id/profile` from the enrollment detail **Edit beneficiary** dialog. Only changed profile/enrollment fields are submitted; each successful update writes an enrollment activity log entry with `action: updated` and the changed field list in metadata.
 - Ward, facility, field-worker and dashboard enrollment rows open the API-backed enrollment detail route.
 - ID Cards queues one to nine records through `POST /enrollments/id-cards/generate`. Excel exports use `POST /enrollments/reports/export`, reuse the supported filters selected on the enrollment list and summarize their scope before submission. An unfiltered export requires an explicit all-enrollments confirmation, while unsupported search and printed-state filters are explained before export.
 - Enrollment Ward, Facility and Field Worker filters use single searchable selectors instead of separate search inputs and dropdowns. Changing the Ward clears the selected Facility to prevent incompatible filters.
@@ -82,9 +83,10 @@ This is a pnpm workspace. The root scripts manage all three apps.
 
 ### Field-worker PWA
 
+- End-to-end mobile enrollment API flow (offline + online, household pattern): `docs/mobile-app-enrollment-handoff.md`. Legacy single-enrollment PWA notes: `docs/pwa-enrollment-handoff.md`.
 - Separate app under `pwa/` in the same workspace.
 - React, TypeScript, Vite, Tailwind, React Router, Zustand, Axios and TanStack React Query.
-- Routes: login, home, single enrollment, household enrollment, households list, late household-member addition, beneficiaries, beneficiary detail, sync and profile.
+- Routes: login, home, household enrollment, households list, late household-member addition, beneficiaries, beneficiary detail, sync and profile.
 - Six-step enrollment includes passport and ID-document design inputs.
 - Login uses `POST /auth/login`, accepts only active field-worker accounts and stores no password.
 - Saved sessions persist locally, are checked with `GET /auth/me` when online and may continue offline only until the JWT expires.
@@ -109,12 +111,11 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Household enrollment is a parallel offline-first flow: the worker selects ward and shared settlement address, enrolls the head, optionally adds members, then saves the whole household to the device queue. Client household codes are `{wardCode}-{NNN}` (for example `JOS-VOM-001`) allocated per ward in IndexedDB.
 - Household members reuse the six-step enrollment fields with the ward locked to the household. After each member the wizard returns to a member hub so more members can be added before review.
 - Late member addition starts from `/households`, lists households cached on the device, and queues one member at a time. Members sync only after the household head has reached the server.
-- Household sync uses `POST /household-enrollments` instead of `POST /enrollments`. Pending household records sync head-first; members retry with `HOUSEHOLD_HEAD_NOT_SYNCED` until the head acknowledgement propagates `householdId` to sibling records. Member insurance IDs (`{baseEnrollmentId}-{NN}`) and `memberSequence` are assigned server-side during create.
-- IndexedDB schema v4 adds `householdDrafts`, `households`, and `householdCounters`. Ward reference rows include `code` for household-code generation.
+- Household sync uses `POST /household-enrollments` only. Pending household records sync head-first; members retry with `HOUSEHOLD_HEAD_NOT_SYNCED` until the head acknowledgement propagates `householdId` to sibling records. Member insurance IDs (`{baseEnrollmentId}-{NN}`) and `memberSequence` are assigned server-side during create. Legacy standalone `POST /enrollments` create was removed.
+- IndexedDB schema v5 drops legacy single-enrollment `drafts`; v4 added `householdDrafts`, `households`, and `householdCounters`. Ward reference rows include `code` for household-code generation.
 
 ### Backend contracts for PWA sync (ready)
 
-- `POST /api/enrollments` returns a slim sync acknowledgement (`id`, `enrollmentId`, `idempotencyId`, `status`, `capturedAt`, `createdAt`, `idempotentReplay`).
 - `POST /api/auth/sync` sets the authenticated user’s `lastSyncedAt` to now (call after the client’s one-by-one pending loop).
 - `GET /api/users/:id/detail` allows `field_worker` for **own** id only; overview includes `lastSyncedAt`, plus `stats` (`totalEnrolled`, `enrollmentsToday`, `enrollmentsThisMonth`, …), `wards`, and `activityLog`. Pending counts stay device-local.
 - No refresh-token endpoint; clients re-login when the JWT expires.
@@ -205,7 +206,7 @@ Both frontend development servers use Vite's `--strictPort` option and exit inst
 - Generate field-worker passwords client-side with Web Crypto by default, allow manual passwords, reveal successful credentials once, and keep password recovery admin-controlled without an invitation/setup flow.
 - Persist the PWA field-worker session in local storage without a Remember me control. Revalidate through `/auth/me` when online and permit offline access only before the JWT expires.
 - Keep PWA authentication separate from local enrollment state, reject admin accounts in the PWA, and never cache authenticated API responses in the service worker.
-- PWA enrollment sync is one-by-one via `POST /enrollments` (idempotent); after the loop call `POST /auth/sync` to persist `lastSyncedAt`.
+- PWA enrollment sync is one-by-one via `POST /household-enrollments` (idempotent); after the loop call `POST /auth/sync` to persist `lastSyncedAt`.
 - PWA profile does not use a worker code field; use `/auth/me` or own `/users/:id/detail`.
 - Home/People/Sync analytics and pending/failed queues are device-local; do not list server-synced enrollments on the PWA. Today/Total can use detail `stats.enrollmentsToday` / `stats.totalEnrolled`.
 - Keep PWA enrollment API traffic in typed services. Components consume hooks; direct `fetch` is limited to the NDJSON and presigned-upload transport helpers.

@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsArray,
@@ -193,6 +193,15 @@ export class CreateEnrollmentDto {
   @IsUUID('7')
   healthFacilityId!: string;
 }
+
+export class UpdateEnrollmentProfileDto extends PartialType(
+  OmitType(CreateEnrollmentDto, [
+    'idempotencyId',
+    'passportObjectKey',
+    'idDocumentObjectKey',
+    'capturedAt',
+  ] as const),
+) {}
 
 export class ListEnrollmentsQueryDto {
   @ApiPropertyOptional({

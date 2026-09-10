@@ -1,8 +1,6 @@
 import { _get, _getNdjson, _post, _putExternal, type ApiResponse } from '@/api'
 
 import type {
-  CreateEnrollmentPayload,
-  CreateEnrollmentResponse,
   EnrollmentPresignRequest,
   EnrollmentPresignResponse,
   FieldWorkerDetailResponse,
@@ -32,12 +30,6 @@ export async function presignEnrollmentUpload(payload: EnrollmentPresignRequest)
 /** PUT <Railway presigned upload URL> */
 export async function uploadEnrollmentFile(uploadUrl: string, file: Blob, contentType: string, signal?: AbortSignal) {
   await _putExternal(uploadUrl, file, contentType, signal)
-}
-
-/** POST /enrollments */
-export async function createEnrollment(payload: CreateEnrollmentPayload) {
-  const response = await _post<ApiResponse<CreateEnrollmentResponse>, CreateEnrollmentPayload>('/enrollments', payload)
-  return response.data.data
 }
 
 /** POST /auth/sync */

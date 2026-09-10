@@ -36,17 +36,6 @@ export interface EnrollmentFormValues {
   idType: IdDocumentType | ''
 }
 
-export interface EnrollmentDraftRecord {
-  ownerUserId: string
-  idempotencyId: string
-  step: number
-  form: EnrollmentFormValues
-  passportObjectKey?: string
-  idDocumentObjectKey?: string
-  createdAt: string
-  updatedAt: string
-}
-
 export interface StoredEnrollmentFile {
   id: string
   ownerUserId: string
@@ -81,7 +70,6 @@ export interface LocalEnrollmentRecord {
   errorMessage?: string
   errorDetails?: unknown
   leaseUntil?: string
-  enrollmentKind?: 'individual' | 'household'
   householdLocalId?: string
   householdId?: string
   householdCode?: string

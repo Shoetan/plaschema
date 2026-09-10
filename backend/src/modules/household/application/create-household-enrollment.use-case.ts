@@ -20,7 +20,7 @@ import {
   WARD_REPOSITORY,
   type WardRepository,
 } from '../../ward/application/ward.repository';
-import type { CreateEnrollmentInput } from '../../enrollment/application/create-enrollment.use-case';
+import type { CreateEnrollmentInput } from '../../enrollment/application/create-enrollment-input';
 import { CheckEnrollmentDuplicateUseCase } from '../../enrollment/application/check-enrollment-duplicate.use-case';
 import {
   ENROLLMENT_REPOSITORY,

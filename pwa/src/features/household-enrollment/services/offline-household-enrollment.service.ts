@@ -112,7 +112,6 @@ export async function queueHouseholdDraft(
         passportObjectKey: entry.member.passportObjectKey,
         idDocumentObjectKey: entry.member.idDocumentObjectKey,
         attemptCount: 0,
-        enrollmentKind: 'household',
         householdLocalId: draft.householdLocalId,
         householdCode: draft.householdCode,
         householdRole: entry.role,
@@ -154,8 +153,7 @@ export async function queueLateHouseholdMember(
     .where('ownerUserId')
     .equals(ownerUserId)
     .filter((record) =>
-      record.enrollmentKind === 'household'
-      && record.householdLocalId === household.householdLocalId
+      record.householdLocalId === household.householdLocalId
       && record.householdRole === 'member'
       && record.syncStatus !== 'synced',
     )
@@ -174,7 +172,6 @@ export async function queueLateHouseholdMember(
     passportObjectKey: member.passportObjectKey,
     idDocumentObjectKey: member.idDocumentObjectKey,
     attemptCount: 0,
-    enrollmentKind: 'household',
     householdLocalId: household.householdLocalId,
     householdId: household.id,
     householdCode: household.householdCode,

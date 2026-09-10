@@ -31,7 +31,6 @@ import { Roles } from '../../../platform/auth/roles.decorator';
 import { AppError } from '../../../platform/http/app-error';
 import { CursorPaginationMetaDto } from '../../../platform/http/cursor-pagination.dto';
 import { UuidV7Pipe } from '../../../platform/http/uuid-v7.pipe';
-import { CreateEnrollmentUseCase } from '../application/create-enrollment.use-case';
 import { DevUploadEnrollmentFileUseCase } from '../application/dev-upload-enrollment-file.use-case';
 import { ExportEnrollmentReportUseCase } from '../application/export-enrollment-report.use-case';
 import { GenerateIdCardsUseCase } from '../application/generate-id-cards.use-case';
@@ -40,9 +39,8 @@ import { GetEnrollmentUseCase } from '../application/get-enrollment.use-case';
 import { ListEnrollmentsUseCase } from '../application/list-enrollments.use-case';
 import { PresignEnrollmentUploadUseCase } from '../application/presign-enrollment-upload.use-case';
 import { UpdateEnrollmentStatusUseCase } from '../application/update-enrollment-status.use-case';
+import { UpdateEnrollmentUseCase } from '../application/update-enrollment.use-case';
 import {
-  CreateEnrollmentDto,
-  CreateEnrollmentResponseDto,
   EnrollmentDetailResponseDto,
   EnrollmentDevUploadResponseDto,
   EnrollmentListItemDto,
@@ -55,6 +53,7 @@ import {
   GenerateIdCardsResponseDto,
   ListEnrollmentsQueryDto,
   PatchEnrollmentStatusRequestDto,
+  UpdateEnrollmentProfileDto,
   UpdateEnrollmentStatusRequestDto,
   UpdateEnrollmentStatusResponseDto,
 } from './enrollment.dto';
@@ -64,7 +63,6 @@ import {
 @Controller('enrollments')
 export class EnrollmentController {
   constructor(
-    private readonly createEnrollment: CreateEnrollmentUseCase,
     private readonly presignEnrollmentUpload: PresignEnrollmentUploadUseCase,
     private readonly devUploadEnrollmentFile: DevUploadEnrollmentFileUseCase,
     private readonly listEnrollments: ListEnrollmentsUseCase,
@@ -73,6 +71,7 @@ export class EnrollmentController {
     private readonly generateIdCards: GenerateIdCardsUseCase,
     private readonly exportEnrollmentReport: ExportEnrollmentReportUseCase,
     private readonly updateEnrollmentStatus: UpdateEnrollmentStatusUseCase,
+    private readonly updateEnrollment: UpdateEnrollmentUseCase,
   ) {}
 
   @Post('files/presign-upload')
@@ -195,29 +194,6 @@ export class EnrollmentController {
     });
   }
 
-  @Post()
-  @Roles('admin', 'field_worker')
-  @ApiOperation({
-    summary:
-      'Create enrollment (idempotent via idempotencyId; duplicate identity = first+last+DOB). Returns a slim sync acknowledgement; retries with the same key set idempotentReplay=true.',
-  })
-  @ApiCreatedResponse({ type: CreateEnrollmentResponseDto })
-  async create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() body: CreateEnrollmentDto,
-  ): Promise<CreateEnrollmentResponseDto> {
-    const enrollment = await this.createEnrollment.execute(user, body);
-    return {
-      id: enrollment.id,
-      enrollmentId: enrollment.enrollmentId,
-      idempotencyId: enrollment.idempotencyId,
-      status: enrollment.status,
-      capturedAt: enrollment.capturedAt,
-      createdAt: enrollment.createdAt,
-      idempotentReplay: enrollment.idempotentReplay === true,
-    };
-  }
-
   @Get()
   @Roles('admin', 'field_worker')
   @ApiOperation({
@@ -294,6 +270,21 @@ export class EnrollmentController {
     @Param('id', UuidV7Pipe) id: string,
   ) {
     return this.getEnrollmentDetail.execute(user, id);
+  }
+
+  @Patch(':id/profile')
+  @Roles('admin')
+  @ApiOperation({
+    summary:
+      'Update beneficiary profile fields (admin only). Writes an enrollment activity log entry.',
+  })
+  @ApiOkResponse({ type: EnrollmentResponseDto })
+  updateProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', UuidV7Pipe) id: string,
+    @Body() body: UpdateEnrollmentProfileDto,
+  ) {
+    return this.updateEnrollment.execute(user, id, body);
   }
 
   @Patch(':id')
