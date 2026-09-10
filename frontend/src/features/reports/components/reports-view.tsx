@@ -4,7 +4,7 @@ import { cardShadow, btnPrimary, btnSecondary, tabGroup } from "@/components/adm
 const reportTypes = [
   { id: "beneficiary", label: "Beneficiary Enrollment Report", desc: "Complete list of enrolled beneficiaries with demographic data" },
   { id: "community", label: "Community Enrollment Report", desc: "Enrollment performance by community" },
-  { id: "fieldworker", label: "Field Worker Performance Report", desc: "Enrollment activity by field worker" },
+  { id: "fieldworker", label: "Enrollment Officer Performance Report", desc: "Enrollment activity by enrollment officer" },
   { id: "activity", label: "Enrollment Activity Report", desc: "Timeline of enrollment events" },
   { id: "sync", label: "Synchronization Report", desc: "Sync status and failure analysis" },
 ];

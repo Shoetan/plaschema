@@ -39,6 +39,6 @@ export function ProfileView() {
       <button className="secondary-button flex w-full items-center justify-center gap-2" onClick={() => setMessage('Contact your programme administrator for support or password assistance.')}><HelpCircle aria-hidden="true" size={17} />Help and support</button>
       <button className="secondary-button flex w-full items-center justify-center gap-2 !border-red-200 !text-red-700" onClick={logout}><LogOut aria-hidden="true" size={17} />Sign out</button>
     </div>
-    <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400"><ShieldCheck aria-hidden="true" size={14} />Signed in as a PLASCHEMA field worker</p>
+    <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400"><ShieldCheck aria-hidden="true" size={14} />Signed in as a PLASCHEMA enrollment officer</p>
   </div>
 }

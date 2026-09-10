@@ -1,4 +1,6 @@
 import { getApiErrorCode, getApiErrorDetails, getApiErrorMessage, getApiErrorStatus } from '@/api'
+import { createHouseholdEnrollment } from '@/features/household-enrollment/services/household-enrollment.service'
+import { toCreateHouseholdEnrollmentPayload } from '@/features/household-enrollment/services/offline-household-enrollment.service'
 import { useAuthStore } from '@/features/auth/stores/auth.store'
 import { offlineDb } from '@/lib/offline-db'
 
@@ -22,7 +24,10 @@ export function syncReferenceData(ownerUserId: string, wardIds: string[]) {
   const existing = referenceInflight.get(ownerUserId)
   if (existing) return existing
   const task = Promise.all([downloadWards(), downloadFacilities()])
-    .then(([wards, facilities]) => replaceReferenceData(ownerUserId, wardIds, wards, facilities))
+    .then(([wards, facilities]) => replaceReferenceData(ownerUserId, wardIds, wards.map((ward) => ({
+      ...ward,
+      code: ward.code ?? ward.name.slice(0, 3).toUpperCase(),
+    })), facilities))
     .finally(() => referenceInflight.delete(ownerUserId))
   referenceInflight.set(ownerUserId, task)
   return task
@@ -45,6 +50,21 @@ function isTransientFailure(error: unknown) {
 function nextRetry(attempt: number) {
   const delays = [30_000, 120_000, 600_000]
   return new Date(Date.now() + delays[Math.min(attempt - 1, delays.length - 1)]).toISOString()
+}
+
+function orderPendingRecords(records: LocalEnrollmentRecord[]) {
+  return [...records].sort((left, right) => {
+    if (
+      left.householdLocalId
+      && right.householdLocalId
+      && left.householdLocalId === right.householdLocalId
+    ) {
+      if (left.householdRole === 'head') return -1
+      if (right.householdRole === 'head') return 1
+      return (left.localMemberOrder ?? 0) - (right.localMemberOrder ?? 0)
+    }
+    return left.capturedAt.localeCompare(right.capturedAt)
+  })
 }
 
 async function claimRecord(record: LocalEnrollmentRecord) {
@@ -77,6 +97,75 @@ async function uploadPurpose(record: LocalEnrollmentRecord, purpose: 'passport' 
   return presigned.objectKey
 }
 
+async function persistSuccessfulSync(
+  record: LocalEnrollmentRecord,
+  acknowledgement: {
+    id: string
+    enrollmentId: string
+    status: LocalEnrollmentRecord['serverStatus']
+    householdId?: string | null
+    memberSequence?: number | null
+  },
+) {
+  const syncedAt = new Date().toISOString()
+  await offlineDb.transaction('rw', offlineDb.enrollments, offlineDb.syncState, offlineDb.households, async () => {
+    await offlineDb.enrollments.update(record.localId, {
+      syncStatus: 'synced',
+      uploadStage: 'complete',
+      serverId: acknowledgement.id,
+      enrollmentId: acknowledgement.enrollmentId,
+      serverStatus: acknowledgement.status,
+      memberSequence: acknowledgement.memberSequence ?? record.memberSequence,
+      householdId: acknowledgement.householdId ?? record.householdId,
+      syncedAt,
+      attemptCount: 0,
+      retryAt: undefined,
+      leaseUntil: undefined,
+      errorCode: undefined,
+      errorMessage: undefined,
+      errorDetails: undefined,
+    })
+
+    if (record.enrollmentKind === 'household' && record.householdLocalId) {
+      const householdKey = `${record.ownerUserId}:${record.householdLocalId}`
+      const cached = await offlineDb.households.get(householdKey)
+      if (cached) {
+        await offlineDb.households.put({
+          ...cached,
+          id: acknowledgement.householdId ?? cached.id,
+          memberCount: record.householdRole === 'member'
+            ? Math.max(cached.memberCount, acknowledgement.memberSequence ?? cached.memberCount)
+            : cached.memberCount,
+          updatedAt: syncedAt,
+        })
+      }
+
+      if (record.householdRole === 'head' && acknowledgement.householdId) {
+        const related = await offlineDb.enrollments
+          .where('ownerUserId')
+          .equals(record.ownerUserId)
+          .filter((row) =>
+            row.householdLocalId === record.householdLocalId
+            && row.localId !== record.localId
+            && row.syncStatus === 'pending',
+          )
+          .toArray()
+        const householdId = acknowledgement.householdId
+        await offlineDb.enrollments.bulkUpdate(related.map((row) => ({
+          key: row.localId,
+          changes: { householdId },
+        })))
+      }
+    }
+
+    await offlineDb.syncState.put({
+      ownerUserId: record.ownerUserId,
+      needsReport: true,
+      updatedAt: syncedAt,
+    })
+  })
+}
+
 async function syncOne(record: LocalEnrollmentRecord) {
   try {
     if (!await claimRecord(record)) return false
@@ -84,19 +173,26 @@ async function syncOne(record: LocalEnrollmentRecord) {
     const idDocumentObjectKey = await uploadPurpose({ ...record, passportObjectKey }, 'id_document')
     const ready = { ...record, passportObjectKey, idDocumentObjectKey }
     await offlineDb.enrollments.update(record.localId, { syncStatus: 'submitting', uploadStage: 'enrollment' })
+
+    if (record.enrollmentKind === 'household') {
+      const acknowledgement = await createHouseholdEnrollment(toCreateHouseholdEnrollmentPayload(ready))
+      await persistSuccessfulSync(record, acknowledgement)
+      return true
+    }
+
     const acknowledgement = await createEnrollment(toCreateEnrollmentPayload(ready))
-    const syncedAt = new Date().toISOString()
-    await offlineDb.transaction('rw', offlineDb.enrollments, offlineDb.syncState, async () => {
-      await offlineDb.enrollments.update(record.localId, {
-        syncStatus: 'synced', uploadStage: 'complete', serverId: acknowledgement.id,
-        enrollmentId: acknowledgement.enrollmentId, serverStatus: acknowledgement.status,
-        syncedAt, attemptCount: 0, retryAt: undefined,
-        leaseUntil: undefined, errorCode: undefined, errorMessage: undefined, errorDetails: undefined,
-      })
-      await offlineDb.syncState.put({ ownerUserId: record.ownerUserId, needsReport: true, updatedAt: syncedAt })
-    })
+    await persistSuccessfulSync(record, acknowledgement)
     return true
   } catch (error) {
+    const errorCode = getApiErrorCode(error)
+    if (errorCode === 'HOUSEHOLD_HEAD_NOT_SYNCED') {
+      await offlineDb.enrollments.update(record.localId, {
+        syncStatus: 'pending',
+        leaseUntil: undefined,
+      })
+      return false
+    }
+
     const current = await offlineDb.enrollments.get(record.localId)
     const attemptCount = (current?.attemptCount ?? record.attemptCount) + 1
     const status = getApiErrorStatus(error)
@@ -107,7 +203,7 @@ async function syncOne(record: LocalEnrollmentRecord) {
       attemptCount,
       retryAt: authFailure ? undefined : transient && attemptCount <= 3 ? nextRetry(attemptCount) : undefined,
       leaseUntil: undefined,
-      errorCode: getApiErrorCode(error) ?? (transient ? 'NETWORK_ERROR' : 'SYNC_ERROR'),
+      errorCode: errorCode ?? (transient ? 'NETWORK_ERROR' : 'SYNC_ERROR'),
       errorMessage: getApiErrorMessage(error, 'Unable to synchronize this enrollment.'),
       errorDetails: getApiErrorDetails(error),
     })
@@ -124,8 +220,8 @@ async function runQueue(ownerUserId: string) {
     .filter((record) => (record.syncStatus === 'uploading' || record.syncStatus === 'submitting') && (!record.leaseUntil || record.leaseUntil <= now)).toArray()
   await offlineDb.enrollments.bulkUpdate(abandoned.map((record) => ({ key: record.localId, changes: { syncStatus: 'pending', leaseUntil: undefined } })))
 
-  const pending = await offlineDb.enrollments.where('ownerUserId').equals(ownerUserId)
-    .filter((record) => record.syncStatus === 'pending' && (!record.retryAt || record.retryAt <= now)).sortBy('capturedAt')
+  const pending = orderPendingRecords(await offlineDb.enrollments.where('ownerUserId').equals(ownerUserId)
+    .filter((record) => record.syncStatus === 'pending' && (!record.retryAt || record.retryAt <= now)).toArray())
   let syncedAny = false
   for (const record of pending) syncedAny = await syncOne(record) || syncedAny
 

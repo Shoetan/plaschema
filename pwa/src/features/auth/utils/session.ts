@@ -1,7 +1,7 @@
 import type { AuthUserApi, FieldWorkerUser } from '../types'
 
 export class FieldWorkerAccessError extends Error {
-  constructor(message = 'A field-worker account is required to use this app.') {
+  constructor(message = 'An enrollment officer account is required to use this app.') {
     super(message)
     this.name = 'FieldWorkerAccessError'
   }
@@ -9,7 +9,7 @@ export class FieldWorkerAccessError extends Error {
 
 export function mapFieldWorkerUser(user: AuthUserApi): FieldWorkerUser {
   if (user.role !== 'field_worker') throw new FieldWorkerAccessError()
-  if (user.status !== 'active') throw new FieldWorkerAccessError('This field-worker account is inactive. Contact an administrator.')
+  if (user.status !== 'active') throw new FieldWorkerAccessError('This enrollment officer account is inactive. Contact an administrator.')
   return { ...user, role: 'field_worker', status: 'active', phone: user.phone ?? null, lastSyncedAt: user.lastSyncedAt ?? null }
 }
 

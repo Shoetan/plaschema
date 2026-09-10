@@ -1,7 +1,10 @@
 export {
   BENEFICIARY_CATEGORIES,
   EMPTY_ENROLLMENT_FORM,
+  getActiveWardFacilities,
+  getOfficerLga,
   getResidenceLgas,
+  isWardFacilityLocked,
   hasDraftProgress,
   isValidNin,
   isValidPhoneNumber,

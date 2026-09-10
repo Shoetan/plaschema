@@ -29,7 +29,7 @@ const mainItems = [
 ]
 
 const administrationItems = [
-  { path: '/admin/field-workers', label: 'Field Workers', icon: HeartPulse },
+  { path: '/admin/field-workers', label: 'Enrollment Officers', icon: HeartPulse },
   { path: '/admin/facilities', label: 'Facilities', icon: Building2 },
   { path: '/admin/capitation', label: 'Capitation', icon: CreditCard },
 ]

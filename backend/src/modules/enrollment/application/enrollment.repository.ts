@@ -39,12 +39,13 @@ export type CreateEnrollmentRecordInput = {
   bloodGroup: Enrollment['bloodGroup'];
   genotype: Enrollment['genotype'];
   idType: Enrollment['idType'];
-  nextOfKinFullName: string | null;
   emergencyPhone: string | null;
-  nextOfKinRelationship: Enrollment['nextOfKinRelationship'];
   stateOfResidence: string;
   lgaOfResidence: string;
   residentialAddress: string;
+  householdId?: string | null;
+  householdRole?: 'head' | 'member' | null;
+  memberSequence?: number | null;
 };
 
 export type ListEnrollmentsQuery = CursorListQuery & {
@@ -63,6 +64,7 @@ export type ListEnrollmentsQuery = CursorListQuery & {
   ageMax?: number;
   createdFrom?: Date;
   createdTo?: Date;
+  householdId?: string;
 };
 
 export type IdCardEnrollmentData = {

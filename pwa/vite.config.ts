@@ -12,9 +12,9 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['logo.png', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'PLASCHEMA Field Worker',
+        name: 'PLASCHEMA Enrollment Officer',
         short_name: 'PLASCHEMA',
-        description: 'Field worker enrollment app',
+        description: 'Enrollment officer enrollment app',
         theme_color: '#9fe870',
         background_color: '#fafafa',
         display: 'standalone',

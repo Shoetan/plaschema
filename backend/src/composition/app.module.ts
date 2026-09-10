@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { IdentityModule } from '../modules/identity/identity.module';
 import { ActivityLogModule } from '../modules/activity-log/activity-log.module';
 import { EnrollmentModule } from '../modules/enrollment/enrollment.module';
+import { HouseholdModule } from '../modules/household/household.module';
 import { HealthFacilityModule } from '../modules/health-facility/health-facility.module';
 import { CapitationModule } from '../modules/capitation/capitation.module';
 import { DashboardModule } from '../modules/dashboard/dashboard.module';
@@ -38,6 +39,7 @@ import { StorageModule } from '../platform/storage/storage.module';
     HealthFacilityModule,
     CapitationModule,
     EnrollmentModule,
+    HouseholdModule,
     FileJobModule,
     DashboardModule,
   ],

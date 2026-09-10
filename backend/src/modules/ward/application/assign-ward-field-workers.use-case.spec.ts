@@ -6,6 +6,7 @@ import type { WardRepository } from './ward.repository';
 describe('AssignWardFieldWorkersUseCase', () => {
   const ward = {
     id: '01900000-0000-7000-8000-000000000001',
+    code: 'JOS-VOM',
     name: 'Vom Central',
     lga: 'Jos South',
     status: 'active' as const,

@@ -134,7 +134,7 @@ function frontCardHtml(card: PreparedCard | undefined, brand: BrandUris): string
       ${photo}
       <div class="details">
         <p class="name">${escapeHtml(card.fullName)}</p>
-        <p class="field"><span class="label">NOK Phone:</span><span class="value">${escapeHtml(card.emergencyPhone)}</span></p>
+        <p class="field"><span class="label">Emergency Phone:</span><span class="value">${escapeHtml(card.emergencyPhone)}</span></p>
         <p class="field"><span class="label">Enrollment ID:</span><span class="value">${escapeHtml(card.enrollmentId)}</span></p>
         <p class="field inline"><span class="label">Blood Group:</span> <span class="value">${escapeHtml(card.bloodGroupLabel)}</span></p>
         <p class="field"><span class="label">Facility of Choice:</span><span class="value">${escapeHtml(card.facilityName)}</span></p>

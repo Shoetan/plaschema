@@ -48,17 +48,19 @@ type EnrollmentRow = {
   bloodGroup: Enrollment['bloodGroup'];
   genotype: Enrollment['genotype'];
   idType: Enrollment['idType'];
-  nextOfKinFullName: string | null;
   emergencyPhone: string | null;
-  nextOfKinRelationship: Enrollment['nextOfKinRelationship'];
   stateOfResidence: string;
   lgaOfResidence: string;
   residentialAddress: string;
+  householdId: string | null;
+  householdRole: Enrollment['householdRole'];
+  memberSequence: number | null;
   printedAt: Date | null;
   printCount: number;
   createdAt: Date;
   updatedAt: Date;
   ward: { id: string; name: string; lga: string };
+  household: { id: string; householdCode: string } | null;
   healthFacility: {
     id: string;
     name: string;
@@ -81,6 +83,7 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
       },
     },
     enrolledBy: { select: { id: true, name: true } },
+    household: { select: { id: true, householdCode: true } },
   } as const;
 
   private map(row: EnrollmentRow): Enrollment {
@@ -110,12 +113,14 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
       bloodGroup: row.bloodGroup,
       genotype: row.genotype,
       idType: row.idType,
-      nextOfKinFullName: row.nextOfKinFullName,
       emergencyPhone: row.emergencyPhone,
-      nextOfKinRelationship: row.nextOfKinRelationship,
       stateOfResidence: row.stateOfResidence,
       lgaOfResidence: row.lgaOfResidence,
       residentialAddress: row.residentialAddress,
+      householdId: row.householdId,
+      householdRole: row.householdRole,
+      memberSequence: row.memberSequence,
+      household: row.household,
       ward: row.ward,
       healthFacility: row.healthFacility,
       enrolledBy: row.enrolledBy,

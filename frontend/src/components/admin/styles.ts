@@ -19,4 +19,4 @@ export const tdCell = `border-b border-border px-4 h-14 text-foreground text-sm 
 export const searchBar = `flex items-center gap-1.5 bg-card border border-border shadow-sm rounded-full pl-3 pr-4 h-10`;
 
 /** Segmented tab group (filter bar) */
-export const tabGroup = `bg-muted border border-border rounded-lg overflow-hidden flex items-center`;
+export const tabGroup = `inline-flex w-fit items-center overflow-hidden rounded-lg border border-border bg-muted`;

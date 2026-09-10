@@ -95,7 +95,7 @@ export class ListWardsQueryDto {
   @ApiPropertyOptional({
     type: String,
     example: 'Vom',
-    description: 'Search by ward name or LGA',
+    description: 'Search by ward code, name or LGA',
   })
   @EmptyStringToUndefined()
   @IsOptional()
@@ -126,6 +126,9 @@ export class WardListItemDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
+  @ApiProperty({ example: 'JOS-VOM' })
+  code!: string;
+
   @ApiProperty({ example: 'Vom Central' })
   name!: string;
 
@@ -155,6 +158,12 @@ export class WardListItemDto {
 export class WardResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
+
+  @ApiProperty({
+    example: 'JOS-VOM',
+    description: 'Derived from LGA and name as `<LGA_3>-<NAME_3>`',
+  })
+  code!: string;
 
   @ApiProperty()
   name!: string;

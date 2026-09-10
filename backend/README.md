@@ -60,6 +60,7 @@ Clean Architecture only (no DDD / bounded contexts). Feature modules:
 - `src/modules/ward` — wards
 - `src/modules/health-facility` — health facilities
 - `src/modules/enrollment` — beneficiary enrollment
+- `src/modules/household` — household head/member enrollment grouping
 - `src/modules/activity-log` — ward-scoped activity/audit log for enrollment events
 
 ## Key endpoints
@@ -70,8 +71,8 @@ Clean Architecture only (no DDD / bounded contexts). Feature modules:
 - `POST /api/users/:id/reset-password` (admin only; no email)
 - `GET /api/users` — cursor list; with `role=field_worker` returns wards + enrollment stats (`beneficiariesEnrolled`, `lastEnrollmentAt`, `lastSyncedAt`)
 - `GET /api/users/:id/detail` — field worker detail for admin **or the worker’s own profile** (`fieldWorker` overview with `lastSyncedAt`, `stats` with `totalEnrolled` / `enrollmentsToday` / `enrollmentsThisMonth`, `wards`, unified `activityLog`). Field workers may only request their own `id`. Beneficiaries tab uses `GET /api/enrollments?enrolledByUserId=`
-- `POST /api/wards/batch` — CSV or Excel (.xlsx/.xls); columns: `name,lga`
-- `GET /api/wards` — cursor list for wards table (`name`, `state`, `lga`, `fieldWorkers`, `beneficiaries`, `newEnrollments`, `status`)
+- `POST /api/wards/batch` — CSV or Excel (.xlsx/.xls); columns: `name,lga` (code derived as `<LGA_3>-<NAME_3>`, suffixed when needed for uniqueness)
+- `GET /api/wards` — cursor list for wards table (`code`, `name`, `state`, `lga`, `fieldWorkers`, `beneficiaries`, `newEnrollments`, `status`)
 - `GET /api/wards/:id/detail` — admin ward detail page payload (`ward`, `stats`, `enrollmentTrend`, `fieldWorkers`, `healthFacilities`, unified `activityLog`). Beneficiaries tab uses `GET /api/enrollments?wardId=`
 - `PUT /api/wards/:id/field-workers` — assign multiple field workers to a ward (`fieldWorkerIds[]`; replaces existing assignments for that ward; returns `{ message }`)
 - `GET /api/wards/stream` — NDJSON stream for offline/mobile cache sync (`updatedSince` optional)
@@ -85,7 +86,10 @@ Clean Architecture only (no DDD / bounded contexts). Feature modules:
 - `POST /api/enrollments/files/presign-upload` — Railway presigned PUT URL for passport/ID upload
 - `POST /api/enrollments/files/dev-upload` — **dev/test only**: multipart upload that presigns + PUTs to Railway (returns `objectKey`)
 - `POST /api/enrollments` — create enrollment (idempotent via `idempotencyId`; duplicate = first+last+DOB). Returns slim sync acknowledgement (`id`, `enrollmentId`, `idempotencyId`, `status`, `capturedAt`, `createdAt`, `idempotentReplay`)
-- `GET /api/enrollments` — cursor list for beneficiaries / ID-card page (`enrollmentId`, name, category, lga, facility, ward, status, `hasPrinted`, `printCount`, `printedAt`). Filters: `category`, `printedStatus` (`all`|`printed`|`not_printed`), `lga`, `wardId`, `healthFacilityId`, `enrolledByUserId` (admin), `beneficiaryName`, `enrollmentId`, `createdFrom`/`createdTo`, `status`, `search`, `enrolledByMe`, `ageMin`/`ageMax`
+- `POST /api/household-enrollments` — create household head or member (same enrollment body plus `household` context). Head gets a global year counter ID; members receive `{baseEnrollmentId}-{NN}` with server-assigned `memberSequence`. Idempotent via `idempotencyId`; `409 HOUSEHOLD_HEAD_NOT_SYNCED` when members arrive before the head.
+- `GET /api/households` — cursor list of households for field workers (filters: `wardId`, `search`, `householdCode`)
+- `GET /api/households/:id` — household detail with head and member summaries
+- `GET /api/enrollments` — cursor list for beneficiaries / ID-card page (`enrollmentId`, name, category, lga, facility, ward, status, `hasPrinted`, `printCount`, `printedAt`). Filters: `category`, `printedStatus` (`all`|`printed`|`not_printed`), `lga`, `wardId`, `healthFacilityId`, `householdId`, `enrolledByUserId` (admin), `beneficiaryName`, `enrollmentId`, `createdFrom`/`createdTo`, `status`, `search`, `enrolledByMe`, `ageMin`/`ageMax`
 - `GET /api/enrollments/:id/detail` — beneficiary detail page payload (`overview` personal details + unified `activityLog` for sync/activity tabs)
 - `GET /api/enrollments/:id` — full enrollment detail with presigned `passportUrl` + `idDocumentUrl` (+ print fields)
 - `POST /api/enrollments/status` — admin; bulk activate/deactivate (`enrollmentIds` 1–100, `status`: `active`|`disabled`). Returns `{ status, updated, updatedIds, skipped }` (`not_found` / `unchanged` / `invalid_transition`). Writes `status_changed` activity logs
@@ -105,6 +109,13 @@ Roles: `admin` | `field_worker`. Field workers with assigned wards are scoped to
 3. Retrying with the same `idempotencyId` returns the same slim acknowledgement with `idempotentReplay: true`.
 4. A different request with the same first name + last name + `dateOfBirth` (`YYYY-MM-DD`) is rejected as `DUPLICATE_ENROLLMENT`.
 5. After the client finishes its one-by-one pending loop, call `POST /api/auth/sync` to persist `lastSyncedAt` on the user record.
+
+### Household enrollment sync
+
+1. Client generates a UUID v7 `householdLocalId` and `{wardCode}-{NNN}` household code offline.
+2. Queue the head first, then members, through `POST /api/household-enrollments` with `household.role` set appropriately.
+3. Member requests may omit `householdId` until the head acknowledgement returns it; the server assigns `memberSequence` atomically from Postgres `memberCount`.
+4. Retry members that receive `409 HOUSEHOLD_HEAD_NOT_SYNCED` after the head sync succeeds.
 
 ## Scripts
 

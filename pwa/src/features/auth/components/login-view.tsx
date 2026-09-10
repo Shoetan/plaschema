@@ -77,7 +77,7 @@ export function LoginView() {
       <div className="mb-10 flex flex-col items-center text-center">
         <img src="/logo.png" alt="PLASCHEMA" className="mb-3 h-16 w-20 object-contain" />
         <h1 className="text-2xl font-bold tracking-tight">PLASCHEMA</h1>
-        <p className="mt-1 text-xs font-bold uppercase tracking-[.18em] text-neutral-500">Field Worker Login</p>
+        <p className="mt-1 text-xs font-bold uppercase tracking-[.18em] text-neutral-500">Enrollment Officer Login</p>
         <p className="mt-3 max-w-64 text-sm text-neutral-500">Sign in to open your enrollment workspace.</p>
       </div>
 
@@ -95,7 +95,7 @@ export function LoginView() {
         <button className="primary-button mt-3 flex items-center justify-center gap-2" disabled={!isOnline || loginMutation.isPending} type="submit">{loginMutation.isPending ? 'Signing in…' : 'Sign in'}</button>
       </form>
 
-      <p className="mt-auto flex items-center justify-center gap-1.5 pt-10 text-center text-xs text-neutral-400"><ShieldCheck aria-hidden="true" size={14} />Use your active field-worker account.</p>
+      <p className="mt-auto flex items-center justify-center gap-1.5 pt-10 text-center text-xs text-neutral-400"><ShieldCheck aria-hidden="true" size={14} />Use your active enrollment officer account.</p>
     </main>
   )
 }

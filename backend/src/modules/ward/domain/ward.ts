@@ -7,6 +7,7 @@ export const WARD_STATE = 'Plateau' as const;
 
 export type Ward = {
   id: string;
+  code: string;
   name: string;
   lga: string;
   status: WardStatus;
@@ -17,6 +18,7 @@ export type Ward = {
 /** Slim row for the wards admin table (GET /wards list). */
 export type WardListItem = {
   id: string;
+  code: string;
   name: string;
   state: typeof WARD_STATE;
   lga: string;

@@ -86,8 +86,6 @@ export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed' | 'sep
 export type BloodGroup = 'a_pos' | 'a_neg' | 'b_pos' | 'b_neg' | 'ab_pos' | 'ab_neg' | 'o_pos' | 'o_neg' | 'unknown'
 export type Genotype = 'aa' | 'as' | 'ss' | 'ac' | 'sc' | 'unknown'
 export type IdDocumentType = 'nin' | 'national_id' | 'voters_card' | 'drivers_license' | 'international_passport' | 'other'
-export type NextOfKinRelationship = 'spouse' | 'parent' | 'sibling' | 'child' | 'relative' | 'friend' | 'other'
-
 export interface EnrollmentRecord {
   id: string
   enrollmentId: string
@@ -116,9 +114,7 @@ export interface EnrollmentRecord {
   bloodGroup: BloodGroup | null
   genotype: Genotype | null
   idType: IdDocumentType
-  nextOfKinFullName: string
-  emergencyPhone: string
-  nextOfKinRelationship: NextOfKinRelationship | null
+  emergencyPhone: string | null
   stateOfResidence: string
   lgaOfResidence: string
   residentialAddress: string

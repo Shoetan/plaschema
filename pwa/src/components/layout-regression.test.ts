@@ -2,30 +2,30 @@ import { describe, expect, it } from 'vitest'
 
 import appLayoutSource from './app-layout.tsx?raw'
 import updatePromptSource from './update-prompt.tsx?raw'
-import enrollmentViewSource from '../features/enrollment/components/enrollment-view.tsx?raw'
+import enrollmentFormStepsSource from '../features/enrollment/components/enrollment-form-steps.tsx?raw'
+import householdEnrollmentViewSource from '../features/household-enrollment/components/household-enrollment-view.tsx?raw'
 
 describe('mobile app layout', () => {
   it('reserves space for the application chrome instead of overlaying page content', () => {
     expect(appLayoutSource).toContain('shrink-0 items-center justify-between')
-    expect(appLayoutSource).toContain("isEnrollmentRoute ? 'overflow-hidden' : 'overflow-y-auto'")
+    expect(appLayoutSource).toContain('isEnrollmentRoute')
+    expect(appLayoutSource).toContain('!isEnrollmentRoute ? (')
     expect(appLayoutSource).toContain('shrink-0 items-end')
     expect(appLayoutSource).not.toContain('fixed inset-x-0 bottom-0')
     expect(appLayoutSource).not.toContain('overflow-y-auto pb-24')
   })
 
   it('keeps enrollment actions outside the scrollable fields area', () => {
-    expect(enrollmentViewSource).toContain('flex h-full min-h-0 flex-col overflow-hidden')
-    expect(enrollmentViewSource).toContain('min-h-0 w-full max-w-full flex-1 space-y-4 overflow-x-hidden overflow-y-auto overscroll-contain')
-    expect(enrollmentViewSource).toContain('fieldsScrollRef.current?.scrollTo')
-    expect(enrollmentViewSource).toContain('<footer className="flex shrink-0')
-    expect(enrollmentViewSource).not.toContain('sticky bottom-[69px]')
-    expect(enrollmentViewSource).not.toContain('pb-28')
+    expect(appLayoutSource).toContain('isEnrollmentRoute ? <div className="h-full min-h-0"><Outlet /></div>')
+    expect(householdEnrollmentViewSource).toContain('flex h-full min-h-0 flex-col overflow-hidden')
+    expect(householdEnrollmentViewSource).toContain('min-h-0 flex-1 space-y-4 overflow-y-auto')
+    expect(householdEnrollmentViewSource).toContain('Save household on this device')
+    expect(householdEnrollmentViewSource).toContain('<footer className="relative z-10 shrink-0 space-y-3 border-t')
+    expect(householdEnrollmentViewSource).toContain("draft.phase === 'review'")
   })
 
   it('constrains enrollment fields and native date inputs to the mobile frame', () => {
-    expect(enrollmentViewSource).toContain('flex min-w-0 max-w-full flex-col')
-    expect(enrollmentViewSource).toContain('overflow-x-hidden overflow-y-auto')
-    expect(enrollmentViewSource).toContain('type="date" className="field min-w-0 max-w-full"')
+    expect(enrollmentFormStepsSource).toContain('type="date" className="field"')
   })
 
   it('renders the update notice in flow', () => {

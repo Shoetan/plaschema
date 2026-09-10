@@ -8,12 +8,14 @@ export const WARD_REPOSITORY = Symbol('WARD_REPOSITORY');
 
 export type CreateWardInput = {
   id: string;
+  code: string;
   name: string;
   lga: string;
   status: WardStatus;
 };
 
 export type UpdateWardInput = {
+  code?: string;
   name?: string;
   lga?: string;
   status?: WardStatus;
@@ -35,8 +37,11 @@ export interface WardRepository {
   create(input: CreateWardInput): Promise<Ward>;
   createMany(inputs: CreateWardInput[]): Promise<number>;
   findById(id: string): Promise<Ward | null>;
+  findByCode(code: string): Promise<Ward | null>;
   findByName(name: string): Promise<Ward | null>;
   findByNames(names: string[]): Promise<Ward[]>;
+  findByCodes(codes: string[]): Promise<Ward[]>;
+  listCodes(): Promise<string[]>;
   list(query: ListWardsQuery): Promise<PaginatedWards>;
   stream(query: StreamWardsQuery): AsyncGenerator<Ward[], void, unknown>;
   update(id: string, input: UpdateWardInput): Promise<Ward>;

@@ -33,7 +33,6 @@ import {
   GENOTYPES,
   ID_DOCUMENT_TYPES,
   MARITAL_STATUSES,
-  NEXT_OF_KIN_RELATIONSHIPS,
   PRINTED_STATUS_FILTERS,
   type BloodGroup,
   type EnrollmentGender,
@@ -42,7 +41,6 @@ import {
   type Genotype,
   type IdDocumentType,
   type MaritalStatus,
-  type NextOfKinRelationship,
   type PrintedStatusFilter,
 } from '../domain/enrollment';
 
@@ -163,22 +161,11 @@ export class CreateEnrollmentDto {
   @IsEnum(ID_DOCUMENT_TYPES)
   idType!: IdDocumentType;
 
-  @ApiPropertyOptional({ example: 'John Obi' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(160)
-  nextOfKinFullName?: string;
-
   @ApiPropertyOptional({ example: '+2348098765432' })
   @IsOptional()
   @IsString()
   @MaxLength(30)
   emergencyPhone?: string;
-
-  @ApiPropertyOptional({ enum: NEXT_OF_KIN_RELATIONSHIPS })
-  @IsOptional()
-  @IsEnum(NEXT_OF_KIN_RELATIONSHIPS)
-  nextOfKinRelationship?: NextOfKinRelationship;
 
   @ApiPropertyOptional({ example: 'Plateau', default: 'Plateau' })
   @IsOptional()
@@ -646,13 +633,7 @@ export class EnrollmentResponseDto {
   idType!: IdDocumentType;
 
   @ApiPropertyOptional({ nullable: true })
-  nextOfKinFullName!: string | null;
-
-  @ApiPropertyOptional({ nullable: true })
   emergencyPhone!: string | null;
-
-  @ApiPropertyOptional({ enum: NEXT_OF_KIN_RELATIONSHIPS, nullable: true })
-  nextOfKinRelationship!: NextOfKinRelationship | null;
 
   @ApiProperty()
   stateOfResidence!: string;
