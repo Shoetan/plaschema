@@ -1,6 +1,9 @@
 import { getApiErrorCode, getApiErrorDetails, getApiErrorMessage, getApiErrorStatus } from '@/api'
-import { createHouseholdEnrollment } from '@/features/household-enrollment/services/household-enrollment.service'
-import { toCreateHouseholdEnrollmentPayload } from '@/features/household-enrollment/services/offline-household-enrollment.service'
+import { createHouseholdEnrollment, fetchHouseholdCodeCounters } from '@/features/household-enrollment/services/household-enrollment.service'
+import {
+  applyHouseholdCodeCounters,
+  toCreateHouseholdEnrollmentPayload,
+} from '@/features/household-enrollment/services/offline-household-enrollment.service'
 import { useAuthStore } from '@/features/auth/stores/auth.store'
 import { offlineDb } from '@/lib/offline-db'
 
@@ -18,6 +21,11 @@ const referenceInflight = new Map<string, Promise<void>>()
 let queueInflight: Promise<boolean> | null = null
 const REFERENCE_MAX_AGE_MS = 24 * 60 * 60_000
 
+export async function syncHouseholdCodeCounters(ownerUserId: string) {
+  const counters = await fetchHouseholdCodeCounters()
+  await applyHouseholdCodeCounters(ownerUserId, counters)
+}
+
 export function syncReferenceData(ownerUserId: string, wardIds: string[]) {
   const existing = referenceInflight.get(ownerUserId)
   if (existing) return existing
@@ -26,6 +34,7 @@ export function syncReferenceData(ownerUserId: string, wardIds: string[]) {
       ...ward,
       code: ward.code ?? ward.name.slice(0, 3).toUpperCase(),
     })), facilities))
+    .then(() => syncHouseholdCodeCounters(ownerUserId))
     .finally(() => referenceInflight.delete(ownerUserId))
   referenceInflight.set(ownerUserId, task)
   return task

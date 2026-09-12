@@ -300,7 +300,7 @@ for each record in sort order:
 - Pending and failed enrollment drafts (full form + files).
 - Active household wizard draft (in-progress head/members before queueing).
 - Cached households list (for late member addition).
-- Per-ward household code counter.
+- Per-ward household code counter (restored from `GET /households/code-counters` when online).
 - Local counters for **Pending**.
 - Session token + cached user profile (for offline app access).
 - Cached ward/facility reference rows (from NDJSON streams).

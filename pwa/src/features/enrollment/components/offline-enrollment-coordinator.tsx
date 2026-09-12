@@ -3,7 +3,11 @@ import { useEffect } from 'react'
 
 import { useAuthStore } from '@/features/auth/stores/auth.store'
 
-import { syncPendingEnrollments, syncReferenceDataIfNeeded } from '../services/sync.service'
+import {
+  syncHouseholdCodeCounters,
+  syncPendingEnrollments,
+  syncReferenceDataIfNeeded,
+} from '../services/sync.service'
 
 export function OfflineEnrollmentCoordinator() {
   const queryClient = useQueryClient()
@@ -16,6 +20,7 @@ export function OfflineEnrollmentCoordinator() {
     const run = async (refreshReferences: boolean) => {
       if (refreshReferences) {
         try { await syncReferenceDataIfNeeded(user.id, wardIds) } catch { /* Existing complete references remain usable. */ }
+        try { await syncHouseholdCodeCounters(user.id) } catch { /* Existing local counters remain usable. */ }
       }
       try {
         if (await syncPendingEnrollments(user.id)) {

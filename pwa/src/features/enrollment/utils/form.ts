@@ -43,8 +43,54 @@ export function getResidenceLgas(wards: ReferenceWard[]) {
     .sort((a, b) => a.localeCompare(b))
 }
 
-export function getOfficerLga(assignedWards: Array<{ lga: string }>, fallbackWards: Array<{ lga: string }> = []) {
-  return assignedWards[0]?.lga ?? fallbackWards[0]?.lga ?? ''
+export function getOfficerLga(assignedWards: Array<{ lga: string }>) {
+  return assignedWards[0]?.lga ?? ''
+}
+
+export type EnrollmentGeographyAccess = {
+  fixedLga: string
+  lockLga: boolean
+  lockWard: boolean
+  selectableWards: ReferenceWard[]
+  lgas: string[]
+}
+
+export function getEnrollmentGeographyAccess(
+  assignedWards: Array<{ id: string; lga: string }>,
+  activeWards: ReferenceWard[],
+): EnrollmentGeographyAccess {
+  if (assignedWards.length === 0) {
+    return {
+      fixedLga: '',
+      lockLga: false,
+      lockWard: false,
+      selectableWards: activeWards,
+      lgas: getResidenceLgas(activeWards),
+    }
+  }
+
+  const fixedLga = assignedWards[0].lga
+  const assignedIds = new Set(assignedWards.map((ward) => ward.id))
+  const selectableWards = activeWards.filter((ward) => assignedIds.has(ward.id))
+
+  return {
+    fixedLga,
+    lockLga: true,
+    lockWard: assignedWards.length === 1,
+    selectableWards,
+    lgas: [fixedLga],
+  }
+}
+
+export function getResidenceWardsForForm(
+  geography: EnrollmentGeographyAccess,
+  selectedLga: string,
+) {
+  if (geography.lockWard || geography.lockLga) {
+    return geography.selectableWards
+  }
+  if (!selectedLga) return []
+  return geography.selectableWards.filter((ward) => ward.lga === selectedLga)
 }
 
 export function resolveWardId(lga: string, currentWardId: string, wards: ReferenceWard[]) {

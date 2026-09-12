@@ -11,9 +11,74 @@ import type {
 import { EMPTY_ENROLLMENT_FORM, hasDraftProgress, normalizeEnrollmentForm } from '@/features/enrollment/utils'
 import { offlineDb } from '@/lib/offline-db'
 
-import { formatHouseholdCode } from '../utils/household-code'
+import type { HouseholdCodeCounterApi } from './household-enrollment.service'
+import { formatHouseholdCode, parseHouseholdCodeSuffix } from '../utils/household-code'
 
 const HOUSEHOLD_DRAFT_KEY = 'household'
+
+function considerHouseholdCodeSuffix(
+  householdCode: string | undefined,
+  currentMax: number,
+) {
+  if (!householdCode) return currentMax
+  const suffix = parseHouseholdCodeSuffix(householdCode)
+  return suffix === null ? currentMax : Math.max(currentMax, suffix)
+}
+
+export async function getLocalHouseholdCodeFloor(
+  ownerUserId: string,
+  wardId: string,
+): Promise<number> {
+  let max = (await offlineDb.householdCounters.get(`${ownerUserId}:${wardId}`))?.lastValue ?? 0
+
+  const enrollments = await offlineDb.enrollments.where('ownerUserId').equals(ownerUserId).toArray()
+  for (const record of enrollments) {
+    if (record.form.wardId === wardId) {
+      max = considerHouseholdCodeSuffix(record.householdCode, max)
+    }
+  }
+
+  const draft = await offlineDb.householdDrafts.get(ownerUserId)
+  if (draft?.wardId === wardId) {
+    max = considerHouseholdCodeSuffix(draft.householdCode, max)
+  }
+
+  const households = await offlineDb.households.where('ownerUserId').equals(ownerUserId).toArray()
+  for (const household of households) {
+    if (household.wardId === wardId) {
+      max = considerHouseholdCodeSuffix(household.householdCode, max)
+    }
+  }
+
+  return max
+}
+
+export async function applyHouseholdCodeCounters(
+  ownerUserId: string,
+  counters: HouseholdCodeCounterApi[],
+) {
+  if (counters.length === 0) return
+
+  const resolved = await Promise.all(counters.map(async (counter) => ({
+    wardId: counter.wardId,
+    nextValue: Math.max(
+      await getLocalHouseholdCodeFloor(ownerUserId, counter.wardId),
+      counter.lastSuffix ? Number.parseInt(counter.lastSuffix, 10) : 0,
+    ),
+  })))
+
+  await offlineDb.transaction('rw', offlineDb.householdCounters, async () => {
+    for (const { wardId, nextValue } of resolved) {
+      if (nextValue <= 0) continue
+      await offlineDb.householdCounters.put({
+        key: `${ownerUserId}:${wardId}`,
+        ownerUserId,
+        wardId,
+        lastValue: nextValue,
+      })
+    }
+  })
+}
 
 export async function allocateHouseholdCode(ownerUserId: string, ward: ReferenceWard) {
   const key = `${ownerUserId}:${ward.id}`

@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { offlineDb } from '@/lib/offline-db'
 
 import type { EnrollmentFormValues, ReferenceFacility, ReferenceWard } from '../types'
-import { EMPTY_ENROLLMENT_FORM, getEnrollmentHomeSummary, getResidenceLgas, isValidNin, isValidPhoneNumber, normalizeEnrollmentForm, normalizeNin, normalizePhoneNumber, resolveHealthFacilityId, resolveWardId } from '../utils'
+import { EMPTY_ENROLLMENT_FORM, getEnrollmentGeographyAccess, getEnrollmentHomeSummary, getResidenceLgas, getResidenceWardsForForm, isValidNin, isValidPhoneNumber, normalizeEnrollmentForm, normalizeNin, normalizePhoneNumber, resolveHealthFacilityId, resolveWardId } from '../utils'
 import {
   removeSyncedEnrollments,
   replaceReferenceData,
@@ -114,6 +114,30 @@ describe('offline enrollment storage', () => {
     expect(resolveHealthFacilityId(wardId, '', [first, second])).toBe('')
     expect(resolveHealthFacilityId(wardId, 'second', [first, second])).toBe('second')
     expect(resolveHealthFacilityId(wardId, 'first', [facility('first', 'inactive')])).toBe('')
+  })
+
+  it('scopes enrollment geography to assigned wards or all LGAs when unrestricted', () => {
+    const ward = (id: string, lga: string): ReferenceWard => ({
+      key: id, ownerUserId: owner, id, name: id, code: `${lga.slice(0, 3).toUpperCase()}-${id.slice(0, 3).toUpperCase()}`, state: 'Plateau', lga, status: 'active', createdAt: '', updatedAt: '',
+    })
+    const first = ward('first', 'Jos North')
+    const second = ward('second', 'Jos North')
+    const third = ward('third', 'Riyom')
+
+    const unrestricted = getEnrollmentGeographyAccess([], [first, second, third])
+    expect(unrestricted.lockLga).toBe(false)
+    expect(unrestricted.lockWard).toBe(false)
+    expect(unrestricted.lgas).toEqual(['Jos North', 'Riyom'])
+    expect(getResidenceWardsForForm(unrestricted, 'Riyom')).toEqual([third])
+
+    const singleAssignment = getEnrollmentGeographyAccess([{ id: 'third', lga: 'Riyom' }], [first, second, third])
+    expect(singleAssignment).toMatchObject({ fixedLga: 'Riyom', lockLga: true, lockWard: true, selectableWards: [third] })
+
+    const multiAssignment = getEnrollmentGeographyAccess(
+      [{ id: 'first', lga: 'Jos North' }, { id: 'second', lga: 'Jos North' }],
+      [first, second, third],
+    )
+    expect(multiAssignment).toMatchObject({ fixedLga: 'Jos North', lockLga: true, lockWard: false, selectableWards: [first, second] })
   })
 
   it('derives LGAs from active accessible wards and selects only an unambiguous ward', () => {
