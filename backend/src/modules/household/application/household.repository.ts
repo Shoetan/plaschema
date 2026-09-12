@@ -50,4 +50,6 @@ export interface HouseholdRepository {
   createMemberEnrollment(input: CreateHouseholdMemberInput): Promise<Enrollment>;
   findDetail(id: string): Promise<HouseholdDetail | null>;
   list(query: ListHouseholdsQuery): Promise<PaginatedHouseholds>;
+  findWardIdsWithHouseholds(): Promise<string[]>;
+  getHighestCodeSuffixByWardIds(wardIds: string[]): Promise<Map<string, number>>;
 }

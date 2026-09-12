@@ -212,6 +212,24 @@ export class HouseholdMemberSummaryDto {
   status!: string;
 }
 
+export class HouseholdCodeCounterDto {
+  @ApiProperty({ format: 'uuid' })
+  wardId!: string;
+
+  @ApiProperty({
+    nullable: true,
+    example: '001',
+    description:
+      'Highest household code suffix for the ward, or null when no households exist yet',
+  })
+  lastSuffix!: string | null;
+}
+
+export class HouseholdCodeCountersResponseDto {
+  @ApiProperty({ type: HouseholdCodeCounterDto, isArray: true })
+  data!: HouseholdCodeCounterDto[];
+}
+
 export class HouseholdDetailResponseDto {
   @ApiProperty()
   household!: {

@@ -5,6 +5,7 @@ import { HealthFacilityModule } from '../health-facility/health-facility.module'
 import { IdentityModule } from '../identity/identity.module';
 import { WardModule } from '../ward/ward.module';
 import { CreateHouseholdEnrollmentUseCase } from './application/create-household-enrollment.use-case';
+import { GetHouseholdCodeCountersUseCase } from './application/get-household-code-counters.use-case';
 import { GetHouseholdUseCase } from './application/get-household.use-case';
 import { ListHouseholdsUseCase } from './application/list-households.use-case';
 import { HOUSEHOLD_REPOSITORY } from './application/household.repository';
@@ -28,6 +29,7 @@ import { HouseholdEnrollmentController } from './presentation/household-enrollme
     },
     CreateHouseholdEnrollmentUseCase,
     ListHouseholdsUseCase,
+    GetHouseholdCodeCountersUseCase,
     GetHouseholdUseCase,
   ],
 })
