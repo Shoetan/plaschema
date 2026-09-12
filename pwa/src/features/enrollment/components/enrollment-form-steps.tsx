@@ -71,8 +71,49 @@ export function PersonalStep({ form, errors, update, handleFile, clearFile }: En
   return <><FilePicker label="Passport photograph" name="passport" value={form.passportName} error={errors.passportFileId} accept="image/jpeg,image/png,image/webp" capture="user" icon={<Camera size={26} />} onChange={(event) => void handleFile('passport', event)} onClear={() => void clearFile('passport')} /><Field label="Beneficiary category" required error={errors.category}><select className="field" value={form.category} onChange={(e) => update('category', e.target.value)}><option value="">Select category</option>{BENEFICIARY_CATEGORIES.map((value) => <option key={value}>{value}</option>)}</select></Field><div className="grid grid-cols-3 gap-3"><Field label="Title" required error={errors.title}><select className="field" value={form.title} onChange={(e) => update('title', e.target.value)}><option value="">Select</option>{titleOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><div className="col-span-2"><Field label="First name" required error={errors.firstName}><input className="field" value={form.firstName} onChange={(e) => update('firstName', e.target.value)} /></Field></div></div><Field label="Middle name"><input className="field" value={form.middleName} onChange={(e) => update('middleName', e.target.value)} /></Field><Field label="Surname" required error={errors.lastName}><input className="field" value={form.lastName} onChange={(e) => update('lastName', e.target.value)} /></Field><Field label="Gender" required error={errors.gender}><div className="grid grid-cols-2 gap-3">{([['male', 'Male'], ['female', 'Female']] as const).map(([value, label]) => <button type="button" key={value} className={form.gender === value ? 'primary-button' : 'secondary-button'} onClick={() => update('gender', value)}>{label}</button>)}</div></Field><Field label="Date of birth" required error={errors.dateOfBirth}><input type="date" className="field" max={new Date().toISOString().slice(0, 10)} value={form.dateOfBirth} onChange={(e) => update('dateOfBirth', e.target.value)} /></Field><Field label="Marital status" required error={errors.maritalStatus}><select className="field" value={form.maritalStatus} onChange={(e) => update('maritalStatus', e.target.value)}><option value="">Select</option>{maritalOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><div className="grid grid-cols-2 gap-3"><Field label="Blood group" error={errors.bloodGroup}><select className="field" value={form.bloodGroup} onChange={(e) => update('bloodGroup', e.target.value)}><option value="">Optional</option>{bloodOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><Field label="Genotype" error={errors.genotype}><select className="field" value={form.genotype} onChange={(e) => update('genotype', e.target.value)}><option value="">Optional</option>{genotypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field></div></>
 }
 
-export function ResidenceStep({ form, errors, lgas, wards, update, lockWard, lockAddress }: EnrollmentStepProps & { lgas: string[]; wards: ReferenceWard[]; lockWard?: boolean; lockAddress?: boolean }) {
-  return <><Field label="State of residence" required><input className="field bg-neutral-100 text-neutral-600" readOnly value={PLATEAU_STATE} /></Field><Field label="Local government area (LGA)" required error={errors.lgaOfResidence}><select className="field" disabled={lockWard} value={form.lgaOfResidence} onChange={(e) => update('lgaOfResidence', e.target.value)}><option value="">Select LGA</option>{lgas.map((lga) => <option key={lga} value={lga}>{lga}</option>)}</select></Field><Field label="Ward" required error={errors.wardId}><select className="field" disabled={lockWard || !form.lgaOfResidence} value={form.wardId} onChange={(e) => update('wardId', e.target.value)}><option value="">{form.lgaOfResidence ? 'Select assigned ward' : 'Select an LGA first'}</option>{wards.map((ward) => <option key={ward.id} value={ward.id}>{ward.name}</option>)}</select></Field><Field label="Residential address" required error={errors.residentialAddress}><textarea className={`field min-h-28 ${lockAddress ? 'bg-neutral-100 text-neutral-600' : ''}`} readOnly={lockAddress} value={form.residentialAddress} onChange={(e) => update('residentialAddress', e.target.value)} /></Field></>
+export function ResidenceStep({
+  form,
+  errors,
+  lgas,
+  wards,
+  update,
+  lockLga,
+  lockWard,
+  lockAddress,
+}: EnrollmentStepProps & {
+  lgas: string[]
+  wards: ReferenceWard[]
+  lockLga?: boolean
+  lockWard?: boolean
+  lockAddress?: boolean
+}) {
+  const displayLga = form.lgaOfResidence || lgas[0] || ''
+  const selectedWard = wards.find((ward) => ward.id === form.wardId)
+
+  return <>
+    <Field label="State of residence" required>
+      <input className="field bg-neutral-100 text-neutral-600" readOnly value={PLATEAU_STATE} />
+    </Field>
+    <Field label="Local government area (LGA)" required error={errors.lgaOfResidence}>
+      {lockLga
+        ? <input className="field bg-neutral-100 text-neutral-600" readOnly value={displayLga} />
+        : <select className="field" value={form.lgaOfResidence} onChange={(e) => update('lgaOfResidence', e.target.value)}>
+            <option value="">Select LGA</option>
+            {lgas.map((lga) => <option key={lga} value={lga}>{lga}</option>)}
+          </select>}
+    </Field>
+    <Field label="Ward" required error={errors.wardId}>
+      {lockWard
+        ? <input className="field bg-neutral-100 text-neutral-600" readOnly value={selectedWard?.name ?? ''} />
+        : <select className="field" disabled={!lockLga && !form.lgaOfResidence} value={form.wardId} onChange={(e) => update('wardId', e.target.value)}>
+            <option value="">{form.lgaOfResidence || lockLga ? 'Select ward' : 'Select an LGA first'}</option>
+            {wards.map((ward) => <option key={ward.id} value={ward.id}>{ward.name}</option>)}
+          </select>}
+    </Field>
+    <Field label="Residential address" required error={errors.residentialAddress}>
+      <textarea className={`field min-h-28 ${lockAddress ? 'bg-neutral-100 text-neutral-600' : ''}`} readOnly={lockAddress} value={form.residentialAddress} onChange={(e) => update('residentialAddress', e.target.value)} />
+    </Field>
+  </>
 }
 
 export function ContactStep({ form, errors, update }: EnrollmentStepProps) {

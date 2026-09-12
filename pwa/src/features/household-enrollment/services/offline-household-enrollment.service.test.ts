@@ -3,7 +3,11 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { EMPTY_ENROLLMENT_FORM } from '@/features/enrollment/utils'
 import { offlineDb } from '@/lib/offline-db'
 
-import { createHouseholdMemberDraft, queueHouseholdDraft } from './offline-household-enrollment.service'
+import {
+  applyHouseholdCodeCounters,
+  createHouseholdMemberDraft,
+  queueHouseholdDraft,
+} from './offline-household-enrollment.service'
 
 const owner = '01900000-0000-7000-8000-000000000001'
 
@@ -98,5 +102,35 @@ describe('offline household enrollment storage', () => {
     expect(await offlineDb.householdDrafts.get(owner)).toBeUndefined()
     expect(await offlineDb.enrollments.count()).toBe(2)
     expect(await offlineDb.households.count()).toBe(1)
+  })
+
+  it('restores server counters without lowering pending local allocations', async () => {
+    const wardId = '01900000-0000-7000-8000-000000000010'
+    await offlineDb.householdCounters.put({
+      key: `${owner}:${wardId}`,
+      ownerUserId: owner,
+      wardId,
+      lastValue: 5,
+    })
+
+    await applyHouseholdCodeCounters(owner, [{ wardId, lastSuffix: '003' }])
+
+    expect(await offlineDb.householdCounters.get(`${owner}:${wardId}`)).toMatchObject({
+      lastValue: 5,
+    })
+  })
+
+  it('raises local counters from server suffixes when cache was lost', async () => {
+    const wardId = '01900000-0000-7000-8000-000000000010'
+
+    await applyHouseholdCodeCounters(owner, [
+      { wardId, lastSuffix: '012' },
+      { wardId: '01900000-0000-7000-8000-000000000011', lastSuffix: null },
+    ])
+
+    expect(await offlineDb.householdCounters.get(`${owner}:${wardId}`)).toMatchObject({
+      lastValue: 12,
+    })
+    expect(await offlineDb.householdCounters.get(`${owner}:01900000-0000-7000-8000-000000000011`)).toBeUndefined()
   })
 })

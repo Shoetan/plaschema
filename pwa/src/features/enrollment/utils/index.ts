@@ -2,8 +2,10 @@ export {
   BENEFICIARY_CATEGORIES,
   EMPTY_ENROLLMENT_FORM,
   getActiveWardFacilities,
+  getEnrollmentGeographyAccess,
   getOfficerLga,
   getResidenceLgas,
+  getResidenceWardsForForm,
   isWardFacilityLocked,
   hasDraftProgress,
   isValidNin,
@@ -16,3 +18,4 @@ export {
   resolveWardId,
 } from './form'
 export { getEnrollmentHomeSummary } from './form'
+export type { EnrollmentGeographyAccess } from './form'

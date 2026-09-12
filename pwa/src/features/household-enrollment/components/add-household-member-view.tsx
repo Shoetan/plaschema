@@ -18,7 +18,7 @@ import {
 import { useCachedHouseholds, useEnrollmentReferences } from '@/features/enrollment/hooks'
 import { saveEnrollmentFile, removeEnrollmentFile } from '@/features/enrollment/services'
 import type { HouseholdDraftMember } from '@/features/enrollment/types'
-import { getOfficerLga, isWardFacilityLocked, resolveHealthFacilityId } from '@/features/enrollment/utils'
+import { isWardFacilityLocked, resolveHealthFacilityId } from '@/features/enrollment/utils'
 import { hasStorageCapacity, requestPersistentStorage } from '@/lib/offline-db'
 
 import {
@@ -43,11 +43,13 @@ export function AddHouseholdMemberView() {
   useEffect(() => { void requestPersistentStorage() }, [])
   useEffect(() => {
     if (!household || member) return
+    const ward = wards.find((item) => item.id === household.wardId)
     const draft = createHouseholdMemberDraft(household.residentialAddress ?? '', household.wardId)
-    draft.form.lgaOfResidence = getOfficerLga(user.assignedWards, wards)
+    draft.form.lgaOfResidence = ward?.lga ?? ''
+    draft.form.wardId = household.wardId
     draft.form.healthFacilityId = resolveHealthFacilityId(household.wardId, draft.form.healthFacilityId, facilities)
     setMember(draft)
-  }, [facilities, household, member, user.assignedWards, wards])
+  }, [facilities, household, member, wards])
 
   useEffect(() => {
     if (!household || !member || facilities.length === 0) return
@@ -58,7 +60,6 @@ export function AddHouseholdMemberView() {
 
   const activeWards = useMemo(() => wards.filter((ward) => ward.status === 'active').sort((a, b) => a.name.localeCompare(b.name)), [wards])
   const selectedWard = activeWards.find((ward) => ward.id === household?.wardId)
-  const officerLga = useMemo(() => getOfficerLga(user.assignedWards, activeWards), [activeWards, user.assignedWards])
   const activeFacilities = useMemo(
     () => facilities.filter((facility) => facility.status === 'active' && facility.wardId === household?.wardId),
     [facilities, household?.wardId],
@@ -68,7 +69,7 @@ export function AddHouseholdMemberView() {
   function update(name: keyof HouseholdDraftMember['form'], value: string) {
     if (!member) return
     const nextForm = { ...member.form, [name]: value }
-    nextForm.lgaOfResidence = officerLga || selectedWard?.lga || nextForm.lgaOfResidence
+    nextForm.lgaOfResidence = selectedWard?.lga || nextForm.lgaOfResidence
     setMember({ ...member, form: nextForm })
     setErrors((current) => ({ ...current, [name]: '' }))
   }
@@ -163,7 +164,7 @@ export function AddHouseholdMemberView() {
     <div className={`min-h-0 flex-1 overflow-y-auto px-4 py-5 ${step === 5 ? 'flex flex-col' : 'space-y-4'}`}>
       {step !== 5 && <div className="card p-4 text-sm"><p><strong>Household:</strong> {household.householdCode}</p>{household.headName && <p className="mt-1"><strong>Head:</strong> {household.headName}</p>}</div>}
       {step === 0 && <PersonalStep {...stepProps} />}
-      {step === 1 && <ResidenceStep {...stepProps} lgas={officerLga ? [officerLga] : []} wards={activeWards.filter((ward) => ward.id === household.wardId)} lockWard lockAddress />}
+      {step === 1 && selectedWard && <ResidenceStep {...stepProps} lgas={[selectedWard.lga]} wards={[selectedWard]} lockLga lockWard lockAddress />}
       {step === 2 && <ContactStep {...stepProps} />}
       {step === 3 && <BackgroundStep {...stepProps} />}
       {step === 4 && !facilityLocked && <FacilityStep {...stepProps} facilities={activeFacilities} ward={selectedWard} lockFacility={facilityLocked} />}

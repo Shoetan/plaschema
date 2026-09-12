@@ -18,7 +18,15 @@ import {
 import { useEnrollmentReferences, useHouseholdDraft, useReferenceSync } from '@/features/enrollment/hooks'
 import { saveEnrollmentFile, removeEnrollmentFile } from '@/features/enrollment/services'
 import type { HouseholdDraftMember, HouseholdDraftRecord } from '@/features/enrollment/types'
-import { EMPTY_ENROLLMENT_FORM, getOfficerLga, isWardFacilityLocked, normalizeEnrollmentForm, resolveHealthFacilityId } from '@/features/enrollment/utils'
+import {
+  EMPTY_ENROLLMENT_FORM,
+  getEnrollmentGeographyAccess,
+  getResidenceWardsForForm,
+  isWardFacilityLocked,
+  normalizeEnrollmentForm,
+  resolveHealthFacilityId,
+  resolveWardId,
+} from '@/features/enrollment/utils'
 import { hasStorageCapacity, requestPersistentStorage } from '@/lib/offline-db'
 
 import {
@@ -84,10 +92,9 @@ export function HouseholdEnrollmentView() {
   }, [draft?.wardId, facilities])
 
   const activeWards = useMemo(() => wards.filter((ward) => ward.status === 'active').sort((a, b) => a.name.localeCompare(b.name)), [wards])
-  const officerLga = useMemo(() => getOfficerLga(user.assignedWards, activeWards), [activeWards, user.assignedWards])
-  const setupWards = useMemo(
-    () => (officerLga ? activeWards.filter((ward) => ward.lga === officerLga) : activeWards),
-    [activeWards, officerLga],
+  const geography = useMemo(
+    () => getEnrollmentGeographyAccess(user.assignedWards, activeWards),
+    [activeWards, user.assignedWards],
   )
   const selectedWard = activeWards.find((ward) => ward.id === draft?.wardId)
   const activeMember = draft?.phase === 'head' ? draft.head : draft?.members[draft.activeMemberIndex]
@@ -118,8 +125,16 @@ export function HouseholdEnrollmentView() {
     setDraft((current) => {
       if (!current || !member) return current
       const nextForm = { ...member.form, [name]: value }
-      nextForm.lgaOfResidence = officerLga || selectedWard?.lga || nextForm.lgaOfResidence
-      if (name === 'wardId') nextForm.healthFacilityId = resolveHealthFacilityId(value, '', facilities)
+      if (name === 'lgaOfResidence') {
+        nextForm.wardId = resolveWardId(value, nextForm.wardId, geography.selectableWards)
+        nextForm.healthFacilityId = resolveHealthFacilityId(nextForm.wardId, '', facilities)
+      }
+      if (name === 'wardId') {
+        const ward = geography.selectableWards.find((item) => item.id === value)
+        if (ward) nextForm.lgaOfResidence = ward.lga
+        nextForm.healthFacilityId = resolveHealthFacilityId(value, '', facilities)
+      }
+      nextForm.lgaOfResidence = selectedWard?.lga || nextForm.lgaOfResidence
       if (current.phase === 'head' && current.head) {
         const next = { ...current, head: { ...current.head, form: nextForm } }
         return name === 'residentialAddress' ? applySharedAddress(next, value) : next
@@ -182,8 +197,8 @@ export function HouseholdEnrollmentView() {
   async function startHousehold(wardId: string) {
     const ward = activeWards.find((item) => item.id === wardId)
     if (!ward?.code) return
-    const lga = officerLga || ward.lga
     const created = await createHouseholdDraft(user.id, ward, '')
+    const lga = ward.lga
     const head = withWardDefaults(createHouseholdMemberDraft('', ward.id), ward.id, lga)
     setDraft({ ...created, head, phase: 'head', headStep: 0 })
   }
@@ -312,7 +327,7 @@ export function HouseholdEnrollmentView() {
   }
 
   if (!draft) {
-    return <HouseholdSetupForm wards={setupWards} officerLga={officerLga} onStart={(wardId) => { void startHousehold(wardId); setRestoreResolved(true) }} onBack={() => navigate(-1)} />
+    return <HouseholdSetupForm geography={geography} onStart={(wardId) => { void startHousehold(wardId); setRestoreResolved(true) }} onBack={() => navigate(-1)} />
   }
 
   if (draft.phase === 'setup') {
@@ -324,7 +339,7 @@ export function HouseholdEnrollmentView() {
       const member = withWardDefaults(
         createHouseholdMemberDraft(sharedAddress, draft.wardId),
         draft.wardId,
-        officerLga || selectedWard?.lga || '',
+        selectedWard?.lga || '',
       )
       setDraft({ ...draft, members: [...draft.members, member], activeMemberIndex: draft.members.length, memberStep: 0, phase: 'members' })
     }}><Plus size={18} />Add household member</button><button className="secondary-button w-full" onClick={() => setDraft({ ...draft, phase: 'review' })}>Review household</button></div></div>
@@ -387,7 +402,7 @@ export function HouseholdEnrollmentView() {
     />
     <div className={`min-h-0 flex-1 overflow-y-auto px-4 py-5 ${step === 5 ? 'flex' : 'space-y-4'}`}>
       {step === 0 && <PersonalStep {...stepProps} />}
-      {step === 1 && <ResidenceStep {...stepProps} lgas={officerLga ? [officerLga] : []} wards={activeWards.filter((ward) => ward.id === draft.wardId)} lockWard lockAddress={!isHead} />}
+      {step === 1 && selectedWard && <ResidenceStep {...stepProps} lgas={[selectedWard.lga]} wards={[selectedWard]} lockLga lockWard lockAddress={!isHead} />}
       {step === 2 && <ContactStep {...stepProps} />}
       {step === 3 && <BackgroundStep {...stepProps} />}
       {step === 4 && !facilityLocked && <FacilityStep {...stepProps} facilities={activeFacilities} ward={selectedWard} />}
@@ -400,7 +415,50 @@ export function HouseholdEnrollmentView() {
   </div>
 }
 
-function HouseholdSetupForm({ wards, officerLga, onStart, onBack }: { wards: Array<{ id: string; name: string; lga: string; code: string }>; officerLga: string; onStart: (wardId: string) => void; onBack: () => void }) {
-  const [wardId, setWardId] = useState(wards.length === 1 ? wards[0].id : '')
-  return <div className="space-y-4 px-4 py-6"><button className="secondary-button !min-h-9 !rounded-full !p-2" onClick={onBack}><ArrowLeft size={18} /></button><h1 className="text-xl font-bold">New household enrollment</h1>{officerLga && <label className="flex flex-col gap-1 text-sm font-bold">Local government area (LGA)<input className="field bg-neutral-100 text-neutral-600" readOnly value={officerLga} /></label>}<label className="flex flex-col gap-1 text-sm font-bold">Ward<select className="field" value={wardId} onChange={(e) => setWardId(e.target.value)}><option value="">Select ward</option>{wards.map((ward) => <option key={ward.id} value={ward.id}>{ward.name}</option>)}</select></label><button className="primary-button w-full" disabled={!wardId} onClick={() => onStart(wardId)}>Continue to household head</button></div>
+function HouseholdSetupForm({
+  geography,
+  onStart,
+  onBack,
+}: {
+  geography: ReturnType<typeof getEnrollmentGeographyAccess>
+  onStart: (wardId: string) => void
+  onBack: () => void
+}) {
+  const [lga, setLga] = useState(geography.lockLga ? geography.fixedLga : '')
+  const setupWards = useMemo(
+    () => getResidenceWardsForForm(geography, lga),
+    [geography, lga],
+  )
+  const [wardId, setWardId] = useState(
+    geography.lockWard ? geography.selectableWards[0]?.id ?? '' : '',
+  )
+
+  useEffect(() => {
+    if (geography.lockWard) return
+    setWardId((current) => resolveWardId(lga, current, setupWards))
+  }, [geography.lockWard, lga, setupWards])
+
+  return <div className="space-y-4 px-4 py-6">
+    <button className="secondary-button !min-h-9 !rounded-full !p-2" onClick={onBack}><ArrowLeft size={18} /></button>
+    <h1 className="text-xl font-bold">New household enrollment</h1>
+    <label className="flex flex-col gap-1 text-sm font-bold">
+      Local government area (LGA)
+      {geography.lockLga
+        ? <input className="field bg-neutral-100 text-neutral-600" readOnly value={geography.fixedLga} />
+        : <select className="field" value={lga} onChange={(event) => setLga(event.target.value)}>
+            <option value="">Select LGA</option>
+            {geography.lgas.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>}
+    </label>
+    <label className="flex flex-col gap-1 text-sm font-bold">
+      Ward
+      {geography.lockWard
+        ? <input className="field bg-neutral-100 text-neutral-600" readOnly value={setupWards[0]?.name ?? ''} />
+        : <select className="field" disabled={!geography.lockLga && !lga} value={wardId} onChange={(event) => setWardId(event.target.value)}>
+            <option value="">{lga || geography.lockLga ? 'Select ward' : 'Select an LGA first'}</option>
+            {setupWards.map((ward) => <option key={ward.id} value={ward.id}>{ward.name}</option>)}
+          </select>}
+    </label>
+    <button className="primary-button w-full" disabled={!wardId} onClick={() => onStart(wardId)}>Continue to household head</button>
+  </div>
 }

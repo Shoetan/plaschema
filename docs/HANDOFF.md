@@ -103,7 +103,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Home Pending is device-local. Today and Total combine own `/users/:id/detail` statistics with unsent device records without double-counting retained synced rows; dates use the Africa/Lagos calendar day.
 - People and Sync display only records created on the current device. The PWA does not use `GET /enrollments` as a server-backed beneficiary list.
 - Enrollment State of Residence is fixed to `PLATEAU`. Beneficiary phone is required at exactly 11 digits; NIN is required and must contain exactly 10 digits.
-- The Residence step orders geography as State, LGA and Ward. Its offline LGA selector is derived from the worker's accessible active wards, and selecting an LGA filters the ward selector. A sole matching ward is selected automatically.
+- The Residence step orders geography as State, LGA and Ward. Assigned workers get a fixed LGA from their ward assignment; ward is selectable when multiple assigned wards share that LGA and fixed when only one ward is assigned. Unrestricted workers choose both LGA and ward from all cached active wards, with the ward list filtered by the selected LGA.
 - Selecting a ward automatically selects its health facility only when exactly one active facility is available. Multiple facilities require an explicit worker choice, while no active facility blocks the facility step with guidance.
 - Next-of-kin name and relationship remain visible but optional. Emergency phone is no longer collected or submitted by the PWA, including from legacy device records.
 - Profile ward access shows unrestricted workers as **All wards**, one assigned ward directly, and multiple assigned wards in an expandable list. An unrestricted worker still selects one specific ward for each enrollment.
@@ -112,7 +112,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - Household members reuse the six-step enrollment fields with the ward locked to the household. After each member the wizard returns to a member hub so more members can be added before review.
 - Late member addition starts from `/households`, lists households cached on the device, and queues one member at a time. Members sync only after the household head has reached the server.
 - Household sync uses `POST /household-enrollments` only. Pending household records sync head-first; members retry with `HOUSEHOLD_HEAD_NOT_SYNCED` until the head acknowledgement propagates `householdId` to sibling records. Member insurance IDs (`{baseEnrollmentId}-{NN}`) and `memberSequence` are assigned server-side during create. Legacy standalone `POST /enrollments` create was removed.
-- IndexedDB schema v5 drops legacy single-enrollment `drafts`; v4 added `householdDrafts`, `households`, and `householdCounters`. Ward reference rows include `code` for household-code generation.
+- IndexedDB schema v5 drops legacy single-enrollment `drafts`; v4 added `householdDrafts`, `households`, and `householdCounters`. Ward reference rows include `code` for household-code generation. When online, the coordinator refreshes per-ward household code counters from `GET /api/households/code-counters` (also during ward/facility reference refresh) without lowering counters already allocated locally.
 
 ### Backend contracts for PWA sync (ready)
 

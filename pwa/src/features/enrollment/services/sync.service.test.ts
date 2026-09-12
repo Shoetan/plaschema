@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   createHouseholdEnrollment: vi.fn(),
   downloadFacilities: vi.fn(),
   downloadWards: vi.fn(),
+  fetchHouseholdCodeCounters: vi.fn(),
   presignEnrollmentUpload: vi.fn(),
   reportDeviceSync: vi.fn(),
   uploadEnrollmentFile: vi.fn(),
@@ -17,6 +18,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/features/household-enrollment/services/household-enrollment.service', () => ({
   createHouseholdEnrollment: mocks.createHouseholdEnrollment,
+  fetchHouseholdCodeCounters: mocks.fetchHouseholdCodeCounters,
 }))
 
 vi.mock('./enrollment.service', () => mocks)
@@ -105,6 +107,7 @@ describe('enrollment synchronization', () => {
       method: 'PUT',
     }))
     mocks.uploadEnrollmentFile.mockResolvedValue(undefined)
+    mocks.fetchHouseholdCodeCounters.mockResolvedValue([])
     mocks.reportDeviceSync.mockResolvedValue({
       id: owner,
       name: 'Worker',

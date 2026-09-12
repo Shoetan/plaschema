@@ -28,6 +28,11 @@ export interface HouseholdListResponse {
   }
 }
 
+export interface HouseholdCodeCounterApi {
+  wardId: string
+  lastSuffix: string | null
+}
+
 /** POST /household-enrollments */
 export async function createHouseholdEnrollment(payload: CreateHouseholdEnrollmentPayload) {
   const response = await _post<ApiResponse<CreateHouseholdEnrollmentResponse>, CreateHouseholdEnrollmentPayload>(
@@ -41,6 +46,12 @@ export async function createHouseholdEnrollment(payload: CreateHouseholdEnrollme
 export async function listHouseholds(params?: { wardId?: string; search?: string; cursor?: string; limit?: number }) {
   const response = await _get<ApiResponse<HouseholdListItemApi[], HouseholdListResponse['meta']>>('/households', params)
   return response.data
+}
+
+/** GET /households/code-counters */
+export async function fetchHouseholdCodeCounters(signal?: AbortSignal) {
+  const response = await _get<ApiResponse<HouseholdCodeCounterApi[]>>('/households/code-counters', undefined, { signal })
+  return response.data.data
 }
 
 export function toCachedHousehold(
