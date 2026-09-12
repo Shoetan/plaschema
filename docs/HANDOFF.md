@@ -122,6 +122,7 @@ This is a pnpm workspace. The root scripts manage all three apps.
 - No batch enrollment create; PWA syncs pending records one-by-one.
 - `POST /api/household-enrollments` creates a household head or member (idempotent via `idempotencyId`). Head requests include `household.householdLocalId`, `household.householdCode`, `household.role=head`, and optional `sharedResidentialAddress`. Member requests include `household.role=member` plus `householdId` when known. Returns the slim acknowledgement plus `householdId`, `householdRole`, `memberSequence`, and `householdCode`. `409 HOUSEHOLD_HEAD_NOT_SYNCED` when a member arrives before the head is persisted.
 - `GET /api/households` lists households for the authenticated field worker (cursor pagination; optional `wardId` and `search`). `GET /api/households/:id` returns household detail with head and members.
+- `GET /api/households/code-counters` returns the highest household code suffix per ward for the authenticated enrollment officer (`lastSuffix` only, e.g. `001` rather than `BAR-TAF-001`). Assigned wards are always included (with `lastSuffix: null` when empty); officers with access to all wards receive counters for every ward that already has households.
 - Ward records expose a unique `code` derived as `<LGA_3>-<NAME_3>` with numeric suffixes on collision. Ward stream NDJSON includes `code`.
 
 ## PWA configuration

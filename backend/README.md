@@ -87,6 +87,7 @@ Clean Architecture only (no DDD / bounded contexts). Feature modules:
 - `POST /api/enrollments/files/dev-upload` — **dev/test only**: multipart upload that presigns + PUTs to Railway (returns `objectKey`)
 - `POST /api/household-enrollments` — create household head or member (enrollment body plus `household` context). Head gets a global year counter ID; members receive `{baseEnrollmentId}-{NN}` with server-assigned `memberSequence`. Idempotent via `idempotencyId`; `409 HOUSEHOLD_HEAD_NOT_SYNCED` when members arrive before the head.
 - `GET /api/households` — cursor list of households for field workers (filters: `wardId`, `search`, `householdCode`)
+- `GET /api/households/code-counters` — highest household code suffix per assigned ward for offline counter sync (`field_worker` only; returns `lastSuffix` such as `001`)
 - `GET /api/households/:id` — household detail with head and member summaries
 - `GET /api/enrollments` — cursor list for beneficiaries / ID-card page (`enrollmentId`, name, category, lga, facility, ward, status, `hasPrinted`, `printCount`, `printedAt`). Filters: `category`, `printedStatus` (`all`|`printed`|`not_printed`), `lga`, `wardId`, `healthFacilityId`, `householdId`, `enrolledByUserId` (admin), `beneficiaryName`, `enrollmentId`, `createdFrom`/`createdTo`, `status`, `search`, `enrolledByMe`, `ageMin`/`ageMax`
 - `GET /api/enrollments/:id/detail` — beneficiary detail page payload (`overview` personal details + unified `activityLog` for sync/activity tabs)

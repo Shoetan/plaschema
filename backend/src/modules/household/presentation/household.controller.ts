@@ -10,9 +10,11 @@ import { CurrentUser } from '../../../platform/auth/current-user.decorator';
 import type { AuthenticatedUser } from '../../../platform/auth/current-user.decorator';
 import { CursorPaginationMetaDto } from '../../../platform/http/cursor-pagination.dto';
 import { UuidV7Pipe } from '../../../platform/http/uuid-v7.pipe';
+import { GetHouseholdCodeCountersUseCase } from '../application/get-household-code-counters.use-case';
 import { GetHouseholdUseCase } from '../application/get-household.use-case';
 import { ListHouseholdsUseCase } from '../application/list-households.use-case';
 import {
+  HouseholdCodeCountersResponseDto,
   HouseholdDetailResponseDto,
   HouseholdListItemDto,
   ListHouseholdsQueryDto,
@@ -24,6 +26,7 @@ import {
 export class HouseholdController {
   constructor(
     private readonly listHouseholds: ListHouseholdsUseCase,
+    private readonly getHouseholdCodeCounters: GetHouseholdCodeCountersUseCase,
     private readonly getHousehold: GetHouseholdUseCase,
   ) {}
 
@@ -45,6 +48,18 @@ export class HouseholdController {
         total: result.total,
       } satisfies CursorPaginationMetaDto,
     };
+  }
+
+  @Get('code-counters')
+  @Roles('field_worker')
+  @ApiOperation({
+    summary:
+      'Get the highest household code suffix per assigned ward for offline counter sync',
+  })
+  @ApiOkResponse({ type: HouseholdCodeCountersResponseDto })
+  async codeCounters(@CurrentUser() user: AuthenticatedUser) {
+    const data = await this.getHouseholdCodeCounters.execute(user);
+    return { data };
   }
 
   @Get(':id')

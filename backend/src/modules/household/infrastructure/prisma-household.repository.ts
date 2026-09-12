@@ -20,6 +20,7 @@ import type {
   HouseholdDetail,
   HouseholdListItem,
 } from '../domain/household';
+import { parseHouseholdCodeSuffix } from '../domain/household-code';
 
 const enrollmentInclude = {
   ward: { select: { id: true, name: true, lga: true } },
@@ -393,5 +394,42 @@ export class PrismaHouseholdRepository implements HouseholdRepository {
     }));
 
     return buildCursorPage(items, limit, total);
+  }
+
+  async findWardIdsWithHouseholds(): Promise<string[]> {
+    const rows = await this.prisma.household.findMany({
+      distinct: ['wardId'],
+      select: { wardId: true },
+      orderBy: { wardId: 'asc' },
+    });
+    return rows.map((row) => row.wardId);
+  }
+
+  async getHighestCodeSuffixByWardIds(
+    wardIds: string[],
+  ): Promise<Map<string, number>> {
+    if (wardIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.prisma.household.findMany({
+      where: { wardId: { in: wardIds } },
+      select: { wardId: true, householdCode: true },
+    });
+
+    const highestByWard = new Map<string, number>();
+    for (const row of rows) {
+      const suffix = parseHouseholdCodeSuffix(row.householdCode);
+      if (suffix === null) {
+        continue;
+      }
+
+      const current = highestByWard.get(row.wardId) ?? 0;
+      if (suffix > current) {
+        highestByWard.set(row.wardId, suffix);
+      }
+    }
+
+    return highestByWard;
   }
 }
