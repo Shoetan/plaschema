@@ -48,10 +48,25 @@ export async function listHouseholds(params?: { wardId?: string; search?: string
   return response.data
 }
 
+function unwrapHouseholdCodeCounters(payload: unknown): HouseholdCodeCounterApi[] {
+  if (Array.isArray(payload)) return payload
+  if (payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)) {
+    return (payload as { data: HouseholdCodeCounterApi[] }).data
+  }
+  return []
+}
+
 /** GET /households/code-counters */
-export async function fetchHouseholdCodeCounters(signal?: AbortSignal) {
-  const response = await _get<ApiResponse<HouseholdCodeCounterApi[]>>('/households/code-counters', undefined, { signal })
-  return response.data.data
+export async function fetchHouseholdCodeCounters(options?: { accessToken?: string; signal?: AbortSignal }) {
+  const accessToken = options?.accessToken
+  if (!accessToken) return []
+
+  const response = await _get<ApiResponse<unknown>>('/households/code-counters', undefined, {
+    signal: options?.signal,
+    skipSessionClearOn401: true,
+    accessToken,
+  })
+  return unwrapHouseholdCodeCounters(response.data.data)
 }
 
 export function toCachedHousehold(

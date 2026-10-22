@@ -13,9 +13,13 @@ export function OfflineEnrollmentCoordinator() {
   const queryClient = useQueryClient()
   const user = useAuthStore((state) => state.user)
   const status = useAuthStore((state) => state.status)
+  const accessToken = useAuthStore((state) => state.accessToken)
+  const validation = useAuthStore((state) => state.validation)
 
   useEffect(() => {
-    if (status !== 'authenticated' || !user || user.isPasswordChangeRequired || !navigator.onLine) return
+    if (status !== 'authenticated' || !accessToken || validation === null || !user || user.isPasswordChangeRequired || !navigator.onLine) {
+      return
+    }
     const wardIds = user.assignedWards.map((ward) => ward.id)
     const run = async (refreshReferences: boolean) => {
       if (refreshReferences) {
@@ -36,7 +40,7 @@ export function OfflineEnrollmentCoordinator() {
       window.removeEventListener('online', onOnline)
       window.clearInterval(interval)
     }
-  }, [queryClient, status, user])
+  }, [accessToken, queryClient, status, user, validation])
 
   return null
 }

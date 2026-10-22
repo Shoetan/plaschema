@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+import { setApiBearerToken } from '@/api/auth-header'
+
 import type { AuthStatus, FieldWorkerLoginResult, FieldWorkerUser, SessionNotice, SessionValidation } from '../types'
 import { isFieldWorkerUser, normalizeFieldWorkerUser } from '../utils'
 
@@ -61,6 +63,7 @@ function writeSession(session: StoredSession) {
 }
 
 const initial = readInitialSession()
+if (initial.session?.accessToken) setApiBearerToken(initial.session.accessToken)
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: initial.session?.accessToken ?? null,
@@ -70,6 +73,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   validation: null,
   notice: initial.expired ? 'expired' : null,
   setSession: (result) => {
+    setApiBearerToken(result.accessToken)
     const session = { ...result, user: normalizeFieldWorkerUser(result.user) }
     writeSession(session)
     set({ ...session, status: 'authenticated', validation: 'verified', notice: null })
@@ -103,9 +107,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       get().clearSession('logout')
       return
     }
+    setApiBearerToken(session.accessToken)
     set({ ...session, status: 'restoring', validation: null, notice: null })
   },
   clearSession: (reason = 'logout') => {
+    setApiBearerToken(null)
     localStorage.removeItem(PWA_SESSION_STORAGE_KEY)
     set({
       accessToken: null,
