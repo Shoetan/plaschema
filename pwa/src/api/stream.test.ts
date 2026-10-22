@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useAuthStore } from '@/features/auth/stores/auth.store'
 
+import { setApiBearerToken } from './auth-header'
 import { _getNdjson, _putExternal } from './stream'
 
 describe('stream transport', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    setApiBearerToken(null)
     useAuthStore.setState({ accessToken: 'access-token' })
   })
 
@@ -23,6 +25,19 @@ describe('stream transport', () => {
 
     await expect(_getNdjson<{ id: string }>('/wards/stream')).resolves.toEqual([{ id: 'one' }, { id: 'two' }])
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/wards/stream'), expect.objectContaining({ headers: { Authorization: 'Bearer access-token' } }))
+  })
+
+  it('uses the in-memory bearer mirror when the auth store token is not set yet', async () => {
+    useAuthStore.setState({ accessToken: null })
+    setApiBearerToken('mirrored-token')
+    const response = new Response('{"id":"one"}\n', { status: 200 })
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response)
+
+    await expect(_getNdjson<{ id: string }>('/wards/stream')).resolves.toEqual([{ id: 'one' }])
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/wards/stream'),
+      expect.objectContaining({ headers: { Authorization: 'Bearer mirrored-token' } }),
+    )
   })
 
   it('uploads a presigned file without leaking the API bearer token', async () => {

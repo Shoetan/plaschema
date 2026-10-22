@@ -1,4 +1,9 @@
+import { getApiBearerToken } from './auth-header'
 import { useAuthStore } from '@/features/auth/stores/auth.store'
+
+function resolveAccessToken(explicit?: string): string | null {
+  return explicit ?? getApiBearerToken() ?? useAuthStore.getState().accessToken
+}
 
 function apiUrl(path: string, params?: Record<string, string | undefined>) {
   const base = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
@@ -7,10 +12,17 @@ function apiUrl(path: string, params?: Record<string, string | undefined>) {
   return `${base}${path}${query.size ? `?${query.toString()}` : ''}`
 }
 
-export async function _getNdjson<T>(path: string, params?: Record<string, string | undefined>, signal?: AbortSignal): Promise<T[]> {
-  const token = useAuthStore.getState().accessToken
+export async function _getNdjson<T>(
+  path: string,
+  params?: Record<string, string | undefined>,
+  signal?: AbortSignal,
+  accessToken?: string,
+): Promise<T[]> {
+  const token = resolveAccessToken(accessToken)
+  if (!token) throw new Error('Reference download failed (401).')
+
   const response = await fetch(apiUrl(path, params), {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    headers: { Authorization: `Bearer ${token}` },
     signal,
   })
   if (!response.ok) throw new Error(`Reference download failed (${response.status}).`)

@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { setApiBearerToken } from '@/api/auth-header'
 import { EMPTY_ENROLLMENT_FORM } from '@/features/enrollment/utils'
 import { createHouseholdMemberDraft, queueHouseholdDraft } from '@/features/household-enrollment/services/offline-household-enrollment.service'
 import { offlineDb } from '@/lib/offline-db'
@@ -95,6 +96,7 @@ function acknowledgement(sequence: number) {
 describe('enrollment synchronization', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
+    setApiBearerToken('test-access-token')
     await offlineDb.delete()
     await offlineDb.open()
     mocks.presignEnrollmentUpload.mockImplementation(async ({ purpose }: { purpose: string }) => ({

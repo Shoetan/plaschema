@@ -12,13 +12,13 @@ type WardApi = Omit<ReferenceWard, 'key' | 'ownerUserId'>
 type FacilityApi = Omit<ReferenceFacility, 'key' | 'ownerUserId'>
 
 /** GET /wards/stream */
-export async function downloadWards(signal?: AbortSignal) {
-  return _getNdjson<WardApi>('/wards/stream', undefined, signal)
+export async function downloadWards(accessToken: string, signal?: AbortSignal) {
+  return _getNdjson<WardApi>('/wards/stream', undefined, signal, accessToken)
 }
 
 /** GET /health-facilities/stream */
-export async function downloadFacilities(signal?: AbortSignal) {
-  return _getNdjson<FacilityApi>('/health-facilities/stream', undefined, signal)
+export async function downloadFacilities(accessToken: string, signal?: AbortSignal) {
+  return _getNdjson<FacilityApi>('/health-facilities/stream', undefined, signal, accessToken)
 }
 
 /** POST /enrollments/files/presign-upload */

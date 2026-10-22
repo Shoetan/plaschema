@@ -1,4 +1,5 @@
 import { getApiErrorCode, getApiErrorDetails, getApiErrorMessage, getApiErrorStatus } from '@/api'
+import { getApiBearerToken } from '@/api/auth-header'
 import { createHouseholdEnrollment, fetchHouseholdCodeCounters } from '@/features/household-enrollment/services/household-enrollment.service'
 import {
   applyHouseholdCodeCounters,
@@ -22,16 +23,22 @@ let queueInflight: Promise<boolean> | null = null
 const REFERENCE_MAX_AGE_MS = 24 * 60 * 60_000
 
 export async function syncHouseholdCodeCounters(ownerUserId: string) {
-  const accessToken = useAuthStore.getState().accessToken ?? undefined
+  const accessToken = resolveSyncAccessToken()
   if (!accessToken) return
   const counters = await fetchHouseholdCodeCounters({ accessToken })
   await applyHouseholdCodeCounters(ownerUserId, counters)
 }
 
+function resolveSyncAccessToken(): string | null {
+  return getApiBearerToken() ?? useAuthStore.getState().accessToken
+}
+
 export function syncReferenceData(ownerUserId: string, wardIds: string[]) {
   const existing = referenceInflight.get(ownerUserId)
   if (existing) return existing
-  const task = Promise.all([downloadWards(), downloadFacilities()])
+  const accessToken = resolveSyncAccessToken()
+  if (!accessToken) return Promise.resolve()
+  const task = Promise.all([downloadWards(accessToken), downloadFacilities(accessToken)])
     .then(([wards, facilities]) => replaceReferenceData(ownerUserId, wardIds, wards.map((ward) => ({
       ...ward,
       code: ward.code ?? ward.name.slice(0, 3).toUpperCase(),
