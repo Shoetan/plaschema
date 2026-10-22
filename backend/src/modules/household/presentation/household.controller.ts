@@ -59,7 +59,7 @@ export class HouseholdController {
   @ApiOkResponse({ type: HouseholdCodeCountersResponseDto })
   async codeCounters(@CurrentUser() user: AuthenticatedUser) {
     const data = await this.getHouseholdCodeCounters.execute(user);
-    return { data };
+    return { data, meta: null };
   }
 
   @Get(':id')

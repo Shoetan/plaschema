@@ -22,7 +22,9 @@ let queueInflight: Promise<boolean> | null = null
 const REFERENCE_MAX_AGE_MS = 24 * 60 * 60_000
 
 export async function syncHouseholdCodeCounters(ownerUserId: string) {
-  const counters = await fetchHouseholdCodeCounters()
+  const accessToken = useAuthStore.getState().accessToken ?? undefined
+  if (!accessToken) return
+  const counters = await fetchHouseholdCodeCounters({ accessToken })
   await applyHouseholdCodeCounters(ownerUserId, counters)
 }
 
